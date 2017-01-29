@@ -41,6 +41,19 @@
 #                               <lucas.costab@outlook.com>
 ################################################################################
 
+################################################################################
+# SET INTERNAL VARIABLE
+################################################################################
+DLOBJECT="(objectclass=zimbraDistributionList)"
+ACOBJECT="(objectclass=zimbraAccount)"
+SESSAO="distlist-"$(date  +%Y%m%d%H%M%S)
+TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
+TEMPSESSION=$(mktemp)
+TEMPACCOUNT=$(mktemp)
+MAILHOST="localhost"
+source /etc/zmbkpose/zmbkpose.conf
+################################################################################
+
 # show_help: It will show a quick help about each command from zmbackup
 show_help (){
   printf "Usage: zmbackup [-f|-i] [options] <mail>"
@@ -60,7 +73,7 @@ show_help (){
                            For all accounts, use the key word 'ALL' instead of a user mail."
 
   # All the options related to Full Backups will be put here
-  printf "\nFull|Incremental Backup Options:\n"
+  printf "\nFull Backup Options:\n"
 
   printf "\n -dl, --distributionlist : Execute a backup of a distributionlist instead of an account."
   printf "\n -rs, --resources        : Execute a backup of a resource instead of an account."
@@ -103,11 +116,11 @@ show_help (){
 notify_email_begin()
 {
   echo "Subject: Backup $1 begin at $(date)" >> /tmp/mail.txt
-  echo "This e-mail is just to inform you that the backup process that you scheduled already begin." >> /tmp/mail.txt
-  echo "Depending the quantity of accounts you have, this process can last hours or days." >> /tmp/mail.txt
-  echo "Don't worry, we will inform you when the process finish." >> /tmp/mail.txt
-  echo "" >> /tmp/mail.txt
-  echo "Regards," >> /tmp/mail.txt
+  echo "This e-mail is just to inform you that the backup process that you \
+        scheduled already begin." >> /tmp/mail.txt
+  echo "Depending the quantity of accounts you have, this process can last \
+        hours or days." >> /tmp/mail.txt
+  echo "Don't worry, we will inform you when the process finish."
   echo "Zmbackup Team" >> /tmp/mail.txt
   sendmail $EMAIL_NOTIFY < /tmp/mail.txt
   rm /tmp/mail.txt
@@ -119,24 +132,88 @@ notify_email_finish()
   if [ $1 == "OK" ]; then
     total=$(du -h $WORKDIR/$session | awk {'print $1'});
     echo "Subject: Backup $2 complete at $(date)" >> /tmp/mail.txt
-    echo "This e-mail is just to inform you that the backup process that you scheduled already finish with the status SUCCESS." >> /tmp/mail.txt
+    echo "This e-mail is just to inform you that the backup process that you \
+          scheduled already finish with the status SUCCESS." >> /tmp/mail.txt
     echo -e "\r\nTotal: $total " >> /tmp/mail.txt
     echo "" >> /tmp/mail.txt
     echo "Regards," >> /tmp/mail.txt
     echo "Zmbackup Team" >> /tmp/mail.txt
     echo ""
     echo "Summary of files:" >> /tmp/mail.txt
-    cat /tmp/list-$session >> /tmp/mail.txt
-  else:
+    cat /tmp/$session >> /tmp/mail.txt
+  else
     echo "Subject: Backup $2 complete at $(date)" >> /tmp/mail.txt
-    echo "This e-mail is just to inform you that the backup process that you scheduled already finish with the status FAILURE." >> /tmp/mail.txt
+    echo "This e-mail is just to inform you that the backup process that you \
+          scheduled already finish with the status FAILURE." >> /tmp/mail.txt
     echo "Check and correct what is preventing the backup before the next run."
     echo "" >> /tmp/mail.txt
     echo "Regards," >> /tmp/mail.txt
     echo "Zmbackup Team" >> /tmp/mail.txt
     echo ""
     echo "Summary of files:" >> /tmp/mail.txt
+    cat /tmp/$session >> /tmp/mail.txt
   fi
   sendmail $EMAIL_NOTIFY < /tmp/mail.txt
   rm /tmp/mail.txt
+}
+
+# Search the LDAP for all accounts and backup an account inside a LDIFF file.
+# Parameters:
+# $1 -> Inform the LDAP query to search;
+ldap_bkp()
+{
+  ldapsearch -x -H $LDAPSERVER \
+                -D $LDAPADMIN \
+                -w $LDAPPASS \
+                -b '' \
+                -LLL "$1" mail | \
+                grep ^mail | \
+                awk '{print $2}' > $TEMPACCOUNT
+  if [ $? -eq 0 ]; then
+    cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+                              "ldapsearch -x -H $LDAPSERVER \
+                                             -D $LDAPADMIN \
+                                             -w $LDAPPASS \
+                                             -b '' \
+                                             -LLL '(&(mail={})$DLOBJECT)' > $TEMPDIR/{}.ldiff"
+  else
+    notify_email_finish "NOK" $SESSION
+    exit 1
+  fi
+}
+
+# Backup all the distribution lists and the accounts associated to them
+backup_dl()
+{
+  SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
+  notify_email_begin $SESSION
+  echo "SESSAO: $SESSAO started on $(date)" >> $TEMPSESSION
+  ldap_bkp $DLOBJECT
+  mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
+  echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
+  cat $TEMPSESSION >> $WORKDIR/sessions.txt && rm -f "$TEMPSESSION"
+  echo "$(date) - Backup completed for $COUNT lists" >> $LOGFILE
+  notify_email_finish "OK" $SESSION
+}
+
+# Backup all the accounts - PARALLEL_SUPPORT
+backup_full()
+{
+  SESSION="full-"$(date  +%Y%m%d%H%M%S)
+  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+  ldap_bkp $ACOBJECT
+  notify_email_begin $SESSION
+  cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+           "wget -O $TEMPDIR/{}.tgz \
+                 --http-user $ADMINUSER \
+                 --http-passwd $ADMINPASS \
+                 https://$MAILHOST:7071/home/{}/?fmt=tgz \
+                 --no-check-certificate && \
+            echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt"
+  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+  echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
+  notify_email "FULL" $SESSION
+  notify_email_finish "OK" $SESSION
+  echo "$(date) - Backup completed for $COUNT account(s)" >> $LOGFILE
+  exit 0
 }
