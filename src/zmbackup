@@ -175,7 +175,7 @@ ldap_bkp()
                                              -D $LDAPADMIN \
                                              -w $LDAPPASS \
                                              -b '' \
-                                             -LLL '(&(mail={})$DLOBJECT)' > $TEMPDIR/{}.ldiff"
+                                             -LLL '(&(mail={})$1)' > $TEMPDIR/{}.ldiff"
   else
     notify_email_finish "NOK" $SESSION
     exit 1
