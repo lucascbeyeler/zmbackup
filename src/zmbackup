@@ -1,0 +1,142 @@
+#!/bin/bash
+################################################################################
+# zmbackup - Bash script to hot backup and hot restore Zimbra Collaboration
+#            Suite Opensource
+#
+# Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+################################################################################
+# zmbkpose:
+#
+# 26/10/2010 - Version 1.0.5 - By Alan Nikitiuk Milani
+#					                     <alan.milani@4linux.com.br>
+#					                     <niki.milani@gmail.com>
+#
+#                              Bruno Gurgel
+#						                   <bruno@4linux.com.br>
+#					                     <bruno.gurgel@gmail.com>
+#
+# 24/05/2012 - Version 2.0 Beta - By William Felipe Welter
+#                                 <william.welter@4linux.com.br>
+#                                 <wfelipew@gmail.com>
+################################################################################
+# zmbackup:
+#
+# 29/01/2017 - Version 1.0 - By Lucas Costa Beyeler
+#                               <lucas.beyeler@4linux.com.br>
+#                               <lucas.costab@outlook.com>
+################################################################################
+
+# show_help: It will show a quick help about each command from zmbackup
+show_help (){
+  printf "Usage: zmbackup [-f|-i] [options] <mail>"
+  printf "\n       zmbackup [-r] [options] <mail_origin> <mail_destination> <session>"
+  printf "\n       zmbackup [-d] [options] <mail> <session> <time> <days|weeks|months>"
+
+  # All the basic options will be put here.
+  printf "\nOptions:\n"
+
+  printf "\n -f, --full              : Execute full backup of an account, a list of accounts, or all accounts.
+                           For all accounts, use the key word 'ALL' instead of a user mail."
+  printf "\n -i, --incremental       : Execute incremental backup for an account, a list of accounts, or all accounts.
+                           For all accounts, use the key word 'ALL' instead of a user mail."
+  printf "\n -l, --list              : List all backup sessions that still exist in your disk."
+  printf "\n -r, --restore           : Restore the backup inside the users account."
+  printf "\n -d, --delete            : Delete a period of backup from an account, a list of accounts, or all accounts.
+                           For all accounts, use the key word 'ALL' instead of a user mail."
+
+  # All the options related to Full Backups will be put here
+  printf "\nFull|Incremental Backup Options:\n"
+
+  printf "\n -dl, --distributionlist : Execute a backup of a distributionlist instead of an account."
+  printf "\n -rs, --resources        : Execute a backup of a resource instead of an account."
+  printf "\n -ldp, --ldap            : Execute a backup of an account, a list of accounts, or all accounts, but
+                           only the ldap entry."
+  printf "\n -a, --agenda            : Execute a backup of an account, a list of accounts, or all accounts, but
+                           only the user's calendar."
+  printf "\n -c, --calendar          : Execute a backup of an account, a list of accounts, or all accounts, but
+                           only the user's contact list."
+
+  # All the options related to Restore Backups will be put here
+  printf "\nRestore Backup Options:\n"
+
+  printf "\n -dl, --distributionlist : Execute a restore of a distributionlist instead of an account."
+  printf "\n -rs, --resources        : Execute a restore of a resource instead of an account."
+  printf "\n -m, --mail              : Execute a restore of an account, a list of accounts, or all accounts, but
+                           only the messages."
+  printf "\n -ldp, --ldap            : Execute a restore of an account, a list of accounts, or all accounts, but
+                           only the ldap entry."
+  printf "\n -a, --agenda            : Execute a restore of an account, a list of accounts, or all accounts, but
+                           only the user's calendar."
+  printf "\n -c, --calendar          : Execute a restore of an account, a list of accounts, or all accounts, but
+                           only the user's contact list."
+  printf "\n-ro, --restoreOnAccount  : Execute a restore of an account inside another account."
+
+  # All the options related to Delete Backups will be put here
+  printf "\nDelete Backup Options:\n"
+
+  printf "\n -dl, --distributionlist : Delete a distributionlist instead of an account."
+  printf "\n -rs, --resources        : Delete a resource instead of an account."
+  printf "\n -m, --mail              : Delete an account, a list of accounts, or all accounts, but only the messages."
+  printf "\n -ldp, --ldap            : Delete an account, a list of accounts, or all accounts, but only the ldap entry."
+  printf "\n -a, --agenda            : Delete an account, a list of accounts, or all accounts, but only the user's calendar."
+  printf "\n -c, --calendar          : Delete an account, a list of accounts, or all accounts, but only the user's contact list."
+
+  printf "\n\n\n"
+}
+
+# Function to notify when the backup process began through e-mail
+notify_email_begin()
+{
+  echo "Subject: Backup $1 begin at $(date)" >> /tmp/mail.txt
+  echo "This e-mail is just to inform you that the backup process that you scheduled already begin." >> /tmp/mail.txt
+  echo "Depending the quantity of accounts you have, this process can last hours or days." >> /tmp/mail.txt
+  echo "Don't worry, we will inform you when the process finish." >> /tmp/mail.txt
+  echo "" >> /tmp/mail.txt
+  echo "Regards," >> /tmp/mail.txt
+  echo "Zmbackup Team" >> /tmp/mail.txt
+  sendmail $EMAIL_NOTIFY < /tmp/mail.txt
+  rm /tmp/mail.txt
+}
+
+# Function to notify when the backup process finish and the status through e-mail
+notify_email_finish()
+{
+  if [ $1 == "OK" ]; then
+    total=$(du -h $WORKDIR/$session | awk {'print $1'});
+    echo "Subject: Backup $2 complete at $(date)" >> /tmp/mail.txt
+    echo "This e-mail is just to inform you that the backup process that you scheduled already finish with the status SUCCESS." >> /tmp/mail.txt
+    echo -e "\r\nTotal: $total " >> /tmp/mail.txt
+    echo "" >> /tmp/mail.txt
+    echo "Regards," >> /tmp/mail.txt
+    echo "Zmbackup Team" >> /tmp/mail.txt
+    echo ""
+    echo "Summary of files:" >> /tmp/mail.txt
+    cat /tmp/list-$session >> /tmp/mail.txt
+  else:
+    echo "Subject: Backup $2 complete at $(date)" >> /tmp/mail.txt
+    echo "This e-mail is just to inform you that the backup process that you scheduled already finish with the status FAILURE." >> /tmp/mail.txt
+    echo "Check and correct what is preventing the backup before the next run."
+    echo "" >> /tmp/mail.txt
+    echo "Regards," >> /tmp/mail.txt
+    echo "Zmbackup Team" >> /tmp/mail.txt
+    echo ""
+    echo "Summary of files:" >> /tmp/mail.txt
+  fi
+  sendmail $EMAIL_NOTIFY < /tmp/mail.txt
+  rm /tmp/mail.txt
+}
