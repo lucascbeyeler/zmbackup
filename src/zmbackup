@@ -162,13 +162,19 @@ notify_email_finish()
 # $1 -> Inform the LDAP query to search;
 ldap_bkp()
 {
-  ldapsearch -x -H $LDAPSERVER \
-                -D $LDAPADMIN \
-                -w $LDAPPASS \
-                -b '' \
-                -LLL "$1" mail | \
-                grep ^mail | \
-                awk '{print $2}' > $TEMPACCOUNT
+  if [ -z $2 ]; then
+    ldapsearch -x -H $LDAPSERVER \
+                  -D $LDAPADMIN \
+                  -w $LDAPPASS \
+                  -b '' \
+                  -LLL "$1" mail | \
+                  grep ^mail | \
+                  awk '{print $2}' > $TEMPACCOUNT
+  else
+    for i in $(echo "$2" | sed 's/,/\n/g'); do
+      echo $i > $TEMPACCOUNT
+    done
+  fi
   if [ $? -eq 0 ]; then
     cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                               "ldapsearch -x -H $LDAPSERVER \
@@ -201,14 +207,18 @@ backup_full()
 {
   SESSION="full-"$(date  +%Y%m%d%H%M%S)
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  ldap_bkp $ACOBJECT
+  if [ -z $1 ]; then
+    ldap_bkp $ACOBJECT
+  else
+    ldap_bkp $ACOBJECT $1
+  fi
   notify_email_begin $SESSION
   cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
            "wget -O $TEMPDIR/{}.tgz \
                  --http-user $ADMINUSER \
                  --http-passwd $ADMINPASS \
                  https://$MAILHOST:7071/home/{}/?fmt=tgz \
-                 --no-check-certificate && \
+                 --no-check-certificate > /dev/null && \
             echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt"
   mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
   echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
@@ -216,4 +226,50 @@ backup_full()
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for $COUNT account(s)" >> $LOGFILE
   exit 0
+}
+
+
+# Backup all the accounts - PARALLEL_SUPPORT
+backup_incremental()
+{
+
+  #Check if exist a backup full. If not, do a backup full and not the incremental
+  FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
+  if !  (( -z "$FULLSESSIONLABEL" )) && (( -d "$WORKDIR/$FULLSESSIONLABEL" )); then
+    if [ -z $1 ]; then
+      backup_full
+    else
+      backup_full $1
+    fi
+    exit
+  fi
+
+  INCFROM=$(grep INCFROM: $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
+  SESSION="inc-"$(date  +%Y%m%d%H%M%S)
+  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+  if [ -z $1 ]; then
+    ldap_bkp $ACOBJECT
+  else
+    ldap_bkp $ACOBJECT $1
+  fi
+  notify_email_begin $SESSION
+  cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+           "wget -O $TEMPDIR/{}.tgz \
+                 --http-user $ADMINUSER \
+                 --http-passwd $ADMINPASS \
+                 https://$MAILHOST:7071/home/{}/?fmt=tgz&query=after:$INCFROM\
+                 --no-check-certificate > /dev/null && \
+            echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt"
+  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+  echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
+  notify_email "INCREMENTAL" $SESSION
+  notify_email_finish "OK" $SESSION
+  echo "$(date) - Backup completed for $COUNT account(s)" >> $LOGFILE
+  exit 0
+}
+
+list_sessions ()
+{
+	egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'iniciada|started' |  awk '{print $2}' | sort | uniq
+	exit 0
 }
