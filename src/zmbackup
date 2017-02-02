@@ -270,6 +270,19 @@ backup_incremental()
 
 list_sessions ()
 {
-	egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'iniciada|started' |  awk '{print $2}' | sort | uniq
-	exit 0
+  for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
+    SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+    OPT=$(echo $i | cut -d"-" -f1 )
+    printf "\nSession: $i\n    Size: $SIZE"
+    case $OPT in
+      "full") printf "\n    Type: Full Backup"
+      ;;
+      "inc") printf "\n    Type: Incremental Backup"
+      ;;
+      "distlist") printf "\n    Type: Distribution List Backup\n"
+      ;;
+    esac
 }
+
+restore_accounts ()
+{
