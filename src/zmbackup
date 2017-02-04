@@ -298,7 +298,7 @@ build_restore_list()
     done
   else
     echo $2 >> $TEMPSESSION
-  fi
+  fi  
 }
 
 restore_accounts_mail ()
@@ -307,7 +307,7 @@ restore_accounts_mail ()
   if ! [ -s $TEMPSESSION ]; then
     echo "No backup found. Impossible to restore"
   else
-    echo "Restore process started at - $(date)"
+    echo "Restore mail process started at - $(date)"
     for i in $TEMPSESSION:
       echo "Restoring Session - $i"
       if [ -z $3 ]; then
@@ -321,5 +321,26 @@ restore_accounts_mail ()
                        -u $ADMINUSER:$ADMINPASS
                        https://$MAILHOST:7071/home/{}/?fmt=tgz"
       echo "Session $i restored with SUCCESS"
-    echo "Restore process completed at - $(date)"
+    echo "Restore mail process completed at - $(date)"
+}
+
+restore_accounts_ldap ()
+{
+  build_restore_list $1 $2
+  if ! [ -s $TEMPSESSION ]; then
+    echo "No backup found. Impossible to restore"
+  else
+    echo "Restore LDAP process started at - $(date)"
+    for i in $TEMPSESSION:
+      echo "Restoring Session - $i"
+      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+               "ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c
+                           -w $LDAPPASS
+                           $(grep ^dn: $WORKDIR/$i/{}.ldiff \
+                           | awk '{print $2}') 2>/dev/null"
+       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+                "ldapadd -x -H $LDAPSERVER -D $LDAPADMIN
+                         -c -w $LDAPPASS -f $WORKDIR/$i/{}.ldiff"
+      echo "Session $i restored with SUCCESS"
+    echo "Restore LDAP process completed at - $(date)"
 }
