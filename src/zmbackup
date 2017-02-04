@@ -79,10 +79,6 @@ show_help (){
   printf "\n -rs, --resources        : Execute a backup of a resource instead of an account."
   printf "\n -ldp, --ldap            : Execute a backup of an account, a list of accounts, or all accounts, but
                            only the ldap entry."
-  printf "\n -a, --agenda            : Execute a backup of an account, a list of accounts, or all accounts, but
-                           only the user's calendar."
-  printf "\n -c, --calendar          : Execute a backup of an account, a list of accounts, or all accounts, but
-                           only the user's contact list."
 
   # All the options related to Restore Backups will be put here
   printf "\nRestore Backup Options:\n"
@@ -93,10 +89,6 @@ show_help (){
                            only the messages."
   printf "\n -ldp, --ldap            : Execute a restore of an account, a list of accounts, or all accounts, but
                            only the ldap entry."
-  printf "\n -a, --agenda            : Execute a restore of an account, a list of accounts, or all accounts, but
-                           only the user's calendar."
-  printf "\n -c, --calendar          : Execute a restore of an account, a list of accounts, or all accounts, but
-                           only the user's contact list."
   printf "\n-ro, --restoreOnAccount  : Execute a restore of an account inside another account."
 
   # All the options related to Delete Backups will be put here
@@ -106,8 +98,6 @@ show_help (){
   printf "\n -rs, --resources        : Delete a resource instead of an account."
   printf "\n -m, --mail              : Delete an account, a list of accounts, or all accounts, but only the messages."
   printf "\n -ldp, --ldap            : Delete an account, a list of accounts, or all accounts, but only the ldap entry."
-  printf "\n -a, --agenda            : Delete an account, a list of accounts, or all accounts, but only the user's calendar."
-  printf "\n -c, --calendar          : Delete an account, a list of accounts, or all accounts, but only the user's contact list."
 
   printf "\n\n\n"
 }
@@ -172,7 +162,7 @@ ldap_bkp()
                   awk '{print $2}' > $TEMPACCOUNT
   else
     for i in $(echo "$2" | sed 's/,/\n/g'); do
-      echo $i > $TEMPACCOUNT
+      echo $i >> $TEMPACCOUNT
     done
   fi
   if [ $? -eq 0 ]; then
@@ -235,7 +225,7 @@ backup_incremental()
 
   #Check if exist a backup full. If not, do a backup full and not the incremental
   FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
-  if !  (( -z "$FULLSESSIONLABEL" )) && (( -d "$WORKDIR/$FULLSESSIONLABEL" )); then
+  if ! [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
     if [ -z $1 ]; then
       backup_full
     else
@@ -284,5 +274,52 @@ list_sessions ()
     esac
 }
 
-restore_accounts ()
+build_restore_list()
 {
+  INBETWEEN=0
+  if [[ *"@"* == $1 ]]; then
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
+      echo $i >> $TEMPACCOUNT
+    done
+  else
+    grep $2 $WORKDIR/sessions.txt | tail -1 | awk '{print $2}' > $TEMPACCOUNT
+  fi
+  if [[ "full-"* == $2 ]]; then
+    for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
+      if [[ $2 ==  $i ]]; then
+        echo $i >> $TEMPSESSION
+        INBETWEEN=1
+      fi
+      if [[ $INBETWEEN -eq 1  && "inc-"* == $i ]]; then
+        echo $i >> $TEMPSESSION
+      else
+        break
+      fi
+    done
+  else
+    echo $2 >> $TEMPSESSION
+  fi
+}
+
+restore_accounts_mail ()
+{
+  build_restore_list $1 $2
+  if ! [ -s $TEMPSESSION ]; then
+    echo "No backup found. Impossible to restore"
+  else
+    echo "Restore process started at - $(date)"
+    for i in $TEMPSESSION:
+      echo "Restoring Session - $i"
+      if [ -z $3 ]; then
+        cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+                 "curl -k --data-binary @$WORKDIR/$i/{}.tgz
+                       -u $ADMINUSER:$ADMINPASS
+                       https://$MAILHOST:7071/home/$3/?fmt=tgz"
+      else
+        cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+                 "curl -k --data-binary @$WORKDIR/$i/{}.tgz
+                       -u $ADMINUSER:$ADMINPASS
+                       https://$MAILHOST:7071/home/{}/?fmt=tgz"
+      echo "Session $i restored with SUCCESS"
+    echo "Restore process completed at - $(date)"
+}
