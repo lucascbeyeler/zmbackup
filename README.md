@@ -8,7 +8,7 @@ Requirements
 
 * Zimbra Collaboration Suite Opensource 8.6 or higher;
 * GNU Wget - a computer program that retrieves content from web servers;
-* GNU Parallel - a shell tool for executing jobs in parallel using one or more computers;
+* GNU Parallel - a shell tool for executing jobs in parallel using one or more CPU;
 * cURL - A command line tool and library for transferring data with URL syntax;
 
 Instalation
