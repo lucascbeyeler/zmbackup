@@ -429,6 +429,8 @@ validate()
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
 
+validate()
+
 case "$1" in
   @("-f","--full") )
     echo "Running the Full Backup - Please wait..."
@@ -481,6 +483,9 @@ case "$1" in
   ;;
   @("-d","--delete") )
     rotate_backup $1
+  ;;
+  @("-h","--help") )
+    show_help()
   ;;
   * )
     echo "Error! Incorrect options"
