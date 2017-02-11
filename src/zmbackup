@@ -114,8 +114,11 @@ notify_email_begin()
         scheduled already begin." >> /tmp/mail.txt
   echo "Depending the quantity of accounts you have, this process can last \
         hours or days." >> /tmp/mail.txt
-  echo "Don't worry, we will inform you when the process finish."
+  echo "Don't worry, we will inform you when the process finish." >> /tmp/mail.txt
+  echo "" >> /tmp/mail.txt
+  echo "Regards," >> /tmp/mail.txt
   echo "Zmbackup Team" >> /tmp/mail.txt
+  echo "" >> /tmp/mail.txt
   sendmail $EMAIL_NOTIFY < /tmp/mail.txt
   rm /tmp/mail.txt
 }
@@ -329,15 +332,14 @@ build_restore_list()
       echo $i >> $TEMPACCOUNT
     done
   else
-    grep $1 $WORKDIR/sessions.txt | tail -1 | awk '{print $2}' > $TEMPACCOUNT
+    grep $1 /backup/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
   fi
-  if [[ "full-"* == $1 ]]; then
+  if [[ "$1" == "full-"* ]]; then
     for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-      if [[ $1 ==  $i ]]; then
+      if [[ "$1" ==  "$i" ]]; then
         echo $i >> $TEMPSESSION
         INBETWEEN=1
-      fi
-      if [[ $INBETWEEN -eq 1  && "inc-"* == $i ]]; then
+      elif [[ "$INBETWEEN" -eq 1 ]] && [[ "$i" == "inc-"* ]]; then
         echo $i >> $TEMPSESSION
       else
         break
@@ -355,18 +357,18 @@ restore_accounts_mail ()
     echo "No backup found. Impossible to restore"
   else
     echo "Restore mail process started at - $(date)"
-    for i in $TEMPSESSION; do
+    for i in $(cat $TEMPSESSION); do
       echo "Restoring Session - $i"
-      if [ -z $3 ]; then
+      if ! [ -z $3 ]; then
         cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-                 "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz
-                       -u $ADMINUSER:$ADMINPASS
-                       https://$MAILHOST:7071/home/$3/?fmt=tgz"
+                 "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
+                       -u $ADMINUSER:$ADMINPASS \
+                       https://$MAILHOST:7071/home/$3/?fmt=tgz > /dev/null"
       else
-        cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-                 "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz
-                       -u $ADMINUSER:$ADMINPASS
-                       https://$MAILHOST:7071/home/{}/?fmt=tgz"
+        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+                 "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
+                       -u $ADMINUSER:$ADMINPASS \
+                       https://$MAILHOST:7071/home/{}/?fmt=tgz > /dev/null"
       fi
       echo "Session $i restored with SUCCESS"
     done
