@@ -156,8 +156,8 @@ ldap_bkp()
                   -D $LDAPADMIN \
                   -w $LDAPPASS \
                   -b '' \
-                  -LLL "$1" mail | \
-                  grep ^mail | \
+                  -LLL "$1" zimbraMailDeliveryAddress | \
+                  grep '^zimbraMail' | \
                   awk '{print $2}' > $TEMPACCOUNT
   else
     for i in $(echo "$2" | sed 's/,/\n/g'); do
@@ -170,7 +170,7 @@ ldap_bkp()
                                              -D $LDAPADMIN \
                                              -w $LDAPPASS \
                                              -b '' \
-                                             -LLL '(&(mail={})$1)' > $TEMPDIR/{}.ldiff"
+                                             -LLL '(&(zimbraMailDeliveryAddress={})$1)' > $TEMPDIR/{}.ldiff"
   else
     notify_email_finish "NOK" $SESSION
     exit 1
@@ -222,9 +222,10 @@ backup_full()
                  --http-passwd $ADMINPASS \
                  https://$MAILHOST:7071/home/{}/?fmt=tgz \
                  --no-check-certificate && \
-            echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt" > /dev/null
+            echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
-  echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
+  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+  cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   exit 0
@@ -236,7 +237,7 @@ backup_incremental()
 {
   #Check if exist a backup full. If not, do a backup full and not the incremental
   FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
-  if ! [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
+  if [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
     if [ -z $1 ]; then
       backup_full
     else
@@ -258,11 +259,12 @@ backup_incremental()
            "wget --quiet -O $TEMPDIR/{}.tgz \
                  --http-user $ADMINUSER \
                  --http-passwd $ADMINPASS \
-                 https://$MAILHOST:7071/home/{}/?fmt=tgz&query=after:$INCFROM\
-                 --no-check-certificate > /dev/null && \
-            echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt"
+                 'https://$MAILHOST:7071/home/{}/?fmt=tgz&query=after:$INCFROM' \
+                 --no-check-certificate && \
+            echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
-  echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
+  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+  cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   exit 0
@@ -275,9 +277,9 @@ list_sessions ()
     OPT=$(echo $i | cut -d"-" -f1 )
     printf "\nSession: $i\n    Size: $SIZE"
     case $OPT in
-      "full") printf "\n    Type: Full Backup"
+      "full") printf "\n    Type: Full Backup\n"
       ;;
-      "inc") printf "\n    Type: Incremental Backup"
+      "inc") printf "\n    Type: Incremental Backup\n"
       ;;
       "distlist") printf "\n    Type: Distribution List Backup\n"
       ;;
