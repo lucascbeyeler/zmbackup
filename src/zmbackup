@@ -46,19 +46,26 @@
 ################################################################################
 DLOBJECT="(objectclass=zimbraDistributionList)"
 ACOBJECT="(objectclass=zimbraAccount)"
+ALOBJECT="(objectclass=zimbraAlias)"
 SESSAO="distlist-"$(date  +%Y%m%d%H%M%S)
 TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
 TEMPSESSION=$(mktemp)
 TEMPACCOUNT=$(mktemp)
 MAILHOST="localhost"
 source /etc/zmbkpose/zmbkpose.conf
+source /opt/zimbra/.bashrc
+################################################################################
+
+################################################################################
+# ZMBACKUP FUNCTIONS
 ################################################################################
 
 # show_help: It will show a quick help about each command from zmbackup
 show_help (){
-  printf "Usage: zmbackup [-f|-i] [options] <mail>"
+  printf "Usage: zmbackup [-f] [options] <mail>"
+  printf "\n       zmbackup [-i] <mail>"
   printf "\n       zmbackup [-r] [options] <mail_origin> <mail_destination> <session>"
-  printf "\n       zmbackup [-d] [options] <mail> <session> <time> <days|weeks|months>"
+  printf "\n       zmbackup [-d] <session>"
 
   # All the basic options will be put here.
   printf "\nOptions:\n"
@@ -76,7 +83,7 @@ show_help (){
   printf "\nFull Backup Options:\n"
 
   printf "\n -dl, --distributionlist : Execute a backup of a distributionlist instead of an account."
-  printf "\n -rs, --resources        : Execute a backup of a resource instead of an account."
+  printf "\n -al, --alias            : Execute a backup of a alias instead of an account."
   printf "\n -ldp, --ldap            : Execute a backup of an account, a list of accounts, or all accounts, but
                            only the ldap entry."
 
@@ -84,20 +91,11 @@ show_help (){
   printf "\nRestore Backup Options:\n"
 
   printf "\n -dl, --distributionlist : Execute a restore of a distributionlist instead of an account."
-  printf "\n -rs, --resources        : Execute a restore of a resource instead of an account."
   printf "\n -m, --mail              : Execute a restore of an account, a list of accounts, or all accounts, but
                            only the messages."
   printf "\n -ldp, --ldap            : Execute a restore of an account, a list of accounts, or all accounts, but
                            only the ldap entry."
   printf "\n-ro, --restoreOnAccount  : Execute a restore of an account inside another account."
-
-  # All the options related to Delete Backups will be put here
-  printf "\nDelete Backup Options:\n"
-
-  printf "\n -dl, --distributionlist : Delete a distributionlist instead of an account."
-  printf "\n -rs, --resources        : Delete a resource instead of an account."
-  printf "\n -m, --mail              : Delete an account, a list of accounts, or all accounts, but only the messages."
-  printf "\n -ldp, --ldap            : Delete an account, a list of accounts, or all accounts, but only the ldap entry."
 
   printf "\n\n\n"
 }
@@ -188,7 +186,21 @@ backup_dl()
   mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
   echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
   cat $TEMPSESSION >> $WORKDIR/sessions.txt && rm -f "$TEMPSESSION"
-  echo "$(date) - Backup completed for $COUNT lists" >> $LOGFILE
+  echo "$(date) - Backup completed for all lists" >> $LOGFILE
+  notify_email_finish "OK" $SESSION
+}
+
+# Backup all the alias
+backup_alias()
+{
+  SESSION="alias-"$(date  +%Y%m%d%H%M%S)
+  notify_email_begin $SESSION
+  echo "SESSAO: $SESSAO started on $(date)" >> $TEMPSESSION
+  ldap_bkp $ALOBJECT
+  mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
+  echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
+  cat $TEMPSESSION >> $WORKDIR/sessions.txt && rm -f "$TEMPSESSION"
+  echo "$(date) - Backup completed for all alias" >> $LOGFILE
   notify_email_finish "OK" $SESSION
 }
 
@@ -214,7 +226,7 @@ backup_full()
   echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
   notify_email "FULL" $SESSION
   notify_email_finish "OK" $SESSION
-  echo "$(date) - Backup completed for $COUNT account(s)" >> $LOGFILE
+  echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   exit 0
 }
 
@@ -254,7 +266,7 @@ backup_incremental()
   echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
   notify_email "INCREMENTAL" $SESSION
   notify_email_finish "OK" $SESSION
-  echo "$(date) - Backup completed for $COUNT account(s)" >> $LOGFILE
+  echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   exit 0
 }
 
@@ -277,16 +289,16 @@ list_sessions ()
 build_restore_list()
 {
   INBETWEEN=0
-  if [[ *"@"* == $1 ]]; then
-    for i in $(echo "$1" | sed 's/,/\n/g'); do
+  if [[ *"@"* == $2 ]]; then
+    for i in $(echo "$2" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
   else
-    grep $2 $WORKDIR/sessions.txt | tail -1 | awk '{print $2}' > $TEMPACCOUNT
+    grep $1 $WORKDIR/sessions.txt | tail -1 | awk '{print $2}' > $TEMPACCOUNT
   fi
-  if [[ "full-"* == $2 ]]; then
+  if [[ "full-"* == $1 ]]; then
     for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-      if [[ $2 ==  $i ]]; then
+      if [[ $1 ==  $i ]]; then
         echo $i >> $TEMPSESSION
         INBETWEEN=1
       fi
@@ -297,8 +309,8 @@ build_restore_list()
       fi
     done
   else
-    echo $2 >> $TEMPSESSION
-  fi  
+    echo $1 >> $TEMPSESSION
+  fi
 }
 
 restore_accounts_mail ()
@@ -344,3 +356,133 @@ restore_accounts_ldap ()
       echo "Session $i restored with SUCCESS"
     echo "Restore LDAP process completed at - $(date)"
 }
+
+rotate_backup()
+{
+  cp $WORKDIR/sessions.txt $WORKDIR/sessions.txt.old
+
+	grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
+		if [ "$(echo ${line} | cut -d- -f2)" -lt "$1" ]; then
+		   [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Exclude session "${line}"
+		   grep -v "${line}" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+		   mv $WORKDIR/.sessions.txt $WORKDIR/sessions.txt
+		fi
+	done
+
+	rm $WORKDIR/.sessions.txt -f
+	exit 0
+}
+
+################################################################################
+# CHECK IF THE ZMBACKUP.CONF IS CONFIGURED CORRECTLY
+################################################################################
+
+validate()
+{
+  if ! [ -z "$BACKUPUSER" ]; then
+  	if [ "$(id -u)" != "$(id -u $BACKUPUSER)" ]; then
+  		echo "You need to be $BACKUPUSER to run this script"
+  		exit 0
+  	fi
+  else
+  	echo "You need to define the variable BACKUPUSER"
+  	exit 0
+  fi
+
+  if ! [ -z "$WORKDIR" ]; then
+          if ! [ -d "$WORKDIR" ]; then
+                  echo "The directory $WORKDIR doesn't exist"
+                  exit 0
+          fi
+  else
+          echo "You need to define the variable WORKDIR"
+          exit 0
+  fi
+
+  if [ -z "$ADMINUSER" ]; then
+          echo "You need to define the variable ADMINUSER"
+          exit 0
+  fi
+
+  if [ -z "$ADMINPASS" ]; then
+          echo "You need to define the variable ADMINPASS"
+          exit 0
+  fi
+
+  if [ -z "$LDAPSERVER" ]; then
+          echo "You need to define the variable LDAPMASTERSERVER"
+          exit 0
+  fi
+
+  if [ -z "$LDAPADMIN" ]; then
+          echo "You need to define the variable LDAPZIMBRADN"
+          exit 0
+  fi
+
+  if [ -z "$LDAPPASS" ]; then
+          echo "You need to define the variable LDAPZIMBRAPASS"
+          exit 0
+  fi
+}
+
+################################################################################
+# MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
+################################################################################
+
+case "$1" in
+  @("-f","--full") )
+    echo "Running the Full Backup - Please wait..."
+    case "$2" in
+      @("-dl","--distributionlist") )
+        backup_dl $3
+      ;;
+      @("-al","--alias") )
+        backup_alias $3
+      ;;
+      @("-ldp","--ldap") )
+        ldap_bkp $3
+      * )
+        backup_full $2
+    esac
+    echo "Backup finished!"
+  ;;
+  @("-i","--incremental") )
+    echo "Running the Incremental Backup - Please wait..."
+    backup_incremental $2
+    echo "Backup finished!"
+  ;;
+  @("-l","--list") )
+    list_sessions
+  ;;
+  @("-r","--restore") )
+    echo "Running the Restore - Please wait..."
+    case "$2" in
+      @("-dl","--distributionlist") )
+        restore_accounts_ldap $3 $4
+      ;;
+      @("-al","--alias") )
+        restore_accounts_ldap $3 $4
+      ;;
+      @("-ldp","--ldap") )
+        restore_accounts_ldap $3 $4
+      ;;
+      @("-ro","--restoreOnAccount") )
+        restore_accounts_mail $3 $4 $5
+      ;;
+      @("-m","--mail") )
+        restore_accounts_mail $3 $4
+      ;;
+      * )
+        echo "Error! Incorrect options"
+      ;;
+    esac
+    echo "Restore completed!"
+  esac
+  ;;
+  @("-d","--delete") )
+    rotate_backup $1
+  ;;
+  * )
+    echo "Error! Incorrect options"
+  ;;
+esac
