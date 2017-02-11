@@ -53,6 +53,7 @@ SESSAO="distlist-"$(date  +%Y%m%d%H%M%S)
 TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
 TEMPSESSION=$(mktemp)
 TEMPACCOUNT=$(mktemp)
+TEMPINCACCOUNT=$(mktemp)
 MAILHOST="localhost"
 ################################################################################
 
@@ -158,12 +159,20 @@ ldap_bkp()
                   -b '' \
                   -LLL "$1" zimbraMailDeliveryAddress | \
                   grep '^zimbraMail' | \
-                  awk '{print $2}' > $TEMPACCOUNT
+                  awk '{print $2}' > $TEMPINCACCOUNT
   else
     for i in $(echo "$2" | sed 's/,/\n/g'); do
-      echo $i >> $TEMPACCOUNT
+      echo $i >> $TEMPINCACCOUNT
     done
   fi
+  for i in $(cat $TEMPINCACCOUNT); do
+    EXIST=$(grep $i $WORKDIR/sessions.txt | grep -v ^WARN | tail -1 | awk -F: '{print $3}') 2> /dev/null
+    if [ "$EXIST" = "$(date +%m/%d/%y)" ]; then
+      echo "WARN:  $i already has backup today. Nothing to do."
+    else
+      echo $i >> $TEMPACCOUNT
+    fi
+  done
   if [ $? -eq 0 ]; then
     cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                               "ldapsearch -x -H $LDAPSERVER \
@@ -259,7 +268,9 @@ backup_incremental()
            "wget --quiet -O $TEMPDIR/{}.tgz \
                  --http-user $ADMINUSER \
                  --http-passwd $ADMINPASS \
-                 'https://$MAILHOST:7071/home/{}/?fmt=tgz&query=after:$INCFROM' \
+                 'https://$MAILHOST:7071/home/{}/?fmt=tgz&query=after:\
+                      $(grep {} $WORKDIR/sessions.txt | \
+                        grep -v ^WARN | tail -1 | awk -F: '{print $3}')' \
                  --no-check-certificate && \
             echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
