@@ -44,6 +44,8 @@
 ################################################################################
 # SET INTERNAL VARIABLE
 ################################################################################
+source /etc/zmbkpose/zmbackup.conf
+source /opt/zimbra/.bashrc
 DLOBJECT="(objectclass=zimbraDistributionList)"
 ACOBJECT="(objectclass=zimbraAccount)"
 ALOBJECT="(objectclass=zimbraAlias)"
@@ -52,8 +54,6 @@ TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
 TEMPSESSION=$(mktemp)
 TEMPACCOUNT=$(mktemp)
 MAILHOST="localhost"
-source /etc/zmbkpose/zmbkpose.conf
-source /opt/zimbra/.bashrc
 ################################################################################
 
 ################################################################################
@@ -118,7 +118,7 @@ notify_email_begin()
 notify_email_finish()
 {
   if [ $1 == "OK" ]; then
-    total=$(du -h $WORKDIR/$session | awk {'print $1'});
+    total=$(du -h $WORKDIR/$SESSION | awk {'print $1'});
     echo "Subject: Backup $2 complete at $(date)" >> /tmp/mail.txt
     echo "This e-mail is just to inform you that the backup process that you \
           scheduled already finish with the status SUCCESS." >> /tmp/mail.txt
@@ -128,7 +128,7 @@ notify_email_finish()
     echo "Zmbackup Team" >> /tmp/mail.txt
     echo ""
     echo "Summary of files:" >> /tmp/mail.txt
-    cat /tmp/$session >> /tmp/mail.txt
+    cat $TEMPSESSION >> /tmp/mail.txt
   else
     echo "Subject: Backup $2 complete at $(date)" >> /tmp/mail.txt
     echo "This e-mail is just to inform you that the backup process that you \
@@ -139,10 +139,11 @@ notify_email_finish()
     echo "Zmbackup Team" >> /tmp/mail.txt
     echo ""
     echo "Summary of files:" >> /tmp/mail.txt
-    cat /tmp/$session >> /tmp/mail.txt
+    cat $TEMPSESSION >> /tmp/mail.txt
   fi
   sendmail $EMAIL_NOTIFY < /tmp/mail.txt
   rm /tmp/mail.txt
+  rm -f "$TEMPSESSION"
 }
 
 # Search the LDAP for all accounts and backup an account inside a LDIFF file.
@@ -164,7 +165,7 @@ ldap_bkp()
     done
   fi
   if [ $? -eq 0 ]; then
-    cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                               "ldapsearch -x -H $LDAPSERVER \
                                              -D $LDAPADMIN \
                                              -w $LDAPPASS \
@@ -185,7 +186,7 @@ backup_dl()
   ldap_bkp $DLOBJECT
   mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
   echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
-  cat $TEMPSESSION >> $WORKDIR/sessions.txt && rm -f "$TEMPSESSION"
+  cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all lists" >> $LOGFILE
   notify_email_finish "OK" $SESSION
 }
@@ -199,7 +200,7 @@ backup_alias()
   ldap_bkp $ALOBJECT
   mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
   echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
-  cat $TEMPSESSION >> $WORKDIR/sessions.txt && rm -f "$TEMPSESSION"
+  cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all alias" >> $LOGFILE
   notify_email_finish "OK" $SESSION
 }
@@ -215,16 +216,15 @@ backup_full()
     ldap_bkp $ACOBJECT $1
   fi
   notify_email_begin $SESSION
-  cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-           "wget -O $TEMPDIR/{}.tgz \
+  cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+           "wget --quiet -O $TEMPDIR/{}.tgz \
                  --http-user $ADMINUSER \
                  --http-passwd $ADMINPASS \
                  https://$MAILHOST:7071/home/{}/?fmt=tgz \
-                 --no-check-certificate > /dev/null && \
-            echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt"
-  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+                 --no-check-certificate && \
+            echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt" > /dev/null
+  mv "$TEMPDIR" "$WORKDIR/$SESSION"
   echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
-  notify_email "FULL" $SESSION
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   exit 0
@@ -234,7 +234,6 @@ backup_full()
 # Backup all the accounts - PARALLEL_SUPPORT
 backup_incremental()
 {
-
   #Check if exist a backup full. If not, do a backup full and not the incremental
   FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
   if ! [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
@@ -255,16 +254,15 @@ backup_incremental()
     ldap_bkp $ACOBJECT $1
   fi
   notify_email_begin $SESSION
-  cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-           "wget -O $TEMPDIR/{}.tgz \
+  cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+           "wget --quiet -O $TEMPDIR/{}.tgz \
                  --http-user $ADMINUSER \
                  --http-passwd $ADMINPASS \
                  https://$MAILHOST:7071/home/{}/?fmt=tgz&query=after:$INCFROM\
                  --no-check-certificate > /dev/null && \
             echo $SESSION:{}:$(date +%m/%d/%y) >> $WORKDIR/sessions.txt"
-  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+  mv "$TEMPDIR" "$WORKDIR/$SESSION"
   echo "SESSION: $SESSION completed in $(date)" >> $WORKDIR/sessions.txt
-  notify_email "INCREMENTAL" $SESSION
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   exit 0
@@ -284,6 +282,7 @@ list_sessions ()
       "distlist") printf "\n    Type: Distribution List Backup\n"
       ;;
     esac
+  done
 }
 
 build_restore_list()
@@ -320,20 +319,23 @@ restore_accounts_mail ()
     echo "No backup found. Impossible to restore"
   else
     echo "Restore mail process started at - $(date)"
-    for i in $TEMPSESSION:
+    for i in $TEMPSESSION; do
       echo "Restoring Session - $i"
       if [ -z $3 ]; then
-        cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-                 "curl -k --data-binary @$WORKDIR/$i/{}.tgz
+        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+                 "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz
                        -u $ADMINUSER:$ADMINPASS
                        https://$MAILHOST:7071/home/$3/?fmt=tgz"
       else
         cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-                 "curl -k --data-binary @$WORKDIR/$i/{}.tgz
+                 "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz
                        -u $ADMINUSER:$ADMINPASS
                        https://$MAILHOST:7071/home/{}/?fmt=tgz"
+      fi
       echo "Session $i restored with SUCCESS"
+    done
     echo "Restore mail process completed at - $(date)"
+  fi
 }
 
 restore_accounts_ldap ()
@@ -343,9 +345,9 @@ restore_accounts_ldap ()
     echo "No backup found. Impossible to restore"
   else
     echo "Restore LDAP process started at - $(date)"
-    for i in $TEMPSESSION:
+    for i in $TEMPSESSION; do
       echo "Restoring Session - $i"
-      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
+      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                "ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c
                            -w $LDAPPASS
                            $(grep ^dn: $WORKDIR/$i/{}.ldiff \
@@ -354,7 +356,9 @@ restore_accounts_ldap ()
                 "ldapadd -x -H $LDAPSERVER -D $LDAPADMIN
                          -c -w $LDAPPASS -f $WORKDIR/$i/{}.ldiff"
       echo "Session $i restored with SUCCESS"
+    done
     echo "Restore LDAP process completed at - $(date)"
+  fi
 }
 
 rotate_backup()
@@ -410,7 +414,7 @@ validate()
   fi
 
   if [ -z "$LDAPSERVER" ]; then
-          echo "You need to define the variable LDAPMASTERSERVER"
+          echo "You need to define the variable LDAPSERVER"
           exit 0
   fi
 
@@ -429,49 +433,50 @@ validate()
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
 
-validate()
+validate
 
 case "$1" in
-  @("-f","--full") )
+  "-f"|"--full" )
     echo "Running the Full Backup - Please wait..."
     case "$2" in
-      @("-dl","--distributionlist") )
+      "-dl"|"--distributionlist" )
         backup_dl $3
       ;;
-      @("-al","--alias") )
+      "-al"|"--alias" )
         backup_alias $3
       ;;
-      @("-ldp","--ldap") )
+      "-ldp"|"--ldap" )
         ldap_bkp $3
+      ;;
       * )
         backup_full $2
     esac
     echo "Backup finished!"
   ;;
-  @("-i","--incremental") )
+  "-i"|"--incremental" )
     echo "Running the Incremental Backup - Please wait..."
     backup_incremental $2
     echo "Backup finished!"
   ;;
-  @("-l","--list") )
+  "-l"|"--list" )
     list_sessions
   ;;
-  @("-r","--restore") )
+  "-r"|"--restore" )
     echo "Running the Restore - Please wait..."
     case "$2" in
-      @("-dl","--distributionlist") )
+      "-dl"|"--distributionlist" )
         restore_accounts_ldap $3 $4
       ;;
-      @("-al","--alias") )
+      "-al"|"--alias" )
         restore_accounts_ldap $3 $4
       ;;
-      @("-ldp","--ldap") )
+      "-ldp"|"--ldap" )
         restore_accounts_ldap $3 $4
       ;;
-      @("-ro","--restoreOnAccount") )
+      "-ro"|"--restoreOnAccount" )
         restore_accounts_mail $3 $4 $5
       ;;
-      @("-m","--mail") )
+      "-m"|"--mail" )
         restore_accounts_mail $3 $4
       ;;
       * )
@@ -479,13 +484,12 @@ case "$1" in
       ;;
     esac
     echo "Restore completed!"
-  esac
   ;;
-  @("-d","--delete") )
+  "-d"|"--delete" )
     rotate_backup $1
   ;;
-  @("-h","--help") )
-    show_help()
+  "-h"|"--help" )
+    show_help
   ;;
   * )
     echo "Error! Incorrect options"
