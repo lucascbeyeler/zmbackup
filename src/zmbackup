@@ -44,7 +44,7 @@
 ################################################################################
 # SET INTERNAL VARIABLE
 ################################################################################
-source /etc/zmbkpose/zmbackup.conf
+source /etc/zmbackup/zmbackup.conf
 source /opt/zimbra/.bashrc
 export DLOBJECT="(objectclass=zimbraDistributionList)"
 export ACOBJECT="(objectclass=zimbraAccount)"
