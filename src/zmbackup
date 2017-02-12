@@ -531,19 +531,32 @@ case "$1" in
   "-r"|"--restore" )
     case "$2" in
       "-dl"|"--distributionlist" )
-        restore_accounts_ldap $3 $4
-      ;;
-      "-al"|"--alias" )
-        restore_accounts_ldap $3 $4
+        if [ -z "$3" ]; then
+          echo "Error! Please inform the session that should be restored"
+        else
+          restore_accounts_ldap $3 $4
+        fi
       ;;
       "-ldp"|"--ldap" )
+      if [ -z "$3" ]; then
+        echo "Error! Please inform the session that should be restored"
+      else
         restore_accounts_ldap $3 $4
+      fi
       ;;
       "-ro"|"--restoreOnAccount" )
+      if [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
+        echo "Error! Please inform the session, the account that should be restored, and when the restore should be placed."
+      else
         restore_accounts_mail $5 $3 $4
+      fi
       ;;
       "-m"|"--mail" )
+      if [ -z "$3" ]; then
+        echo "Error! Please inform the session that should be restored"
+      else
         restore_accounts_mail $3 $4
+      fi
       ;;
       * )
         echo "Error! Incorrect options"
@@ -551,7 +564,11 @@ case "$1" in
     esac
   ;;
   "-d"|"--delete" )
+  if [ -z "$3" ]; then
+    echo "Error! Please inform the session that should be deleted"
+  else
     rotate_backup $2
+  fi
   ;;
   "-h"|"--help" )
     show_help
