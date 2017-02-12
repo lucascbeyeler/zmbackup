@@ -27,17 +27,17 @@ OSE_CONF="/etc/zmbackup"
 # settings
 ZIMBRA_USER="zimbra"
 ZIMBRA_DIR="/opt/zimbra"
-ZIMBRA_BKPDIR=""		# Leave empty to autodetect
-ZIMBRA_HOSTNAME=""		# Leave empty to autodetect
-ZIMBRA_ADDRESS=""		# Leave empty to autodetect
-ZIMBRA_LDAPPASS=""		# Leave empty to autodetect
+ZIMBRA_BKPDIR=""  	# Leave empty to autodetect
+ZIMBRA_HOSTNAME=""  	# Leave empty to autodetect
+ZIMBRA_ADDRESS=""  	# Leave empty to autodetect
+ZIMBRA_LDAPPASS=""  	# Leave empty to autodetect
 
 
 # Exit codes
-ERR_OK="0"			# No error (normal exit)
-ERR_NOBKPDIR="1"		# No backup directory could be found
-ERR_NOROOT="2"			# Script was run without root privileges
-ERR_DEPNOTFOUND="3"		# Missing dependency
+ERR_OK="0"  		# No error (normal exit)
+ERR_NOBKPDIR="1"  	# No backup directory could be found
+ERR_NOROOT="2"  		# Script was run without root privileges
+ERR_DEPNOTFOUND="3"  	# Missing dependency
 
 # Try to guess missing settings as best as we can
 test -z $ZIMBRA_HOSTNAME && ZIMBRA_HOSTNAME=`su - zimbra -c zmhostname`
@@ -96,10 +96,10 @@ fi
 
 # Check for missing dependencies
 STATUS=0
-echo "Checking system for dependencies..."
+printf "\n\nChecking system for dependencies...\n\n"
 
 ## Zimbra Mailbox
-printf "	ZCS Mailbox Control...	"
+printf "  ZCS Mailbox Control...  "
 su - $ZIMBRA_USER -c "which zmmailboxdctl" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -109,7 +109,7 @@ else
 fi
 
 ## LDAP utils
-printf "	ldapsearch...	"
+printf "  ldapsearch...	          "
 su - $ZIMBRA_USER -c "which ldapsearch" > /dev/null 2>&1
 if [ $? = 0 ]; then
 	printf "[OK]\n"
@@ -119,7 +119,7 @@ else
 fi
 
 ## Curl
-printf "	curl...		"
+printf "  curl...                 "
 su - $ZIMBRA_USER -c "which curl" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -129,7 +129,7 @@ else
 fi
 
 ## mktemp
-printf "	mktemp...	"
+printf "  mktemp...               "
 su - $ZIMBRA_USER -c "which mktemp" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -139,7 +139,7 @@ else
 fi
 
 ## date
-printf "	date...		"
+printf "  date...                 "
 su - $ZIMBRA_USER -c "which date" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -149,7 +149,7 @@ else
 fi
 
 ## egrep
-printf "	egrep...	"
+printf "  egrep...                "
 su - $ZIMBRA_USER -c "which egrep" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -159,7 +159,7 @@ else
 fi
 
 ## egrep
-printf "	wget...	"
+printf "  wget...                 "
 su - $ZIMBRA_USER -c "which wget" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -169,7 +169,7 @@ else
 fi
 
 ## egrep
-printf "	parallel...	"
+printf "  parallel...             "
 su - $ZIMBRA_USER -c "which parallel" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
@@ -208,7 +208,7 @@ chown $ZIMBRA_USER $ZIMBRA_BKPDIR
 # We're done!
 read -p "Install completed. Do you want to display the README file? (Y/n)" tmp
 case "$tmp" in
-	y|Y|Yes|"") less $MYDIR/README;;
+	y|Y|Yes|"") less $MYDIR/README.md;;
 	*) echo "Done!";;
 esac
 
