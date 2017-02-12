@@ -161,13 +161,23 @@ notify_email_finish()
 ldap_bkp()
 {
   if [ -z $2 ]; then
-    ldapsearch -x -H $LDAPSERVER \
-                  -D $LDAPADMIN \
-                  -w $LDAPPASS \
-                  -b '' \
-                  -LLL "$1" zimbraMailDeliveryAddress | \
-                  grep '^zimbraMail' | \
-                  awk '{print $2}' > $TEMPINCACCOUNT
+    if [ $1 != $DLOBJECT ]; then
+      ldapsearch -x -H $LDAPSERVER \
+                    -D $LDAPADMIN \
+                    -w $LDAPPASS \
+                    -b '' \
+                    -LLL "$1" zimbraMailDeliveryAddress | \
+                    grep '^zimbraMail' | \
+                    awk '{print $2}' > $TEMPINCACCOUNT
+    else
+      ldapsearch -x -H $LDAPSERVER \
+                    -D $LDAPADMIN \
+                    -w $LDAPPASS \
+                    -b '' \
+                    -LLL "$1" mail | \
+                    grep '^mail' | \
+                    awk '{print $2}' > $TEMPINCACCOUNT
+    fi
   else
     for i in $(echo "$2" | sed 's/,/\n/g'); do
       echo $i >> $TEMPINCACCOUNT
@@ -188,12 +198,29 @@ ldap_bkp()
     fi
   done
   if [ $? -eq 0 ]; then
-    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-                              "ldapsearch -x -H $LDAPSERVER \
-                                             -D $LDAPADMIN \
-                                             -w $LDAPPASS \
-                                             -b '' \
-                                             -LLL '(&(zimbraMailDeliveryAddress={})$1)' > $TEMPDIR/{}.ldiff"
+    if [ $1 == $DLOBJECT ]; then
+      if ! [ -s $TEMPACCOUNT ]; then
+        clear_temp
+        echo "Nothing to do.."
+        exit 0
+      fi
+      echo "SESSION: $SESSAO started on $(date)" >> $TEMPSESSION
+      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+                                "ldapsearch -x -H $LDAPSERVER \
+                                               -D $LDAPADMIN \
+                                               -w $LDAPPASS \
+                                               -b '' \
+                                               -LLL '(&(mail={})$1)' > $TEMPDIR/{}.ldiff && \
+                                 echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
+      echo "SESSION: $SESSAO completed in $(date)" >> $TEMPSESSION
+    else
+      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+                                "ldapsearch -x -H $LDAPSERVER \
+                                               -D $LDAPADMIN \
+                                               -w $LDAPPASS \
+                                               -b '' \
+                                               -LLL '(&(zimbraMailDeliveryAddress={})$1)' > $TEMPDIR/{}.ldiff"
+    fi
   else
     notify_email_finish "NOK" $SESSION
     exit 1
@@ -205,10 +232,8 @@ backup_dl()
 {
   SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
   notify_email_begin $SESSION
-  echo "SESSAO: $SESSAO started on $(date)" >> $TEMPSESSION
   ldap_bkp $DLOBJECT
   mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
-  echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
   cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all lists" >> $LOGFILE
   notify_email_finish "OK" $SESSION
@@ -322,12 +347,13 @@ list_sessions ()
       ;;
     esac
   done
+  echo ""
 }
 
 build_restore_list()
 {
   INBETWEEN=0
-  if [[ *"@"* == $2 ]]; then
+  if [[ $2 == *"@"* ]]; then
     for i in $(echo "$2" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
@@ -358,7 +384,7 @@ restore_accounts_mail ()
   else
     echo "Restore mail process started at - $(date)"
     for i in $(cat $TEMPSESSION); do
-      echo "Restoring Session - $i"
+      printf "\nRestoring Session - $i"
       if ! [ -z $3 ]; then
         cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
@@ -370,11 +396,24 @@ restore_accounts_mail ()
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/{}/?fmt=tgz > /dev/null"
       fi
-      echo "Session $i restored with SUCCESS"
+      printf "\nSession $i restored with SUCCESS\n"
     done
-    echo "Restore mail process completed at - $(date)"
+    printf "\nRestore mail process completed at - $(date)\n"
   fi
 }
+
+loop_ldap()
+{
+  source /etc/zmbkpose/zmbackup.conf
+  source /opt/zimbra/.bashrc
+  ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c \
+              -w $LDAPPASS \
+              $(grep ^dn: $WORKDIR/$1/$2.ldiff \
+              | awk '{print $2}') > /dev/null 2>&1
+  ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
+           -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff > /dev/null 2>&1
+}
+
 
 restore_accounts_ldap ()
 {
@@ -383,16 +422,11 @@ restore_accounts_ldap ()
     echo "No backup found. Impossible to restore"
   else
     echo "Restore LDAP process started at - $(date)"
-    for i in $TEMPSESSION; do
+    export -f loop_ldap
+    for i in $(cat $TEMPSESSION); do
       echo "Restoring Session - $i"
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-               "ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c
-                           -w $LDAPPASS
-                           $(grep ^dn: $WORKDIR/$i/{}.ldiff \
-                           | awk '{print $2}') 2>/dev/null"
-       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-                "ldapadd -x -H $LDAPSERVER -D $LDAPADMIN
-                         -c -w $LDAPPASS -f $WORKDIR/$i/{}.ldiff"
+                                "loop_ldap $i {}"
       echo "Session $i restored with SUCCESS"
     done
     echo "Restore LDAP process completed at - $(date)"
@@ -402,17 +436,15 @@ restore_accounts_ldap ()
 rotate_backup()
 {
   cp $WORKDIR/sessions.txt $WORKDIR/sessions.txt.old
-
-	grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
-		if [ "$(echo ${line} | cut -d- -f2)" -lt "$1" ]; then
-		   [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Exclude session "${line}"
-		   grep -v "${line}" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
-		   mv $WORKDIR/.sessions.txt $WORKDIR/sessions.txt
-		fi
-	done
-
-	rm $WORKDIR/.sessions.txt -f
-	exit 0
+  SESSION=$(grep $1 $WORKDIR/sessions.txt -m 1 | awk '{print $2}')
+  if [ "$SESSION" == "$1" ]; then
+    rm -rf $WORKDIR/"$1"
+    echo Removing session "$1"
+    grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+    mv $WORKDIR/.sessions.txt $WORKDIR/sessions.txt
+  fi
+  rm $WORKDIR/.sessions.txt -f
+  rm $WORKDIR/sessions.txt.old -f
 }
 
 ################################################################################
@@ -500,7 +532,6 @@ case "$1" in
     list_sessions
   ;;
   "-r"|"--restore" )
-    echo "Running the Restore - Please wait..."
     case "$2" in
       "-dl"|"--distributionlist" )
         restore_accounts_ldap $3 $4
@@ -521,10 +552,9 @@ case "$1" in
         echo "Error! Incorrect options"
       ;;
     esac
-    echo "Restore completed!"
   ;;
   "-d"|"--delete" )
-    rotate_backup $1
+    rotate_backup $2
   ;;
   "-h"|"--help" )
     show_help
