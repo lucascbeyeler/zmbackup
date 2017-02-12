@@ -80,7 +80,8 @@ show_help (){
   printf "\n -i, --incremental       : Execute incremental backup for an account, a list of accounts, or all accounts."
   printf "\n -l, --list              : List all backup sessions that still exist in your disk."
   printf "\n -r, --restore           : Restore the backup inside the users account."
-  printf "\n -d, --delete            : Delete a session of backup"
+  printf "\n -d, --delete            : Delete a session of backup."
+  printf "\n -v, --version           : Show the zmbackup version."
 
   # All the options related to Full Backups will be put here
   printf "\nFull Backup Options:\n"
@@ -554,6 +555,9 @@ case "$1" in
   ;;
   "-h"|"--help" )
     show_help
+  ;;
+  "-v"|"--version" )
+    echo "zmbackup version: 1.0.0 Release Candidate"
   ;;
   * )
     echo "Error! Incorrect options"
