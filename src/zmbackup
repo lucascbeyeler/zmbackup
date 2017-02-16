@@ -462,7 +462,7 @@ validate()
 {
   if ! [ -f "/etc/zmbackup/zmbackup.conf" ]; then
     echo "zmbackup.conf not found - Please run the install.sh to recreate the zmbackup.conf"
-    exit 1
+    exit 0
   fi
   if ! [ -z "$BACKUPUSER" ]; then
   	if [ "$(id -u)" != "$(id -u $BACKUPUSER)" ]; then
