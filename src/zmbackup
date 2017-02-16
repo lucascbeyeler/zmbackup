@@ -48,22 +48,28 @@
 ################################################################################
 # SET INTERNAL VARIABLE
 ################################################################################
-source /etc/zmbackup/zmbackup.conf
-source /opt/zimbra/.bashrc
 export DLOBJECT="(objectclass=zimbraDistributionList)"
 export ACOBJECT="(objectclass=zimbraAccount)"
 export ALOBJECT="(objectclass=zimbraAlias)"
-export SESSAO="distlist-"$(date  +%Y%m%d%H%M%S)
-export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
-export TEMPSESSION=$(mktemp)
-export TEMPACCOUNT=$(mktemp)
-export TEMPINCACCOUNT=$(mktemp)
 export MAILHOST="localhost"
 ################################################################################
 
 ################################################################################
 # ZMBACKUP FUNCTIONS
 ################################################################################
+
+load_config(){
+  source /etc/zmbackup/zmbackup.conf
+  source /opt/zimbra/.bashrc
+}
+
+# Create the temporary files
+create_temp(){
+  export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
+  export TEMPSESSION=$(mktemp)
+  export TEMPACCOUNT=$(mktemp)
+  export TEMPINCACCOUNT=$(mktemp)
+}
 
 # Clear all the temporary files
 clear_temp(){
@@ -454,6 +460,10 @@ rotate_backup()
 
 validate()
 {
+  if ! [ -f "/etc/zmbackup/zmbackup.conf" ]; then
+    echo "zmbackup.conf not found - Please run the install.sh to recreate the zmbackup.conf"
+    exit 1
+  fi
   if ! [ -z "$BACKUPUSER" ]; then
   	if [ "$(id -u)" != "$(id -u $BACKUPUSER)" ]; then
   		echo "You need to be $BACKUPUSER to run this script"
@@ -505,9 +515,11 @@ validate()
 ################################################################################
 
 validate
+load_config
 
 case "$1" in
   "-f"|"--full" )
+    create_temp
     echo "Running the Full Backup - Please wait..."
     case "$2" in
       "-dl"|"--distributionlist" )
@@ -523,11 +535,14 @@ case "$1" in
         backup_full $2
     esac
     echo "Backup finished!"
+    clear_temp
   ;;
   "-i"|"--incremental" )
+    create_temp
     echo "Running the Incremental Backup - Please wait..."
     backup_incremental $2
     echo "Backup finished!"
+    clear_temp
   ;;
   "-l"|"--list" )
     list_sessions
@@ -591,5 +606,3 @@ case "$1" in
     printf "\n\nError! Incorrect options\n\n"
   ;;
 esac
-
-clear_temp
