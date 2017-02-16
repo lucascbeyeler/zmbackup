@@ -536,40 +536,46 @@ case "$1" in
     case "$2" in
       "-dl"|"--distributionlist" )
         if [ -z "$3" ]; then
-          echo "Error! Please inform the session that should be restored"
+          show_help
+          printf "\n\nError! Please inform the session that should be restored\n\n"
         else
           restore_accounts_ldap $3 $4
         fi
       ;;
       "-ldp"|"--ldap" )
       if [ -z "$3" ]; then
-        echo "Error! Please inform the session that should be restored"
+        show_help
+        printf "\n\nError! Please inform the session that should be restored\n\n"
       else
         restore_accounts_ldap $3 $4
       fi
       ;;
       "-ro"|"--restoreOnAccount" )
       if [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
-        echo "Error! Please inform the session, the account that should be restored, and when the restore should be placed."
+        show_help
+        printf "\n\nError! Please inform the session, the account that should be restored, and when the restore should be placed.\n\n"
       else
         restore_accounts_mail $5 $3 $4
       fi
       ;;
       "-m"|"--mail" )
       if [ -z "$3" ]; then
-        echo "Error! Please inform the session that should be restored"
+        show_help
+        printf "\n\nError! Please inform the session that should be restored\n\n"
       else
         restore_accounts_mail $3 $4
       fi
       ;;
       * )
-        echo "Error! Incorrect options"
+        show_help
+        printf "\n\nError! Incorrect options\n\n"
       ;;
     esac
   ;;
   "-d"|"--delete" )
   if [ -z "$3" ]; then
-    echo "Error! Please inform the session that should be deleted"
+    show_help
+    printf "\n\nError! Please inform the session that should be deleted\n\n"
   else
     rotate_backup $2
   fi
@@ -581,7 +587,8 @@ case "$1" in
     echo "zmbackup version: 1.0.0 Release Candidate"
   ;;
   * )
-    echo "Error! Incorrect options"
+    show_help
+    printf "\n\nError! Incorrect options\n\n"
   ;;
 esac
 
