@@ -588,7 +588,7 @@ case "$1" in
     esac
   ;;
   "-d"|"--delete" )
-  if [ -z "$3" ]; then
+  if [ -z "$2" ]; then
     show_help
     printf "\n\nError! Please inform the session that should be deleted\n\n"
   else
