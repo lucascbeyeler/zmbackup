@@ -83,11 +83,12 @@ echo "WARNING: This is a pre-release and does not supposed to be used in product
 echo "any way."
 echo ""
 echo "If you are okay with this and still want to install the zmbackup, press Y."
-printf " Are you sure? [N]"
+printf "Are you sure? [N]: "
 read OPT
 if [ '$(OPT,^^}' != "Y" ]; then
 	echo "Stoping the installation process..."
 	exit 0
+fi
 printf "\n\n\n\n"
 
 echo "First, we need that you inform the user used to run Zimbra in this server. Usually"
@@ -102,6 +103,7 @@ if [ '$(OPT,^^}' != "Y" ]; then
 
 	printf "\n Please inform the zimbra's default folder[$OSE_INSTALL_DIR]: "
 	read OSE_INSTALL_DIR || OSE_INSTALL_DIR=$OSE_INSTALL_DIR
+fi
 
 printf "\n\n\n\n"
 
@@ -117,6 +119,7 @@ sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP
 if ! [ $? -eq 0 ]; then
 	echo "User zmbackup already exist! Changing the password to get access..."
 	sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov sp zmbackup@$DOMAIN '$ZMBKP_PASSWORD'"  > /dev/null 2>&1
+fi
 
 ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
 
@@ -141,14 +144,15 @@ echo ""
 echo "Here is a Summary of your settings:"
 echo ""
 echo "Zimbra User: $OSE_USER"
-echo "Zimbra Hostname: $ZIMBRA_HOSTNAME"
-echo "Zimbra IP Address: $ZIMBRA_ADDRESS"
-echo "Zimbra LDAP Password: $ZIMBRA_LDAPPASS"
-echo "Zimbra Admin Password: $ZIMBRA_ADMPASS"
-echo "Zimbra Install Directory: $ZIMBRA_DIR"
-echo "Zimbra Backup Directory: $ZIMBRA_BKPDIR"
-echo "zmbackup Install Directory: $OSE_SRC"
-echo "zmbackup Settings Directory: $OSE_CONF"
+echo "Zimbra Hostname: $OSE_INSTALL_HOSTNAME"
+echo "Zimbra IP Address: $OSE_INSTALL_ADDRESS"
+echo "Zimbra LDAP Password: $OSE_INSTALL_LDAPPASS"
+echo "Zimbra Zmbackup Account: $ZMBKP_ACCOUNT"
+echo "Zimbra Zmbackup Password: $ZMBKP_PASSWORD"
+echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
+echo "Zimbra Backup Directory: $ZMBKP_BKPDIR"
+echo "Zmbackup Install Directory: $ZMBKP_SRC"
+echo "Zmbackup Settings Directory: $ZMBKP_CONF"
 echo ""
 echo "Press ENTER to continue or CTRL+C to cancel."
 read
