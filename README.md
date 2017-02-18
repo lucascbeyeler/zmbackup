@@ -34,7 +34,7 @@ Enter inside the folder zmbackup and execute the script install.sh. Follow the i
 
 ```
 $ zmbackup -v
-zmbackup version: 1.0.0 Release Candidate
+zmbackup version: 1.0.0 Release Candidate 2
 ```
 
 Documentation
