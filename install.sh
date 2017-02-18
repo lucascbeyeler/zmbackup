@@ -85,7 +85,7 @@ echo ""
 echo "If you are okay with this and still want to install the zmbackup, press Y."
 printf "Are you sure? [N]: "
 read OPT
-if [ '$(OPT,^^}' != "Y" ]; then
+if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
 	echo "Stoping the installation process..."
 	exit 0
 fi
@@ -97,7 +97,7 @@ echo "you changed this information."
 
 printf "Should I set the default values? [Y]"
 read OPT
-if [ '$(OPT,^^}' != "Y" ]; then
+if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
 	printf "\n Please inform the zimbra's system account[$OSE_USER]: "
 	read OSE_USER || OSE_USER=$OSE_USER
 
