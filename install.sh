@@ -126,13 +126,14 @@ ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
 echo "Account configured!"
 
 echo "Configuring mail alert when the zmbackup is executed or finish a backup process."
-echo "Please inform the account or distribuition list that will receive this messages.: "
+printf "Please inform the account or distribuition list that will receive this messages.: "
 read ZMBKP_MAIL_ALERT
 
+echo ""
 echo "Recovering all the configuration... Please wait"
 
-OSE_INSTALL_HOSTNAME=`su - zimbra -c zmhostname`
-OSE_INSTALL_ADDRESS=`grep $ZIMBRA_HOSTNAME /etc/hosts|awk '{print $1}'`
+OSE_INSTALL_HOSTNAME=`su - zimbra -c "zmhostname"`
+OSE_INSTALL_ADDRESS=`grep $OSE_INSTALL_HOSTNAME /etc/hosts|awk '{print $1}'`
 OSE_INSTALL_LDAPPASS=`su - zimbra -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
 
 printf "\nPlease, inform the folder where the backup will be stored: "
