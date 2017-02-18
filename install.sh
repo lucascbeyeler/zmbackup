@@ -253,21 +253,21 @@ fi
 echo "Installing... Please wait while we made some changes."
 
 # Create directories if needed
-test -d $OSE_CONF || mkdir -p $OSE_CONF
-test -d $OSE_SRC  || mkdir -p $OSE_SRC
+test -d $ZMBKP_CONF || mkdir -p $ZMBKP_CONF
+test -d $ZMBKP_SRC  || mkdir -p $ZMBKP_SRC
 
 # Copy files
-install -o $OSE_USER -m 700 $MYDIR/src/zmbackup $OSE_SRC
-install --backup=numbered -o $OSE_USER -m 600 $MYDIR/etc/zmbackup.conf $OSE_CONF
+install -o $OSE_USER -m 700 $MYDIR/src/zmbackup $ZMBKP_SRC
+install --backup=numbered -o $OSE_USER -m 600 $MYDIR/etc/zmbackup.conf $ZMBKP_CONF
 
 # Add custom settings
-sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{ZMBKP_ACCOUNT}|${ZMBKP_ACCOUNT}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{ZMBKP_PASSWORD}|${ZMBKP_PASSWORD}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{OSE_LDAPPASS}|${OSE_LDAPPASS}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{OSE_USER}|${OSE_USER}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_ACCOUNT}|${ZMBKP_ACCOUNT}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_PASSWORD}|${ZMBKP_PASSWORD}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{OSE_LDAPPASS}|${OSE_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{OSE_USER}|${OSE_USER}|g" $ZMBKP_CONF/zmbackup.conf
 
 # Fix backup dir permissions (owner MUST be $OSE_USER)
 chown $OSE_USER $ZIMBRA_BKPDIR
