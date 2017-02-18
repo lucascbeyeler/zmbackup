@@ -129,7 +129,8 @@ ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
 echo "Account configured!"
 
 echo "Configuring mail alert when the zmbackup is executed or finish a backup process."
-printf "Please inform the account or distribuition list that will receive this messages.: "
+echo "Please inform the account or distribuition list that will receive this messages."
+printf "E-Mail:"
 read ZMBKP_MAIL_ALERT
 
 echo ""

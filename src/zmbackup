@@ -514,8 +514,8 @@ validate()
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
 
-validate
 load_config
+validate
 
 case "$1" in
   "-f"|"--full" )
