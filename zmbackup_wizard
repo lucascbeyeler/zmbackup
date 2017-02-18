@@ -283,4 +283,5 @@ case "$tmp" in
 	*) echo "Done!";;
 esac
 
+clear
 exit $ERR_OK
