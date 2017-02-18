@@ -48,22 +48,28 @@
 ################################################################################
 # SET INTERNAL VARIABLE
 ################################################################################
-source /etc/zmbackup/zmbackup.conf
-source /opt/zimbra/.bashrc
 export DLOBJECT="(objectclass=zimbraDistributionList)"
 export ACOBJECT="(objectclass=zimbraAccount)"
 export ALOBJECT="(objectclass=zimbraAlias)"
-export SESSAO="distlist-"$(date  +%Y%m%d%H%M%S)
-export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
-export TEMPSESSION=$(mktemp)
-export TEMPACCOUNT=$(mktemp)
-export TEMPINCACCOUNT=$(mktemp)
 export MAILHOST="localhost"
 ################################################################################
 
 ################################################################################
 # ZMBACKUP FUNCTIONS
 ################################################################################
+
+load_config(){
+  source /etc/zmbackup/zmbackup.conf
+  source /opt/zimbra/.bashrc
+}
+
+# Create the temporary files
+create_temp(){
+  export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
+  export TEMPSESSION=$(mktemp)
+  export TEMPACCOUNT=$(mktemp)
+  export TEMPINCACCOUNT=$(mktemp)
+}
 
 # Clear all the temporary files
 clear_temp(){
@@ -454,6 +460,10 @@ rotate_backup()
 
 validate()
 {
+  if ! [ -f "/etc/zmbackup/zmbackup.conf" ]; then
+    echo "zmbackup.conf not found - Please run the install.sh to recreate the zmbackup.conf"
+    exit 0
+  fi
   if ! [ -z "$BACKUPUSER" ]; then
   	if [ "$(id -u)" != "$(id -u $BACKUPUSER)" ]; then
   		echo "You need to be $BACKUPUSER to run this script"
@@ -505,9 +515,11 @@ validate()
 ################################################################################
 
 validate
+load_config
 
 case "$1" in
   "-f"|"--full" )
+    create_temp
     echo "Running the Full Backup - Please wait..."
     case "$2" in
       "-dl"|"--distributionlist" )
@@ -523,11 +535,14 @@ case "$1" in
         backup_full $2
     esac
     echo "Backup finished!"
+    clear_temp
   ;;
   "-i"|"--incremental" )
+    create_temp
     echo "Running the Incremental Backup - Please wait..."
     backup_incremental $2
     echo "Backup finished!"
+    clear_temp
   ;;
   "-l"|"--list" )
     list_sessions
@@ -536,40 +551,46 @@ case "$1" in
     case "$2" in
       "-dl"|"--distributionlist" )
         if [ -z "$3" ]; then
-          echo "Error! Please inform the session that should be restored"
+          show_help
+          printf "\n\nError! Please inform the session that should be restored\n\n"
         else
           restore_accounts_ldap $3 $4
         fi
       ;;
       "-ldp"|"--ldap" )
       if [ -z "$3" ]; then
-        echo "Error! Please inform the session that should be restored"
+        show_help
+        printf "\n\nError! Please inform the session that should be restored\n\n"
       else
         restore_accounts_ldap $3 $4
       fi
       ;;
       "-ro"|"--restoreOnAccount" )
       if [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
-        echo "Error! Please inform the session, the account that should be restored, and when the restore should be placed."
+        show_help
+        printf "\n\nError! Please inform the session, the account that should be restored, and when the restore should be placed.\n\n"
       else
         restore_accounts_mail $5 $3 $4
       fi
       ;;
       "-m"|"--mail" )
       if [ -z "$3" ]; then
-        echo "Error! Please inform the session that should be restored"
+        show_help
+        printf "\n\nError! Please inform the session that should be restored\n\n"
       else
         restore_accounts_mail $3 $4
       fi
       ;;
       * )
-        echo "Error! Incorrect options"
+        show_help
+        printf "\n\nError! Incorrect options\n\n"
       ;;
     esac
   ;;
   "-d"|"--delete" )
   if [ -z "$3" ]; then
-    echo "Error! Please inform the session that should be deleted"
+    show_help
+    printf "\n\nError! Please inform the session that should be deleted\n\n"
   else
     rotate_backup $2
   fi
@@ -581,8 +602,7 @@ case "$1" in
     echo "zmbackup version: 1.0.0 Release Candidate"
   ;;
   * )
-    echo "Error! Incorrect options"
+    show_help
+    printf "\n\nError! Incorrect options\n\n"
   ;;
 esac
-
-clear_temp
