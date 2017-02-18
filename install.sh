@@ -1,10 +1,11 @@
 #!/bin/bash
-# This script installs zmbackup on a Zimbra Collaboration Suite Opensource.
-# It also makes sure the script's dependencies are present.
+################################################################################
+# install - Install script to help you install zmbackup in your server. You can
+#           simply ignore this file and move the files to the correctly place, but
+#           the chance for this goes wrong is big. So, this script made everything
+#           for you easy.
 #
-# LIMITATIONS: This script assumes you're doing a local install and requires the
-# user zimbra to exist on your server. While not strictly necessary this is
-# enforced due to the way the current zmbackup script works.
+################################################################################
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,20 +19,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# zmbackup Defaults - Where the script will be placed and look for its settings
-OSE_SRC="/usr/local/bin"
-OSE_CONF="/etc/zmbackup"
-
-# Zimbra Defaults - Change these if you compiled zimbra yourself with different
-# settings
-ZIMBRA_USER="zimbra"
-ZIMBRA_DIR="/opt/zimbra"
-ZIMBRA_BKPDIR=""  	# Leave empty to autodetect
-ZIMBRA_HOSTNAME=""  	# Leave empty to autodetect
-ZIMBRA_ADDRESS=""  	# Leave empty to autodetect
-ZIMBRA_LDAPPASS=""  	# Leave empty to autodetect
-
+#
+################################################################################
+# SET INTERNAL VARIABLE
+################################################################################
 
 # Exit codes
 ERR_OK="0"  		# No error (normal exit)
@@ -39,48 +30,25 @@ ERR_NOBKPDIR="1"  	# No backup directory could be found
 ERR_NOROOT="2"  		# Script was run without root privileges
 ERR_DEPNOTFOUND="3"  	# Missing dependency
 
-# Try to guess missing settings as best as we can
-test -z $ZIMBRA_HOSTNAME && ZIMBRA_HOSTNAME=`su - zimbra -c zmhostname`
-test -z $ZIMBRA_ADDRESS  && ZIMBRA_ADDRESS=`grep $ZIMBRA_HOSTNAME /etc/hosts|awk '{print $1}'`
-test -z $ZIMBRA_LDAPPASS && ZIMBRA_LDAPPASS=`su - zimbra -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
-if [ -z $ZIMBRA_BKPDIR ]; then
-	test -d $ZIMBRA_DIR/backup && ZIMBRA_BKPDIR=$ZIMBRA_DIR/backup
-	test -d /backup && ZIMBRA_BKPDIR=/backup
-	test -d /opt/backup && ZIMBRA_BKPDIR=/opt/backup
-fi
+# ZMBACKUP INSTALLATION PATH
+ZMBKP_SRC="/usr/local/bin"
+ZMBKP_CONF="/etc/zmbackup"
 
-if [ -z $ZIMBRA_BKPDIR ]; then
-	echo "No backup directory could be found! Please edit this script and declare it manually."
-	exit $ERR_NOBKPDIR
-fi
+# ZIMBRA DEFAULT INSTALLATION PATH AND INTERNAL CONFIGURATION
+OSE_USER="zimbra"
+OSE_INSTALL_DIR="/opt/zimbra"
 
-clear
-echo "This will install zmbackup, a script aimed at creating backups for ZCS Community Edition."
-read -p "What is the password for Zimbra's \"admin\" user? " ZIMBRA_ADMPASS
-echo ""
-echo "Here is a Summary of your settings:"
-echo ""
-echo "Zimbra User: $ZIMBRA_USER"
-echo "Zimbra Hostname: $ZIMBRA_HOSTNAME"
-echo "Zimbra IP Address: $ZIMBRA_ADDRESS"
-echo "Zimbra LDAP Password: $ZIMBRA_LDAPPASS"
-echo "Zimbra Admin Password: $ZIMBRA_ADMPASS"
-echo "Zimbra Install Directory: $ZIMBRA_DIR"
-echo "Zimbra Backup Directory: $ZIMBRA_BKPDIR"
-echo "zmbackup Install Directory: $OSE_SRC"
-echo "zmbackup Settings Directory: $OSE_CONF"
-echo ""
-echo "Press ENTER to continue or CTRL+C to cancel."
-read tmp
+################################################################################
+# CHECKS BEFORE BEGIN THE INSTALL PROCESS
+################################################################################
 
-# Check if we have root before doing anything
+# Check if the script is running as root user
 if [ $(id -u) -ne 0 ]; then
 	echo "You need root privileges to install zmbackup"
 	exit $ERR_NOROOT
 fi
 
 # Check for missing installer files
-# TODO: MD5 check of the files
 printf "Checking installer integrity...	"
 STATUS=0
 MYDIR=`dirname $0`
@@ -93,6 +61,97 @@ if ! [ $STATUS = 0 ]; then
 else
 	printf '[OK]\n'
 fi
+
+################################################################################
+# INSTALL PROCESS
+################################################################################
+
+clear
+echo "################################################################################"
+echo "#                                                                              #"
+echo "#                     ZMBACKUP INSTALLATION SCRIPT                             #"
+echo "#                                                                              #"
+echo "################################################################################"
+echo ""
+echo "zmbackup is a Open Source software for hot backup and hot restore of the Zimbra."
+echo "This is not part of the Zimbra Open Source Community Edition or the Zimbra Plus,"
+echo "this is made by the community for the community, so this has NO WARRANTY.       "
+echo ""
+echo "#################################################################################"
+echo ""
+echo "WARNING: This is a pre-release and does not supposed to be used in production in"
+echo "any way."
+echo ""
+echo "If you are okay with this and still want to install the zmbackup, press Y."
+printf " Are you sure? [N]"
+read OPT
+if [ '$(OPT,^^}' != "Y" ]; then
+	echo "Stoping the installation process..."
+	exit 0
+printf "\n\n\n\n"
+
+echo "First, we need that you inform the user used to run Zimbra in this server. Usually"
+echo "the account is '$OSE_USER', but, if you did a custom install, there is a high chance"
+echo "you changed this information."
+
+printf "Should I set the default values? [Y]"
+read OPT
+if [ '$(OPT,^^}' != "Y" ]; then
+	printf "\n Please inform the zimbra's system account[$OSE_USER]: "
+	read OSE_USER || OSE_USER=$OSE_USER
+
+	printf "\n Please inform the zimbra's default folder[$OSE_INSTALL_DIR]: "
+	read OSE_INSTALL_DIR || OSE_INSTALL_DIR=$OSE_INSTALL_DIR
+
+printf "\n\n\n\n"
+
+echo "Configuring the Admin User for zmbackup. This user will be used to zmbackup access"
+echo "the e-mail of all accounts and should have only this kind of access. Please do not"
+echo "use the admin@domain.com account for this activity."
+echo ""
+
+DOMAIN=$(sudo -H -u zimbra bash -c '/opt/zimbra/bin/zmprov gad' | head -n 1)
+ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)
+sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE" > /dev/null 2>&1
+
+if ! [ $? -eq 0 ]; then
+	echo "User zmbackup already exist! Changing the password to get access..."
+	sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov sp zmbackup@$DOMAIN '$ZMBKP_PASSWORD'"  > /dev/null 2>&1
+
+ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
+
+echo "Account configured!"
+
+echo "Configuring mail alert when the zmbackup is executed or finish a backup process."
+echo "Please inform the account or distribuition list that will receive this messages."
+read ZMBKP_MAIL_ALERT
+
+echo "Recovering all the configuration... Please wait"
+
+OSE_INSTALL_HOSTNAME=`su - zimbra -c zmhostname`
+OSE_INSTALL_ADDRESS=`grep $ZIMBRA_HOSTNAME /etc/hosts|awk '{print $1}'`
+OSE_INSTALL_LDAPPASS=`su - zimbra -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
+
+printf "\nPlease, inform the folder where the backup will be stored: "
+read ZMBKP_BKPDIR || ZMBKP_BKPDIR="$OSE_INSTALL_DIR/backup"
+
+mkdir $ZMBKP_BKPDIR > /dev/null 2>&1 && chown $OSE_USER.$OSE_USER $ZMBKP_BKPDIR > /dev/null 2>&1
+
+echo ""
+echo "Here is a Summary of your settings:"
+echo ""
+echo "Zimbra User: $OSE_USER"
+echo "Zimbra Hostname: $ZIMBRA_HOSTNAME"
+echo "Zimbra IP Address: $ZIMBRA_ADDRESS"
+echo "Zimbra LDAP Password: $ZIMBRA_LDAPPASS"
+echo "Zimbra Admin Password: $ZIMBRA_ADMPASS"
+echo "Zimbra Install Directory: $ZIMBRA_DIR"
+echo "Zimbra Backup Directory: $ZIMBRA_BKPDIR"
+echo "zmbackup Install Directory: $OSE_SRC"
+echo "zmbackup Settings Directory: $OSE_CONF"
+echo ""
+echo "Press ENTER to continue or CTRL+C to cancel."
+read
 
 # Check for missing dependencies
 STATUS=0
@@ -186,7 +245,7 @@ if ! [ $STATUS = 0 ]; then
 fi
 # Done checking deps
 
-echo "Installing..."
+echo "Installing... Please wait while we made some changes."
 
 # Create directories if needed
 test -d $OSE_CONF || mkdir -p $OSE_CONF
@@ -197,10 +256,13 @@ install -o $ZIMBRA_USER -m 700 $MYDIR/src/zmbackup $OSE_SRC
 install --backup=numbered -o $ZIMBRA_USER -m 600 $MYDIR/etc/zmbackup.conf $OSE_CONF
 
 # Add custom settings
-sed -i "s|{ZIMBRA_BKPDIR}|${ZIMBRA_BKPDIR}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{ZIMBRA_ADDRESS}|${ZIMBRA_ADDRESS}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{ZIMBRA_ADMINPASS}|${ZIMBRA_ADMPASS}|g" $OSE_CONF/zmbackup.conf
-sed -i "s|{ZIMBRA_LDAPPASS}|${ZIMBRA_LDAPPASS}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_ACCOUNT}|${ZMBKP_ACCOUNT}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_PASSWORD}|${ZMBKP_PASSWORD}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{OSE_LDAPPASS}|${OSE_LDAPPASS}|g" $OSE_CONF/zmbackup.conf
+sed -i "s|{OSE_USER}|${OSE_USER}|g" $OSE_CONF/zmbackup.conf
 
 # Fix backup dir permissions (owner MUST be $ZIMBRA_USER)
 chown $ZIMBRA_USER $ZIMBRA_BKPDIR
