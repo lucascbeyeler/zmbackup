@@ -48,9 +48,17 @@
 ################################################################################
 # SET INTERNAL VARIABLE
 ################################################################################
+
+# LDAP OBJECT
 export DLOBJECT="(objectclass=zimbraDistributionList)"
 export ACOBJECT="(objectclass=zimbraAccount)"
 export ALOBJECT="(objectclass=zimbraAlias)"
+
+# LDAP FILTER
+export DLFILTER="zimbraMailDeliveryAddress"
+export ACFILTER="mail"
+export ALFILTER="uid"
+
 export MAILHOST="localhost"
 ################################################################################
 
@@ -97,6 +105,7 @@ show_help (){
   printf "\nFull Backup Options:\n"
 
   printf "\n -dl, --distributionlist : Execute a backup of a distributionlist instead of an account."
+  printf "\n -al, --alias : Execute a backup of a distributionlist instead of an account."
   printf "\n -ldp, --ldap            : Execute a backup of an account, a list of accounts, or all accounts, but
                            only the ldap entry."
 
@@ -104,11 +113,12 @@ show_help (){
   printf "\nRestore Backup Options:\n"
 
   printf "\n -dl, --distributionlist : Execute a restore of a distributionlist instead of an account."
+  printf "\n -al, --alias : Execute a restore of an alias instead of an account."
   printf "\n -m, --mail              : Execute a restore of an account, a list of accounts, or all accounts, but
                            only the messages."
   printf "\n -ldp, --ldap            : Execute a restore of an account, a list of accounts, or all accounts, but
                            only the ldap entry."
-  printf "\n-ro, --restoreOnAccount  : Execute a restore of an account inside another account."
+  printf "\n -ro, --restoreOnAccount  : Execute a restore of an account inside another account."
 
   printf "\n\n\n"
 }
@@ -167,26 +177,16 @@ notify_email_finish()
 # $1 -> Inform the LDAP query to search;
 ldap_bkp()
 {
-  if [ -z $2 ]; then
-    if [ $1 != $DLOBJECT ]; then
-      ldapsearch -x -H $LDAPSERVER \
-                    -D $LDAPADMIN \
-                    -w $LDAPPASS \
-                    -b '' \
-                    -LLL "$1" zimbraMailDeliveryAddress | \
-                    grep '^zimbraMail' | \
-                    awk '{print $2}' > $TEMPINCACCOUNT
-    else
-      ldapsearch -x -H $LDAPSERVER \
-                    -D $LDAPADMIN \
-                    -w $LDAPPASS \
-                    -b '' \
-                    -LLL "$1" mail | \
-                    grep '^mail' | \
-                    awk '{print $2}' > $TEMPINCACCOUNT
-    fi
+  if [ -z $3 ]; then
+    ldapsearch -x -H $LDAPSERVER \
+                  -D $LDAPADMIN \
+                  -w $LDAPPASS \
+                  -b '' \
+                  -LLL "$1" $2 | \
+                  grep "^$2" | \
+                  awk '{print $2}' > $TEMPINCACCOUNT
   else
-    for i in $(echo "$2" | sed 's/,/\n/g'); do
+    for i in $(echo "$3" | sed 's/,/\n/g'); do
       echo $i >> $TEMPINCACCOUNT
     done
   fi
@@ -196,7 +196,9 @@ ldap_bkp()
         [[ "$i" != "virus-"* ]] && \
         [[ "$i" != "ham."* ]] && \
         [[ "$i" != "spam."* ]] && \
-        [[ "$i" != "admin@"* ]]; then
+        [[ "$i" != "spam."* ]] && \
+        [[ "$i" != "postmaster"* ]] && \
+        [[ "$i" != "root@"* ]]; then
       if [ "$EXIST" = "$(date +%m/%d/%y)" ]; then
         echo "WARN: $i already has backup today. Nothing to do."
       else
@@ -205,29 +207,18 @@ ldap_bkp()
     fi
   done
   if [ $? -eq 0 ]; then
-    if [ $1 == $DLOBJECT ]; then
-      if ! [ -s $TEMPACCOUNT ]; then
-        clear_temp
-        echo "Nothing to do.."
-        exit 0
-      fi
-      echo "SESSION: $SESSAO started on $(date)" >> $TEMPSESSION
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-                                "ldapsearch -x -H $LDAPSERVER \
-                                               -D $LDAPADMIN \
-                                               -w $LDAPPASS \
-                                               -b '' \
-                                               -LLL '(&(mail={})$1)' > $TEMPDIR/{}.ldiff && \
-                                 echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
-      echo "SESSION: $SESSAO completed in $(date)" >> $TEMPSESSION
-    else
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-                                "ldapsearch -x -H $LDAPSERVER \
-                                               -D $LDAPADMIN \
-                                               -w $LDAPPASS \
-                                               -b '' \
-                                               -LLL '(&(zimbraMailDeliveryAddress={})$1)' > $TEMPDIR/{}.ldiff"
+    if ! [ -s $TEMPACCOUNT ]; then
+      clear_temp
+      echo "Nothing to do.."
+      exit 0
     fi
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+                              "ldapsearch -x -H $LDAPSERVER \
+                                             -D $LDAPADMIN \
+                                             -w $LDAPPASS \
+                                             -b '' \
+                                             -LLL '(&(|(mail={})(uid={}))$1)' > $TEMPDIR/{}.ldiff && \
+                               test '$2' == '$ACFILTER' || echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
   else
     notify_email_finish "NOK" $SESSION
     exit 1
@@ -239,8 +230,10 @@ backup_dl()
 {
   SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
   notify_email_begin $SESSION
-  ldap_bkp $DLOBJECT
-  mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
+  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+  ldap_bkp $DLOBJECT $DLFILTER $1
+  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
   cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all lists" >> $LOGFILE
   notify_email_finish "OK" $SESSION
@@ -251,10 +244,10 @@ backup_alias()
 {
   SESSION="alias-"$(date  +%Y%m%d%H%M%S)
   notify_email_begin $SESSION
-  echo "SESSAO: $SESSAO started on $(date)" >> $TEMPSESSION
-  ldap_bkp $ALOBJECT
-  mv "$TEMPDIR" "$WORKDIR/$SESSAO" && rm -rf "$TEMPDIR"
-  echo "SESSAO: $SESSAO concluída em $(date)" >> $TEMPSESSION
+  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+  ldap_bkp $ALOBJECT $ALFILTER $1
+  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
   cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all alias" >> $LOGFILE
   notify_email_finish "OK" $SESSION
@@ -264,16 +257,7 @@ backup_alias()
 backup_full()
 {
   SESSION="full-"$(date  +%Y%m%d%H%M%S)
-  if [ -z $1 ]; then
-    ldap_bkp $ACOBJECT
-  else
-    ldap_bkp $ACOBJECT $1
-  fi
-  if ! [ -s $TEMPACCOUNT ]; then
-    clear_temp
-    echo "Nothing to do.."
-    exit 0
-  fi
+  ldap_bkp $ACOBJECT $ACFILTER $1
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   notify_email_begin $SESSION
   cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
@@ -309,24 +293,11 @@ backup_incremental()
   #Check if exist a backup full. If not, do a backup full and not the incremental
   FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
   if [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
-    if [ -z $1 ]; then
-      backup_full
-    else
-      backup_full $1
-    fi
+    backup_full $1
     exit
   fi
   export SESSION="inc-"$(date  +%Y%m%d%H%M%S)
-  if [ -z $1 ]; then
-    ldap_bkp $ACOBJECT
-  else
-    ldap_bkp $ACOBJECT $1
-  fi
-  if ! [ -s $TEMPACCOUNT ]; then
-    clear_temp
-    echo "Nothing to do.."
-    exit 0
-  fi
+  ldap_bkp $ACOBJECT $ACFILTER $1
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   notify_email_begin $SESSION
   export -f loop_inc
@@ -550,6 +521,14 @@ case "$1" in
   "-r"|"--restore" )
     case "$2" in
       "-dl"|"--distributionlist" )
+        if [ -z "$3" ]; then
+          show_help
+          printf "\n\nError! Please inform the session that should be restored\n\n"
+        else
+          restore_accounts_ldap $3 $4
+        fi
+      ;;
+      "-al"|"--alias" )
         if [ -z "$3" ]; then
           show_help
           printf "\n\nError! Please inform the session that should be restored\n\n"
