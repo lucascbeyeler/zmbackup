@@ -96,16 +96,19 @@ echo "the account is '$OSE_USER', but, if you did a custom install, there is a h
 echo "you changed this information."
 
 printf "Should I set the default values? [Y]"
-read OPT
+read TMP
+OPT=${TMP:-$OPT}
 if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
 	printf "\n Please inform the zimbra's system account[$OSE_USER]: "
-	read OSE_USER || OSE_USER=$OSE_USER
+	read TMP
+	OPT=${TMP:-$OSE_USER}
 
 	printf "\n Please inform the zimbra's default folder[$OSE_INSTALL_DIR]: "
-	read OSE_INSTALL_DIR || OSE_INSTALL_DIR=$OSE_INSTALL_DIR
+	read TMP
+	OPT=${TMP:-$OSE_INSTALL_DIR}
 fi
 
-printf "\n\n"
+printf "\n"
 
 echo "Configuring the Admin User for zmbackup. This user will be used to zmbackup access"
 echo "the e-mail of all accounts and should have only this kind of access. Please do not"
@@ -266,11 +269,11 @@ sed -i "s|{ZMBKP_ACCOUNT}|${ZMBKP_ACCOUNT}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{ZMBKP_PASSWORD}|${ZMBKP_PASSWORD}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
-sed -i "s|{OSE_LDAPPASS}|${OSE_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{OSE_USER}|${OSE_USER}|g" $ZMBKP_CONF/zmbackup.conf
 
 # Fix backup dir permissions (owner MUST be $OSE_USER)
-chown $OSE_USER $ZIMBRA_BKPDIR
+chown $OSE_USER $ZMBKP_BKPDIR
 
 # We're done!
 read -p "Install completed. Do you want to display the README file? (Y/n)" tmp
