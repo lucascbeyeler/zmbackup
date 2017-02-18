@@ -197,8 +197,9 @@ ldap_bkp()
         [[ "$i" != "ham."* ]] && \
         [[ "$i" != "spam."* ]] && \
         [[ "$i" != "spam."* ]] && \
+        [[ "$i" != "zmbackup"* ]] && \
         [[ "$i" != "postmaster"* ]] && \
-        [[ "$i" != "root@"* ]]; then
+        [[ "$i" != "root"* ]]; then
       if [ "$EXIST" = "$(date +%m/%d/%y)" ]; then
         echo "WARN: $i already has backup today. Nothing to do."
       else
