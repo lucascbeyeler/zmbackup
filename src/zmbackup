@@ -55,8 +55,8 @@ export ACOBJECT="(objectclass=zimbraAccount)"
 export ALOBJECT="(objectclass=zimbraAlias)"
 
 # LDAP FILTER
-export DLFILTER="zimbraMailDeliveryAddress"
-export ACFILTER="mail"
+export ACFILTER="zimbraMailDeliveryAddress"
+export DLFILTER="mail"
 export ALFILTER="uid"
 
 export MAILHOST="localhost"
