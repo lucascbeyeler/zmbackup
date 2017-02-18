@@ -105,7 +105,7 @@ if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
 	read OSE_INSTALL_DIR || OSE_INSTALL_DIR=$OSE_INSTALL_DIR
 fi
 
-printf "\n\n\n\n"
+printf "\n\n"
 
 echo "Configuring the Admin User for zmbackup. This user will be used to zmbackup access"
 echo "the e-mail of all accounts and should have only this kind of access. Please do not"
@@ -126,7 +126,7 @@ ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
 echo "Account configured!"
 
 echo "Configuring mail alert when the zmbackup is executed or finish a backup process."
-echo "Please inform the account or distribuition list that will receive this messages."
+echo "Please inform the account or distribuition list that will receive this messages.: "
 read ZMBKP_MAIL_ALERT
 
 echo "Recovering all the configuration... Please wait"
