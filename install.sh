@@ -132,9 +132,9 @@ read ZMBKP_MAIL_ALERT
 echo ""
 echo "Recovering all the configuration... Please wait"
 
-OSE_INSTALL_HOSTNAME=`su - zimbra -c "zmhostname"`
+OSE_INSTALL_HOSTNAME=`su - $OSE_USER -c "zmhostname"`
 OSE_INSTALL_ADDRESS=`grep $OSE_INSTALL_HOSTNAME /etc/hosts|awk '{print $1}'`
-OSE_INSTALL_LDAPPASS=`su - zimbra -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
+OSE_INSTALL_LDAPPASS=`su - $OSE_USER -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
 
 printf "\nPlease, inform the folder where the backup will be stored: "
 read ZMBKP_BKPDIR || ZMBKP_BKPDIR="$OSE_INSTALL_DIR/backup"
@@ -164,7 +164,7 @@ printf "\n\nChecking system for dependencies...\n\n"
 
 ## Zimbra Mailbox
 printf "  ZCS Mailbox Control...  "
-su - $ZIMBRA_USER -c "which zmmailboxdctl" > /dev/null 2>&1
+su - $OSE_USER -c "which zmmailboxdctl" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -174,7 +174,7 @@ fi
 
 ## LDAP utils
 printf "  ldapsearch...	          "
-su - $ZIMBRA_USER -c "which ldapsearch" > /dev/null 2>&1
+su - $OSE_USER -c "which ldapsearch" > /dev/null 2>&1
 if [ $? = 0 ]; then
 	printf "[OK]\n"
 else
@@ -184,7 +184,7 @@ fi
 
 ## Curl
 printf "  curl...                 "
-su - $ZIMBRA_USER -c "which curl" > /dev/null 2>&1
+su - $OSE_USER -c "which curl" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -194,7 +194,7 @@ fi
 
 ## mktemp
 printf "  mktemp...               "
-su - $ZIMBRA_USER -c "which mktemp" > /dev/null 2>&1
+su - $OSE_USER -c "which mktemp" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -204,7 +204,7 @@ fi
 
 ## date
 printf "  date...                 "
-su - $ZIMBRA_USER -c "which date" > /dev/null 2>&1
+su - $OSE_USER -c "which date" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -214,7 +214,7 @@ fi
 
 ## egrep
 printf "  egrep...                "
-su - $ZIMBRA_USER -c "which egrep" > /dev/null 2>&1
+su - $OSE_USER -c "which egrep" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -224,7 +224,7 @@ fi
 
 ## egrep
 printf "  wget...                 "
-su - $ZIMBRA_USER -c "which wget" > /dev/null 2>&1
+su - $OSE_USER -c "which wget" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -234,7 +234,7 @@ fi
 
 ## egrep
 printf "  parallel...             "
-su - $ZIMBRA_USER -c "which parallel" > /dev/null 2>&1
+su - $OSE_USER -c "which parallel" > /dev/null 2>&1
 if [ $? = 0 ]; then
         printf "[OK]\n"
 else
@@ -244,7 +244,7 @@ fi
 
 if ! [ $STATUS = 0 ]; then
 	echo ""
-	echo "You're missing some dependencies OR they are not on $ZIMBRA_USER's PATH."
+	echo "You're missing some dependencies OR they are not on $OSE_USER's PATH."
 	echo "Please correct the problem and run the installer again."
 	exit $STATUS
 fi
@@ -257,8 +257,8 @@ test -d $OSE_CONF || mkdir -p $OSE_CONF
 test -d $OSE_SRC  || mkdir -p $OSE_SRC
 
 # Copy files
-install -o $ZIMBRA_USER -m 700 $MYDIR/src/zmbackup $OSE_SRC
-install --backup=numbered -o $ZIMBRA_USER -m 600 $MYDIR/etc/zmbackup.conf $OSE_CONF
+install -o $OSE_USER -m 700 $MYDIR/src/zmbackup $OSE_SRC
+install --backup=numbered -o $OSE_USER -m 600 $MYDIR/etc/zmbackup.conf $OSE_CONF
 
 # Add custom settings
 sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $OSE_CONF/zmbackup.conf
@@ -269,8 +269,8 @@ sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $OSE_CONF/zmbackup.con
 sed -i "s|{OSE_LDAPPASS}|${OSE_LDAPPASS}|g" $OSE_CONF/zmbackup.conf
 sed -i "s|{OSE_USER}|${OSE_USER}|g" $OSE_CONF/zmbackup.conf
 
-# Fix backup dir permissions (owner MUST be $ZIMBRA_USER)
-chown $ZIMBRA_USER $ZIMBRA_BKPDIR
+# Fix backup dir permissions (owner MUST be $OSE_USER)
+chown $OSE_USER $ZIMBRA_BKPDIR
 
 # We're done!
 read -p "Install completed. Do you want to display the README file? (Y/n)" tmp
