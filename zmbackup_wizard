@@ -117,7 +117,7 @@ echo ""
 
 DOMAIN=$(sudo -H -u zimbra bash -c '/opt/zimbra/bin/zmprov gad' | head -n 1)
 ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)
-sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE" > /dev/null 2>&1
+sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
 
 if ! [ $? -eq 0 ]; then
 	echo "User zmbackup already exist! Changing the password to get access..."
