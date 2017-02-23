@@ -315,8 +315,10 @@ list_sessions ()
 {
   for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
     SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+    QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
     OPT=$(echo $i | cut -d"-" -f1 )
     printf "\nSession: $i\n    Size: $SIZE"
+    printf "\nAccounts: $QTDE"
     case $OPT in
       "full") printf "\n    Type: Full Backup\n"
       ;;
