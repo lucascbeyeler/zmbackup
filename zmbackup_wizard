@@ -91,77 +91,6 @@ if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
 fi
 printf "\n\n\n\n"
 
-echo "First, we need that you inform the user used to run Zimbra in this server. Usually"
-echo "the account is '$OSE_USER', but, if you did a custom install, there is a high chance"
-echo "you changed this information."
-
-printf "Should I set the default values? [Y]"
-read TMP
-OPT=${TMP:-$OPT}
-if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
-	printf "\n Please inform the zimbra's system account[$OSE_USER]: "
-	read TMP
-	OPT=${TMP:-$OSE_USER}
-
-	printf "\n Please inform the zimbra's default folder[$OSE_INSTALL_DIR]: "
-	read TMP
-	OPT=${TMP:-$OSE_INSTALL_DIR}
-fi
-
-printf "\n"
-
-echo "Configuring the Admin User for zmbackup. This user will be used to zmbackup access"
-echo "the e-mail of all accounts and should have only this kind of access. Please do not"
-echo "use the admin@domain.com account for this activity."
-echo ""
-
-DOMAIN=$(sudo -H -u zimbra bash -c '/opt/zimbra/bin/zmprov gad' | head -n 1)
-ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)
-sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
-
-if ! [ $? -eq 0 ]; then
-	echo "User zmbackup already exist! Changing the password to get access..."
-	sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov sp zmbackup@$DOMAIN '$ZMBKP_PASSWORD'"  > /dev/null 2>&1
-fi
-
-ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
-
-echo "Account configured!"
-
-echo "Configuring mail alert when the zmbackup is executed or finish a backup process."
-echo "Please inform the account or distribuition list that will receive this messages."
-printf "E-Mail:"
-read ZMBKP_MAIL_ALERT
-
-echo ""
-echo "Recovering all the configuration... Please wait"
-
-OSE_INSTALL_HOSTNAME=`su - $OSE_USER -c "zmhostname"`
-OSE_INSTALL_ADDRESS=`grep $OSE_INSTALL_HOSTNAME /etc/hosts|awk '{print $1}'`
-OSE_INSTALL_LDAPPASS=`su - $OSE_USER -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
-
-printf "\nPlease, inform the folder where the backup will be stored: "
-read ZMBKP_BKPDIR || ZMBKP_BKPDIR="$OSE_INSTALL_DIR/backup"
-
-mkdir $ZMBKP_BKPDIR > /dev/null 2>&1 && chown $OSE_USER.$OSE_USER $ZMBKP_BKPDIR > /dev/null 2>&1
-
-echo ""
-echo "Here is a Summary of your settings:"
-echo ""
-echo "Zimbra User: $OSE_USER"
-echo "Zimbra Hostname: $OSE_INSTALL_HOSTNAME"
-echo "Zimbra IP Address: $OSE_INSTALL_ADDRESS"
-echo "Zimbra LDAP Password: $OSE_INSTALL_LDAPPASS"
-echo "Zimbra Zmbackup Account: $ZMBKP_ACCOUNT"
-echo "Zimbra Zmbackup Password: $ZMBKP_PASSWORD"
-echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
-echo "Zimbra Backup Directory: $ZMBKP_BKPDIR"
-echo "Zmbackup Install Directory: $ZMBKP_SRC"
-echo "Zmbackup Settings Directory: $ZMBKP_CONF"
-echo ""
-echo "Press ENTER to continue or CTRL+C to cancel."
-read
-
 # Check for missing dependencies
 STATUS=0
 printf "\n\nChecking system for dependencies...\n\n"
@@ -253,6 +182,79 @@ if ! [ $STATUS = 0 ]; then
 	exit $STATUS
 fi
 # Done checking deps
+
+printf "\n\n\n\n"
+
+echo "First, we need that you inform the user used to run Zimbra in this server. Usually"
+echo "the account is '$OSE_USER', but, if you did a custom install, there is a high chance"
+echo "you changed this information."
+
+printf "Should I set the default values? [Y]"
+read TMP
+OPT=${TMP:-$OPT}
+if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
+	printf "\n Please inform the zimbra's system account[$OSE_USER]: "
+	read TMP
+	OPT=${TMP:-$OSE_USER}
+
+	printf "\n Please inform the zimbra's default folder[$OSE_INSTALL_DIR]: "
+	read TMP
+	OPT=${TMP:-$OSE_INSTALL_DIR}
+fi
+
+printf "\n"
+
+echo "Configuring the Admin User for zmbackup. This user will be used to zmbackup access"
+echo "the e-mail of all accounts and should have only this kind of access. Please do not"
+echo "use the admin@domain.com account for this activity."
+echo ""
+
+DOMAIN=$(sudo -H -u zimbra bash -c '/opt/zimbra/bin/zmprov gad' | head -n 1)
+ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)
+sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
+
+if ! [ $? -eq 0 ]; then
+	echo "User zmbackup already exist! Changing the password to get access..."
+	sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov sp zmbackup@$DOMAIN '$ZMBKP_PASSWORD'"  > /dev/null 2>&1
+fi
+
+ZMBKP_ACCOUNT="zmbackup@$DOMAIN"
+
+echo "Account configured!"
+
+echo "Configuring mail alert when the zmbackup is executed or finish a backup process."
+echo "Please inform the account or distribuition list that will receive this messages."
+printf "E-Mail:"
+read ZMBKP_MAIL_ALERT
+
+echo ""
+echo "Recovering all the configuration... Please wait"
+
+OSE_INSTALL_HOSTNAME=`su - $OSE_USER -c "zmhostname"`
+OSE_INSTALL_ADDRESS=`grep $OSE_INSTALL_HOSTNAME /etc/hosts|awk '{print $1}'`
+OSE_INSTALL_LDAPPASS=`su - $OSE_USER -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
+
+printf "\nPlease, inform the folder where the backup will be stored: "
+read ZMBKP_BKPDIR || ZMBKP_BKPDIR="$OSE_INSTALL_DIR/backup"
+
+mkdir $ZMBKP_BKPDIR > /dev/null 2>&1 && chown $OSE_USER.$OSE_USER $ZMBKP_BKPDIR > /dev/null 2>&1
+
+echo ""
+echo "Here is a Summary of your settings:"
+echo ""
+echo "Zimbra User: $OSE_USER"
+echo "Zimbra Hostname: $OSE_INSTALL_HOSTNAME"
+echo "Zimbra IP Address: $OSE_INSTALL_ADDRESS"
+echo "Zimbra LDAP Password: $OSE_INSTALL_LDAPPASS"
+echo "Zimbra Zmbackup Account: $ZMBKP_ACCOUNT"
+echo "Zimbra Zmbackup Password: $ZMBKP_PASSWORD"
+echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
+echo "Zimbra Backup Directory: $ZMBKP_BKPDIR"
+echo "Zmbackup Install Directory: $ZMBKP_SRC"
+echo "Zmbackup Settings Directory: $ZMBKP_CONF"
+echo ""
+echo "Press ENTER to continue or CTRL+C to cancel."
+read
 
 echo "Installing... Please wait while we made some changes."
 
