@@ -33,11 +33,11 @@ ERR_DEPNOTFOUND="3"  	# Missing dependency
 # ZMBACKUP INSTALLATION PATH
 ZMBKP_SRC="/usr/local/bin"
 ZMBKP_CONF="/etc/zmbackup"
+ZMBKP_SHARE="/usr/local/share/zmbackup"
 
 # ZIMBRA DEFAULT INSTALLATION PATH AND INTERNAL CONFIGURATION
 OSE_USER="zimbra"
 OSE_INSTALL_DIR="/opt/zimbra"
-ZMBKP_SHARE="/usr/local/share/zmbackup"
 
 ################################################################################
 # CHECKS BEFORE BEGIN THE INSTALL PROCESS
@@ -269,6 +269,7 @@ install -o $OSE_USER -m 700 $MYDIR/src/zmbackup $ZMBKP_SRC
 install -o $OSE_USER -m 700 $MYDIR/src/zmbhousekeep $ZMBKP_SRC
 install --backup=numbered -o $OSE_USER -m 600 $MYDIR/etc/zmbackup.conf $ZMBKP_CONF
 install --backup=numbered -o $OSE_USER -m 600 $MYDIR/src/zmbackup-share/* $ZMBKP_SHARE
+install --backup=numbered -o $OSE_USER -m 600 $MYDIR/etc/zmbackup.cron /etc/cron.d
 
 # Add custom settings
 sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $ZMBKP_CONF/zmbackup.conf
@@ -278,7 +279,7 @@ sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
 sed -i "s|{OSE_USER}|${OSE_USER}|g" $ZMBKP_CONF/zmbackup.conf
-sed -i "s|{ZMBKP_BKPTIME}|${ZMBKP_BKPTIME}|g" $ZMBKP_CONF/zmbackup.conf
+sed -i "s|{ROTATE_TIME}|${ZMBKP_BKPTIME}|g" $ZMBKP_CONF/zmbackup.conf
 
 # Fix backup dir permissions (owner MUST be $OSE_USER)
 chown $OSE_USER $ZMBKP_BKPDIR
