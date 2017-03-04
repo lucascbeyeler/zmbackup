@@ -1,0 +1,63 @@
+#!/bin/bash
+################################################################################
+# zmhousekeep - Bash script to clean the backup folder from old backups and unused
+#               files
+#
+# Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+################################################################################
+# zmhousekeep:
+#
+# 29/01/2017 - Version 1.0 - By Lucas Costa Beyeler
+#                               <lucas.beyeler@4linux.com.br>
+#                               <lucas.costab@outlook.com>
+################################################################################
+# parallel:
+#
+#   O. Tange (2011): GNU Parallel - The Command-Line Power Tool,
+#  ;login: The USENIX Magazine, February 2011:42-47.
+#
+################################################################################
+# LOAD CLASS FILES
+################################################################################
+source /usr/local/share/zmbackup/*
+source /etc/zmbackup/zmbackup.conf
+
+################################################################################
+# MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
+################################################################################
+validate
+
+OLDEST=`date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days"`
+
+# Remove old backups
+echo "Removing old backup folders. Please wait..."
+echo ""
+grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
+  if [ "$(echo ${line} | cut -d- -f2)" -lt "$OLDEST" ]; then
+     [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Removing session "${line}"
+     grep -v "${line}" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+     mv $WORKDIR/.sessions.txt $WORKDIR/sessions.txt
+  fi
+done
+
+# Remove all the empty files inside a directory
+echo "Removing empty files. Please wait..."
+echo ""
+find $WORKDIR -type f -size 0 -delete
+
+exit 0
