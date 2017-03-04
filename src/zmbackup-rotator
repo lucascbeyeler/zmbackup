@@ -40,15 +40,16 @@ source /etc/zmbackup/zmbackup.conf
 ################################################################################
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
-cp $WORKDIR/sessions.txt $WORKDIR/sessions.txt.old
+validate
+
+OLDEST=`date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days"`
 
 grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
-  if [ "$(echo ${line} | cut -d- -f2)" -lt "$ROTATE_TIME" ]; then
-     [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Exclude session "${line}"
+  if [ "$(echo ${line} | cut -d- -f2)" -lt "$OLDEST" ]; then
+     [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Removing session "${line}"
      grep -v "${line}" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
      mv $WORKDIR/.sessions.txt $WORKDIR/sessions.txt
   fi
 done
 
-rm $WORKDIR/.sessions.txt -f
 exit 0
