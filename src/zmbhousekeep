@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
-# zmbackup - Bash script to hot backup and hot restore Zimbra Collaboration
-#            Suite Opensource
+# zmhousekeep - Bash script to clean the backup folder from old backups and unused
+#               files
 #
 # Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
 #
@@ -20,7 +20,7 @@
 # USA
 #
 ################################################################################
-# zmbackup-rotator:
+# zmhousekeep:
 #
 # 29/01/2017 - Version 1.0 - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
@@ -44,6 +44,7 @@ validate
 
 OLDEST=`date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days"`
 
+# Remove old backups
 grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
   if [ "$(echo ${line} | cut -d- -f2)" -lt "$OLDEST" ]; then
      [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Removing session "${line}"
@@ -51,5 +52,8 @@ grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
      mv $WORKDIR/.sessions.txt $WORKDIR/sessions.txt
   fi
 done
+
+# Remove all the empty files inside a directory
+find $WORKDIR -size  0 -print0 |xargs -0 rm
 
 exit 0

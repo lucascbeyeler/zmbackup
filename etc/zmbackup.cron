@@ -17,4 +17,4 @@ MAILTO=root
 0 1 * * 1-6   zimbra    zmbackup -i
 0 1 * * *     zimbra    zmbackup -f -dl
 0 1 * * *     zimbra    zmbackup -f -al
-0 0 * * *     zimbra    zmbackup-rotator
+0 0 * * *     zimbra    zmhousekeep
