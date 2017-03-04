@@ -263,6 +263,7 @@ echo "Installing... Please wait while we made some changes."
 # Create directories if needed
 test -d $ZMBKP_CONF || mkdir -p $ZMBKP_CONF
 test -d $ZMBKP_SRC  || mkdir -p $ZMBKP_SRC
+test -d $ZMBKP_SHARE || mkdir -p $ZMBKP_SHARE
 
 # Copy files
 install -o $OSE_USER -m 700 $MYDIR/src/zmbackup $ZMBKP_SRC
