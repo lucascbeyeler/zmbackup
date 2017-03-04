@@ -54,6 +54,6 @@ grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
 done
 
 # Remove all the empty files inside a directory
-find $WORKDIR -size  0 -print0 |xargs -0 rm
+find $WORKDIR -type f -size 0 -delete
 
 exit 0
