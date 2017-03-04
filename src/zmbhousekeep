@@ -45,6 +45,8 @@ validate
 OLDEST=`date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days"`
 
 # Remove old backups
+echo "Removing old backup folders. Please wait..."
+echo ""
 grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
   if [ "$(echo ${line} | cut -d- -f2)" -lt "$OLDEST" ]; then
      [ -d $WORKDIR/"${line}" ] && rm -rf $WORKDIR/"${line}" && echo Removing session "${line}"
@@ -54,6 +56,8 @@ grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read line; do
 done
 
 # Remove all the empty files inside a directory
+echo "Removing empty files. Please wait..."
+echo ""
 find $WORKDIR -type f -size 0 -delete
 
 exit 0

@@ -270,7 +270,7 @@ install -o $OSE_USER -m 700 $MYDIR/src/zmbackup $ZMBKP_SRC
 install -o $OSE_USER -m 700 $MYDIR/src/zmbhousekeep $ZMBKP_SRC
 install --backup=numbered -o $OSE_USER -m 600 $MYDIR/etc/zmbackup.conf $ZMBKP_CONF
 install --backup=numbered -o $OSE_USER -m 600 $MYDIR/src/zmbackup-share/* $ZMBKP_SHARE
-install --backup=numbered -o root -m 600 $MYDIR/etc/zmbackup.cron /etc/cron.d
+install -o root -m 600 $MYDIR/etc/zmbackup.cron /etc/cron.d
 
 # Add custom settings
 sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $ZMBKP_CONF/zmbackup.conf
