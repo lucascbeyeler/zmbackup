@@ -79,9 +79,6 @@ echo "this is made by the community for the community, so this has NO WARRANTY. 
 echo ""
 echo "#################################################################################"
 echo ""
-echo "WARNING: This is a pre-release and does not supposed to be used in production in"
-echo "any way."
-echo ""
 echo "If you are okay with this and still want to install the zmbackup, press Y."
 printf "Are you sure? [N]: "
 read OPT

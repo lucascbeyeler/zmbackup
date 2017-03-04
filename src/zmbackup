@@ -58,9 +58,10 @@ export ALOBJECT="(objectclass=zimbraAlias)"
 export ACFILTER="zimbraMailDeliveryAddress"
 export DLFILTER="mail"
 export ALFILTER="uid"
-
-export MAILHOST="localhost"
 ################################################################################
+# LOAD CLASS FILES
+################################################################################
+source /usr/local/share/zmbackup/*
 
 ################################################################################
 # ZMBACKUP FUNCTIONS
@@ -194,9 +195,9 @@ ldap_bkp()
     EXIST=$(grep $i $WORKDIR/sessions.txt 2> /dev/null | tail -1 | awk -F: '{print $3}')
     if  [[ "$i" != "galsync."* ]] && \
         [[ "$i" != "virus-"* ]] && \
-        [[ "$i" != "ham."* ]] && \
-        [[ "$i" != "spam."* ]] && \
-        [[ "$i" != "spam."* ]] && \
+        [[ "$i" != "ham"* ]] && \
+        [[ "$i" != "admin"* ]] && \
+        [[ "$i" != "spam"* ]] && \
         [[ "$i" != "zmbackup"* ]] && \
         [[ "$i" != "postmaster"* ]] && \
         [[ "$i" != "root"* ]]; then
@@ -429,67 +430,11 @@ rotate_backup()
 }
 
 ################################################################################
-# CHECK IF THE ZMBACKUP.CONF IS CONFIGURED CORRECTLY
-################################################################################
-
-validate()
-{
-  if ! [ -f "/etc/zmbackup/zmbackup.conf" ]; then
-    echo "zmbackup.conf not found - Please run the install.sh to recreate the zmbackup.conf"
-    exit 0
-  fi
-  if ! [ -z "$BACKUPUSER" ]; then
-  	if [ "$(id -u)" != "$(id -u $BACKUPUSER)" ]; then
-  		echo "You need to be $BACKUPUSER to run this script"
-  		exit 0
-  	fi
-  else
-  	echo "You need to define the variable BACKUPUSER"
-  	exit 0
-  fi
-
-  if ! [ -z "$WORKDIR" ]; then
-          if ! [ -d "$WORKDIR" ]; then
-                  echo "The directory $WORKDIR doesn't exist"
-                  exit 0
-          fi
-  else
-          echo "You need to define the variable WORKDIR"
-          exit 0
-  fi
-
-  if [ -z "$ADMINUSER" ]; then
-          echo "You need to define the variable ADMINUSER"
-          exit 0
-  fi
-
-  if [ -z "$ADMINPASS" ]; then
-          echo "You need to define the variable ADMINPASS"
-          exit 0
-  fi
-
-  if [ -z "$LDAPSERVER" ]; then
-          echo "You need to define the variable LDAPSERVER"
-          exit 0
-  fi
-
-  if [ -z "$LDAPADMIN" ]; then
-          echo "You need to define the variable LDAPZIMBRADN"
-          exit 0
-  fi
-
-  if [ -z "$LDAPPASS" ]; then
-          echo "You need to define the variable LDAPZIMBRAPASS"
-          exit 0
-  fi
-}
-
-################################################################################
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
 
-load_config
 validate
+load_config
 
 case "$1" in
   "-f"|"--full" )
