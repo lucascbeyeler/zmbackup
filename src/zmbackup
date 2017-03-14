@@ -528,7 +528,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.0.0"
+    echo "zmbackup version: 1.0.1"
   ;;
   * )
     show_help
