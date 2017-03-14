@@ -467,7 +467,6 @@ case "$1" in
     list_sessions
   ;;
   "-r"|"--restore" )
-    create_temp
     case "$2" in
       "-dl"|"--distributionlist" )
         if [ -z "$3" ]; then
@@ -514,7 +513,6 @@ case "$1" in
         printf "\n\nError! Incorrect options\n\n"
       ;;
     esac
-    clear_temp
   ;;
   "-d"|"--delete" )
   if [ -z "$2" ]; then
