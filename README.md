@@ -13,7 +13,8 @@ Requirements
 * GNU Parallel - a shell tool for executing jobs in parallel using one or more CPU;
 * cURL - a command line tool and library for transferring data with URL syntax;
 * GNU grep - a command-line utility for searching plain-text data sets for lines matching a regular expression;
-* date - command used to print out, or change the value of, the system's time and date information.
+* date - command used to print out, or change the value of, the system's time and date information;
+* cron - a time-based job scheduler in Unix-like computer operating systems.
 
 Instalation
 ------------
@@ -34,8 +35,35 @@ Enter inside the folder zmbackup and execute the script install.sh. Follow the i
 
 ```
 $ zmbackup -v
-zmbackup version: 1.0.0 Release Candidate 2
+zmbackup version: 1.0.1
 ```
+
+Open the folder /etc/cron.d/zmbackup.cron and adjust the time of each job scheduled to the time you want the execution. If you configured zmbkpose or any old release before, please undo and use this file for backup scheduling
+````
+$ vim /etc/cron.d/zmbackup.cron
+###############################################################################
+#                             ZMBACKUP CRON FILE                              #
+###############################################################################
+# This file is used to manage the time and day each backup activity will be
+# executed. Please modify this file rather than create a new one.
+# Default values for each activity:
+#       Full Backup: Every Sunday at 1 AM
+#       Incremental Backup: From Monday to Saturday at 1 AM
+#       Alias: Every day at 1 AM
+#       Distribution List: Every day at 1 AM
+#       Backup Rotation: Every day at Midnight
+###############################################################################
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+MAILTO=root
+0 1 * * 0     zimbra    zmbackup -f
+0 1 * * 1-6   zimbra    zmbackup -i
+0 1 * * *     zimbra    zmbackup -f -dl
+0 1 * * *     zimbra    zmbackup -f -al
+0 0 * * *     zimbra    zmhousekeep
+````
+
+Keep in mind that the script zmhousekeep is the one who is going to rotate your backups inside the folder, and do the cleaning inside each folder. Configure him to execute before the zmbackup proccess, because release the space for the next proccess, and is more quickly than the others.
 
 Documentation
 ------------
