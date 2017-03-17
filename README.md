@@ -38,7 +38,7 @@ $ zmbackup -v
 zmbackup version: 1.0.1
 ```
 
-Open the folder /etc/cron.d/zmbackup.cron and adjust the time of each job scheduled to the time you want the execution. If you configured zmbkpose or any old release before, please undo and use this file for backup scheduling
+Open the folder /etc/cron.d/zmbackup.cron and adjust each job scheduled to the time you want the execution. If you configured zmbkpose or any old release before, please undo and use this file for scheduling.
 ````
 $ vim /etc/cron.d/zmbackup.cron
 ###############################################################################
