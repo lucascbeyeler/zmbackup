@@ -89,7 +89,8 @@ clear_temp(){
 show_help (){
   printf "Usage: zmbackup [-f] [options] <mail>"
   printf "\n       zmbackup [-i] <mail>"
-  printf "\n       zmbackup [-r] [options] <mail_origin> <mail_destination> <session>"
+  printf "\n       zmbackup [-r] [options] <session> <mail>"
+  printf "\n       zmbackup [-r] [-ro] <session> <mail_origin> <mail_destination>"
   printf "\n       zmbackup [-d] <session>"
 
   # All the basic options will be put here.
