@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 13/03/2017 - Version 1.0.1  - By Lucas Costa Beyeler
+# 22/03/2017 - Version 1.0.2  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -279,7 +279,7 @@ backup_full()
 
 loop_inc()
 {
-  source /etc/zmbkpose/zmbackup.conf
+  source /etc/zmbackup/zmbackup.conf
   source /opt/zimbra/.bashrc
   AFTER=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
   wget --quiet -O $TEMPDIR/$1.tgz \
@@ -387,7 +387,7 @@ restore_accounts_mail ()
 
 loop_ldap()
 {
-  source /etc/zmbkpose/zmbackup.conf
+  source /etc/zmbackup/zmbackup.conf
   source /opt/zimbra/.bashrc
   ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c \
               -w $LDAPPASS \
@@ -529,7 +529,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.0.1"
+    echo "zmbackup version: 1.0.2"
   ;;
   * )
     show_help
