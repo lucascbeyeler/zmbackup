@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 13/03/2017 - Version 1.0.1  - By Lucas Costa Beyeler
+# 22/03/2017 - Version 1.0.2  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -529,7 +529,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.0.1"
+    echo "zmbackup version: 1.0.2"
   ;;
   * )
     show_help
