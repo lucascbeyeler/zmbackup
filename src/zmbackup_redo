@@ -84,19 +84,17 @@ clear_temp(){
 ################################################################################
 # LOAD CLASS FILES
 ################################################################################
+source /usr/local/share/zmbackup/validate
+validate
+load_config
 source /usr/local/share/zmbackup/backup
 source /usr/local/share/zmbackup/helpme
 source /usr/local/share/zmbackup/list
 source /usr/local/share/zmbackup/restore
 source /usr/local/share/zmbackup/sendreport
-source /usr/local/share/zmbackup/validate
-
 ################################################################################
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
-
-validate
-load_config
 
 case "$1" in
   "-f"|"--full" )
