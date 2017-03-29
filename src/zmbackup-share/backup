@@ -83,7 +83,7 @@ backup_dl()
   notify_email_begin $SESSION
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   if [ -z $1 ]; then
-    ldap_bkp $DLOBJECT $DLFILTER
+    build_list $DLOBJECT $DLFILTER
   else
     for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
@@ -106,7 +106,7 @@ backup_alias()
   notify_email_begin $SESSION
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   if [ -z $1 ]; then
-    ldap_bkp $ALOBJECT $ALFILTER
+    build_list $ALOBJECT $ALFILTER
   else
     for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
@@ -141,7 +141,7 @@ backup_full()
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   notify_email_begin $SESSION
   if ! [ -z $1 ]; then
-    ldap_bkp $ACOBJECT $ACFILTER
+    build_list $ACOBJECT $ACFILTER
   else
     for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
@@ -170,7 +170,7 @@ backup_incremental()
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   notify_email_begin $SESSION
   if ! [ -z $1 ]; then
-    ldap_bkp $ACOBJECT $ACFILTER
+    build_list $ACOBJECT $ACFILTER
   else
     for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
