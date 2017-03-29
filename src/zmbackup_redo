@@ -60,17 +60,6 @@ export DLFILTER="mail"
 export ALFILTER="uid"
 
 ################################################################################
-# LOAD CLASS FILES
-################################################################################
-source /usr/local/share/zmbackup/backup
-source /usr/local/share/zmbackup/helpme
-source /usr/local/share/zmbackup/list
-source /usr/local/share/zmbackup/restore
-source /usr/local/share/zmbackup/sendreport
-source /usr/local/share/zmbackup/validate
-
-
-################################################################################
 # ZMBACKUP FUNCTIONS
 ################################################################################
 
@@ -91,6 +80,17 @@ create_temp(){
 clear_temp(){
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR
 }
+
+################################################################################
+# LOAD CLASS FILES
+################################################################################
+source /usr/local/share/zmbackup/backup
+source /usr/local/share/zmbackup/helpme
+source /usr/local/share/zmbackup/list
+source /usr/local/share/zmbackup/restore
+source /usr/local/share/zmbackup/sendreport
+source /usr/local/share/zmbackup/validate
+
 ################################################################################
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
