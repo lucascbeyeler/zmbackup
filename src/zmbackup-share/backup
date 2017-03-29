@@ -35,7 +35,7 @@
 # CHECK IF THE ZMBACKUP.CONF IS CONFIGURED CORRECTLY
 ################################################################################
 
-source tmpfile
+source /usr/local/share/zmbackup/tmpfile
 
 # Search the LDAP for all accounts.
 # Parameters:
