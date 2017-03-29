@@ -1,0 +1,76 @@
+#!/bin/bash
+################################################################################
+# zmbackup - Bash script to hot backup and hot restore Zimbra Collaboration
+#            Suite Opensource
+#
+# Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+################################################################################
+# helpme:
+#
+# 24/03/2017 - Version 1.1.0 -  By Lucas Costa Beyeler
+#                               <lucas.beyeler@4linux.com.br>
+#                               <lucas.costab@outlook.com>
+################################################################################
+# parallel:
+#
+#   O. Tange (2011): GNU Parallel - The Command-Line Power Tool,
+#  ;login: The USENIX Magazine, February 2011:42-47.
+#
+################################################################################
+# CHECK IF THE ZMBACKUP.CONF IS CONFIGURED CORRECTLY
+################################################################################
+
+# show_help: It will show a quick help about each command from zmbackup
+show_help (){
+  printf "Usage: zmbackup [-f] [options] <mail>"
+  printf "\n       zmbackup [-i] <mail>"
+  printf "\n       zmbackup [-r] [options] <session> <mail>"
+  printf "\n       zmbackup [-r] [-ro] <session> <mail_origin> <mail_destination>"
+  printf "\n       zmbackup [-d] <session>"
+
+  # All the basic options will be put here.
+  printf "\nOptions:\n"
+
+  printf "\n -f, --full              : Execute full backup of an account, a list of accounts, or all accounts."
+  printf "\n -i, --incremental       : Execute incremental backup for an account, a list of accounts, or all accounts."
+  printf "\n -l, --list              : List all backup sessions that still exist in your disk."
+  printf "\n -r, --restore           : Restore the backup inside the users account."
+  printf "\n -d, --delete            : Delete a session of backup."
+  printf "\n -v, --version           : Show the zmbackup version."
+
+  # All the options related to Full Backups will be put here
+  printf "\nFull Backup Options:\n"
+
+  printf "\n -dl, --distributionlist : Execute a backup of a distributionlist instead of an account."
+  printf "\n -al, --alias : Execute a backup of a distributionlist instead of an account."
+  printf "\n -ldp, --ldap            : Execute a backup of an account, a list of accounts, or all accounts, but
+                           only the ldap entry."
+
+  # All the options related to Restore Backups will be put here
+  printf "\nRestore Backup Options:\n"
+
+  printf "\n -dl, --distributionlist : Execute a restore of a distributionlist instead of an account."
+  printf "\n -al, --alias : Execute a restore of an alias instead of an account."
+  printf "\n -m, --mail              : Execute a restore of an account, a list of accounts, or all accounts, but
+                           only the messages."
+  printf "\n -ldp, --ldap            : Execute a restore of an account, a list of accounts, or all accounts, but
+                           only the ldap entry."
+  printf "\n -ro, --restoreOnAccount  : Execute a restore of an account inside another account."
+
+  printf "\n\n\n"
+}
