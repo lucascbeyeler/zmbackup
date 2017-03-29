@@ -28,7 +28,7 @@
 ################################################################################
 # parallel:
 #
-#   O. Tange (2011): GNU parallel --env - The Command-Line Power Tool,
+#   O. Tange (2011): GNU Parallel - The Command-Line Power Tool,
 #  ;login: The USENIX Magazine, February 2011:42-47.
 #
 ################################################################################
@@ -89,7 +89,7 @@ backup_dl()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --env --no-notice --jobs $MAX_PARALLEL_PROCESS \
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
                               "loop_ldap {} $DLOBJECT"
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
   mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -112,7 +112,7 @@ backup_alias()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --env --no-notice --jobs $MAX_PARALLEL_PROCESS \
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
                               "loop_ldap {} $ALOBJECT"
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
   mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -147,7 +147,7 @@ backup_full()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --env --no-notice --jobs $MAX_PARALLEL_PROCESS \
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
            "loop_mbldp {} $ACOBJECT"
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
@@ -176,7 +176,7 @@ backup_incremental()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --env --no-notice --jobs $MAX_PARALLEL_PROCESS \
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
            "loop_mbldp {} $ACOBJECT INC"
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
