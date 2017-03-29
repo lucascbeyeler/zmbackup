@@ -85,3 +85,109 @@ create_temp(){
 clear_temp(){
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR
 }
+################################################################################
+# MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
+################################################################################
+
+validate
+load_config
+
+case "$1" in
+  "-f"|"--full" )
+    create_temp
+    echo "Running the Full Backup - Please wait..."
+    case "$2" in
+      "-dl"|"--distributionlist" )
+        backup_dl $3
+      ;;
+      "-al"|"--alias" )
+        backup_alias $3
+      ;;
+      "-ldp"|"--ldap" )
+        ldap_bkp $3
+      ;;
+      * )
+        backup_full $2
+    esac
+    echo "Backup finished!"
+    clear_temp
+  ;;
+  "-i"|"--incremental" )
+    create_temp
+    echo "Running the Incremental Backup - Please wait..."
+    backup_incremental $2
+    echo "Backup finished!"
+    clear_temp
+  ;;
+  "-l"|"--list" )
+    list_sessions
+  ;;
+  "-r"|"--restore" )
+    create_temp
+    case "$2" in
+      "-dl"|"--distributionlist" )
+        if [ -z "$3" ]; then
+          show_help
+          printf "\n\nError! Please inform the session that should be restored\n\n"
+        else
+          restore_accounts_ldap $3 $4
+        fi
+      ;;
+      "-al"|"--alias" )
+        if [ -z "$3" ]; then
+          show_help
+          printf "\n\nError! Please inform the session that should be restored\n\n"
+        else
+          restore_accounts_ldap $3 $4
+        fi
+      ;;
+      "-ldp"|"--ldap" )
+      if [ -z "$3" ]; then
+        show_help
+        printf "\n\nError! Please inform the session that should be restored\n\n"
+      else
+        restore_accounts_ldap $3 $4
+      fi
+      ;;
+      "-ro"|"--restoreOnAccount" )
+      if [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
+        show_help
+        printf "\n\nError! Please inform the session, the account that should be restored, and when the restore should be placed.\n\n"
+      else
+        restore_accounts_mail $5 $3 $4
+      fi
+      ;;
+      "-m"|"--mail" )
+      if [ -z "$3" ]; then
+        show_help
+        printf "\n\nError! Please inform the session that should be restored\n\n"
+      else
+        restore_accounts_mail $3 $4
+      fi
+      ;;
+      * )
+        show_help
+        printf "\n\nError! Incorrect options\n\n"
+      ;;
+    esac
+    clear_temp
+  ;;
+  "-d"|"--delete" )
+  if [ -z "$2" ]; then
+    show_help
+    printf "\n\nError! Please inform the session that should be deleted\n\n"
+  else
+    rotate_backup $2
+  fi
+  ;;
+  "-h"|"--help" )
+    show_help
+  ;;
+  "-v"|"--version" )
+    echo "zmbackup version: 1.1.0"
+  ;;
+  * )
+    show_help
+    printf "\n\nError! Incorrect options\n\n"
+  ;;
+esac
