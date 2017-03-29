@@ -35,6 +35,8 @@
 # CHECK IF THE ZMBACKUP.CONF IS CONFIGURED CORRECTLY
 ################################################################################
 
+source tmpfile
+
 # Search the LDAP for all accounts.
 # Parameters:
 # $1 -> Inform the LDAP query to search;
@@ -78,6 +80,7 @@ loop_ldap()
 # Backup all the distribution lists and the accounts associated to them
 backup_dl()
 {
+  create_temp
   export -f loop_ldap
   SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
   notify_email_begin $SESSION
@@ -96,11 +99,13 @@ backup_dl()
   cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all lists" >> $LOGFILE
   notify_email_finish "OK" $SESSION
+  clear_temp
 }
 
 # Backup all the alias
 backup_alias()
 {
+  create_temp
   export -f loop_ldap
   SESSION="alias-"$(date  +%Y%m%d%H%M%S)
   notify_email_begin $SESSION
@@ -119,6 +124,7 @@ backup_alias()
   cat $TEMPSESSION >> $WORKDIR/sessions.txt
   echo "$(date) - Backup completed for all alias" >> $LOGFILE
   notify_email_finish "OK" $SESSION
+  clear_temp
 }
 
 loop_mbldp()
@@ -136,6 +142,7 @@ loop_mbldp()
 # Backup all the accounts - PARALLEL_SUPPORT
 backup_full()
 {
+  create_temp
   export -f loop_mbldp
   SESSION="full-"$(date  +%Y%m%d%H%M%S)
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
@@ -154,6 +161,7 @@ backup_full()
   cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  clear_temp
 }
 
 # Backup all the accounts - PARALLEL_SUPPORT
@@ -165,6 +173,7 @@ backup_incremental()
     backup_full $1
     exit
   fi
+  create_temp
   export -f loop_mbldp
   export SESSION="inc-"$(date  +%Y%m%d%H%M%S)
   echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
@@ -183,4 +192,5 @@ backup_incremental()
   cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
   notify_email_finish "OK" $SESSION
   echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  clear_temp
 }

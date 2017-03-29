@@ -1,0 +1,47 @@
+#!/bin/bash
+################################################################################
+# zmbackup - Bash script to hot backup and hot restore Zimbra Collaboration
+#            Suite Opensource
+#
+# Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+################################################################################
+# backup:
+#
+# 24/03/2017 - Version 1.1.0 -  By Lucas Costa Beyeler
+#                               <lucas.beyeler@4linux.com.br>
+#                               <lucas.costab@outlook.com>
+################################################################################
+# parallel:
+#
+#   O. Tange (2011): GNU Parallel - The Command-Line Power Tool,
+#  ;login: The USENIX Magazine, February 2011:42-47.
+#
+################################################################################
+
+# Create the temporary files
+create_temp(){
+  export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
+  export TEMPSESSION=$(mktemp)
+  export TEMPACCOUNT=$(touch /tmp/accounts.txt)
+  export TEMPINCACCOUNT=$(mktemp)
+}
+
+# Clear all the temporary files
+clear_temp(){
+  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR
+}

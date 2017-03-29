@@ -68,25 +68,10 @@ load_config(){
   source /opt/zimbra/.bashrc
 }
 
-# Create the temporary files
-create_temp(){
-  export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
-  export TEMPSESSION=$(mktemp)
-  export TEMPACCOUNT=$(touch /tmp/accounts.txt)
-  export TEMPINCACCOUNT=$(mktemp)
-}
-
-# Clear all the temporary files
-clear_temp(){
-  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR
-}
-
 ################################################################################
 # LOAD CLASS FILES
 ################################################################################
 source /usr/local/share/zmbackup/validate
-validate
-load_config
 source /usr/local/share/zmbackup/backup
 source /usr/local/share/zmbackup/helpme
 source /usr/local/share/zmbackup/list
@@ -96,9 +81,11 @@ source /usr/local/share/zmbackup/sendreport
 # MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
 ################################################################################
 
+validate
+load_config
+
 case "$1" in
   "-f"|"--full" )
-    create_temp
     echo "Running the Full Backup - Please wait..."
     case "$2" in
       "-dl"|"--distributionlist" )
@@ -114,20 +101,16 @@ case "$1" in
         backup_full $2
     esac
     echo "Backup finished!"
-    clear_temp
   ;;
   "-i"|"--incremental" )
-    create_temp
     echo "Running the Incremental Backup - Please wait..."
     backup_incremental $2
     echo "Backup finished!"
-    clear_temp
   ;;
   "-l"|"--list" )
     list_sessions
   ;;
   "-r"|"--restore" )
-    create_temp
     case "$2" in
       "-dl"|"--distributionlist" )
         if [ -z "$3" ]; then
@@ -174,7 +157,6 @@ case "$1" in
         printf "\n\nError! Incorrect options\n\n"
       ;;
     esac
-    clear_temp
   ;;
   "-d"|"--delete" )
   if [ -z "$2" ]; then
