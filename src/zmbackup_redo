@@ -62,7 +62,7 @@ export ALFILTER="uid"
 ################################################################################
 # LOAD CLASS FILES
 ################################################################################
-source /usr/local/share/zmbackup/*
+source /usr/local/share/zmbackup/{backup,helpme,list,restore,sendreport,validate}
 
 ################################################################################
 # ZMBACKUP FUNCTIONS
