@@ -333,8 +333,8 @@ backup_alias()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
-                              "loop_ldap {} $ALOBJECT"
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                              'loop_ldap {} "$ALOBJECT"'
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
   mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
   cat $TEMPSESSION >> $WORKDIR/sessions.txt
@@ -355,8 +355,8 @@ backup_full()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
-           "loop_mbldp {} $ACOBJECT"
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+           'loop_mbldp {} "$ACOBJECT"'
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
   cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
@@ -383,8 +383,8 @@ backup_incremental()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs $MAX_PARALLEL_PROCESS \
-           "loop_mbldp {} $ACOBJECT INC"
+  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+           'loop_mbldp {} "$ACOBJECT" INC'
   mv "$TEMPDIR" "$WORKDIR/$SESSION"
   echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
   cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
@@ -406,12 +406,12 @@ restore_accounts_mail ()
     for i in $(cat $TEMPSESSION); do
       printf "\nRestoring Session - $i"
       if ! [ -z $3 ]; then
-        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+        cat $TEMPACCOUNT | parallel --no-notice --jobs '$MAX_PARALLEL_PROCESS' \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/$3/?fmt=tgz > /dev/null"
       else
-        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+        cat $TEMPACCOUNT | parallel --no-notice --jobs '$MAX_PARALLEL_PROCESS' \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/{}/?fmt=tgz > /dev/null"
@@ -432,7 +432,7 @@ restore_accounts_ldap ()
     echo "Restore LDAP process started at - $(date)"
     for i in $(cat $TEMPSESSION); do
       echo "Restoring Session - $i"
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+      cat $TEMPACCOUNT | parallel --no-notice --jobs '$MAX_PARALLEL_PROCESS' \
                                 "loop_ldap $i {}"
       echo "Session $i restored with SUCCESS"
     done
