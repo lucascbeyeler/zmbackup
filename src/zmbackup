@@ -113,7 +113,7 @@ function build_backup_list()
         [[ "$i" != "zmbackup@"* ]] && \
         [[ "$i" != "postmaster@"* ]] && \
         [[ "$i" != "root@"* ]]; then
-      if [ "$EXIST" = "$(date +%m/%d/%y)" ]; then
+      if [[ "$EXIST" = "$(date +%m/%d/%y)" ]] && [[ "$LOCK_BACKUP" == "TRUE" ]]; then
         echo "WARN: $i already has backup today. Nothing to do."
       else
         echo $i >> $TEMPACCOUNT
@@ -314,8 +314,6 @@ notify_email_finish()
 backup_dl()
 {
   export SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
-  notify_email_begin $SESSION
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   if [ -z $1 ]; then
     build_backup_list $DLOBJECT $DLFILTER
   else
@@ -323,21 +321,25 @@ backup_dl()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
-                              'loop_ldap_backup {} "$DLOBJECT"'
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
-  cat $TEMPSESSION >> $WORKDIR/sessions.txt
-  echo "$(date) - Backup completed for all lists" >> $LOGFILE
-  notify_email_finish "OK" $SESSION
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    notify_email_begin $SESSION
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                                'loop_ldap_backup {} "$DLOBJECT"'
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+    cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    echo "$(date) - Backup completed for all lists" >> $LOGFILE
+    notify_email_finish "OK" $SESSION
+  fi
 }
 
 # Backup all the alias
 backup_alias()
 {
   export SESSION="alias-"$(date  +%Y%m%d%H%M%S)
-  notify_email_begin $SESSION
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
   if [ -z $1 ]; then
     build_backup_list $ALOBJECT $ALFILTER
   else
@@ -345,21 +347,25 @@ backup_alias()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
-                              'loop_ldap_backup {} "$ALOBJECT"'
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
-  cat $TEMPSESSION >> $WORKDIR/sessions.txt
-  echo "$(date) - Backup completed for all alias" >> $LOGFILE
-  notify_email_finish "OK" $SESSION
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    notify_email_begin $SESSION
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                                'loop_ldap_backup {} "$ALOBJECT"'
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+    cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    echo "$(date) - Backup completed for all alias" >> $LOGFILE
+    notify_email_finish "OK" $SESSION
+  fi
 }
 
 # Backup all the accounts - PARALLEL_SUPPORT
 backup_full()
 {
   export SESSION="full-"$(date  +%Y%m%d%H%M%S)
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  notify_email_begin $SESSION
   if [ -z $2 ]; then
     build_backup_list $ACOBJECT $ACFILTER
   else
@@ -367,13 +373,19 @@ backup_full()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
-           'loop_mbldp_backup {} "$ACOBJECT"'
-  mv "$TEMPDIR" "$WORKDIR/$SESSION"
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
-  notify_email_finish "OK" $SESSION
-  echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    notify_email_begin $SESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+             'loop_mbldp_backup {} "$ACOBJECT"'
+    mv "$TEMPDIR" "$WORKDIR/$SESSION"
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
+    notify_email_finish "OK" $SESSION
+    echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  fi
 }
 
 # Backup all the accounts - PARALLEL_SUPPORT
@@ -385,9 +397,7 @@ backup_incremental()
     backup_full $1 $2
     exit
   fi
-  export export SESSION="inc-"$(date  +%Y%m%d%H%M%S)
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  notify_email_begin $SESSION
+  export SESSION="inc-"$(date  +%Y%m%d%H%M%S)
   if [ -z $2 ]; then
     build_backup_list $ACOBJECT $ACFILTER
   else
@@ -395,13 +405,19 @@ backup_incremental()
       echo $i >> $TEMPACCOUNT
     done
   fi
-  cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
-           'loop_mbldp_backup {} "$ACOBJECT" INC'
-  mv "$TEMPDIR" "$WORKDIR/$SESSION"
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
-  notify_email_finish "OK" $SESSION
-  echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    notify_email_begin $SESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+             'loop_mbldp_backup {} "$ACOBJECT" INC'
+    mv "$TEMPDIR" "$WORKDIR/$SESSION"
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
+    notify_email_finish "OK" $SESSION
+    echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  fi
 }
 
 ################################################################################
