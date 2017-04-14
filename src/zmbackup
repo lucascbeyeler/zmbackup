@@ -369,10 +369,10 @@ backup_alias()
 backup_full()
 {
   export SESSION="full-"$(date  +%Y%m%d%H%M%S)
-  if [ -z $2 ]; then
+  if [ -z $1 ]; then
     build_backup_list $ACOBJECT $ACFILTER
   else
-    for i in $(echo "$2" | sed 's/,/\n/g'); do
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
   fi
@@ -397,14 +397,16 @@ backup_incremental()
   #Check if exist a backup full. If not, do a backup full and not the incremental
   FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
   if [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
-    backup_full $1 $2
+    echo "No Incremental Backup Found - Fall Back to Full Backup"
+    backup_full $1
+    clear_temp
     exit
   fi
   export SESSION="inc-"$(date  +%Y%m%d%H%M%S)
-  if [ -z $2 ]; then
+  if [ -z $1 ]; then
     build_backup_list $ACOBJECT $ACFILTER
   else
-    for i in $(echo "$2" | sed 's/,/\n/g'); do
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
   fi
