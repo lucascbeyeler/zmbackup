@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 22/03/2017 - Version 1.0.2  - By Lucas Costa Beyeler
+# 13/04/2017 - Version 1.1.0  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -58,32 +58,163 @@ export ALOBJECT="(objectclass=zimbraAlias)"
 export ACFILTER="zimbraMailDeliveryAddress"
 export DLFILTER="mail"
 export ALFILTER="uid"
+
+# PID FILE
+export PID='/opt/zimbra/log/zmbackup.pid'
+
 ################################################################################
 # LOAD CLASS FILES
 ################################################################################
-source /usr/local/share/zmbackup/*
+source /usr/local/share/zmbackup/validate
 
 ################################################################################
-# ZMBACKUP FUNCTIONS
+# PREPARATION FUNCTIONS
 ################################################################################
 
+# Load the config file and zimbra's bashrc
 load_config(){
   source /etc/zmbackup/zmbackup.conf
   source /opt/zimbra/.bashrc
+}
+
+export_functions(){
+  export -f load_config
+  export -f loop_ldap_backup
+  export -f loop_mbldp_backup
+  export -f loop_ldap_restore
 }
 
 # Create the temporary files
 create_temp(){
   export TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
   export TEMPSESSION=$(mktemp)
-  export TEMPACCOUNT=$(mktemp)
+  export TEMPACCOUNT='/tmp/accounts.txt'
   export TEMPINCACCOUNT=$(mktemp)
 }
 
 # Clear all the temporary files
 clear_temp(){
-  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR
+  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID
 }
+
+function build_backup_list()
+{
+  ldapsearch -x -H $LDAPSERVER \
+                -D $LDAPADMIN \
+                -w $LDAPPASS \
+                -b '' \
+                -LLL "$1" $2 | \
+                grep "^$2" | \
+                awk '{print $2}' > $TEMPINCACCOUNT
+  for i in $(cat $TEMPINCACCOUNT); do
+    EXIST=$(grep $i $WORKDIR/sessions.txt 2> /dev/null | tail -1 | awk -F: '{print $3}')
+    if  [[ "$i" != "galsync."* ]] && \
+        [[ "$i" != "virus-"* ]] && \
+        [[ "$i" != "ham."* ]] && \
+        [[ "$i" != "admin@"* ]] && \
+        [[ "$i" != "spam."* ]] && \
+        [[ "$i" != "zmbackup@"* ]] && \
+        [[ "$i" != "postmaster@"* ]] && \
+        [[ "$i" != "root@"* ]]; then
+      if [[ "$EXIST" = "$(date +%m/%d/%y)" ]] && [[ "$LOCK_BACKUP" == "TRUE" ]]; then
+        echo "WARN: $i already has backup today. Nothing to do."
+      else
+        echo $i >> $TEMPACCOUNT
+      fi
+    fi
+  done
+}
+
+build_restore_list()
+{
+  INBETWEEN=0
+  if [[ $2 == *"@"* ]]; then
+    for i in $(echo "$2" | sed 's/,/\n/g'); do
+      echo $i >> $TEMPACCOUNT
+    done
+  else
+    grep $1 /backup/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
+  fi
+  if [[ "$1" == "full-"* ]]; then
+    for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
+      if [[ "$1" ==  "$i" ]]; then
+        echo $i >> $TEMPSESSION
+        INBETWEEN=1
+      elif [[ "$INBETWEEN" -eq 1 ]] && [[ "$i" == "inc-"* ]]; then
+        echo $i >> $TEMPSESSION
+      else
+        break
+      fi
+    done
+  else
+    echo $1 >> $TEMPSESSION
+  fi
+}
+
+################################################################################
+# LOOP FUNCTIONS
+################################################################################
+
+loop_ldap_backup()
+{
+  load_config
+  ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
+             -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldiff
+  echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+}
+
+loop_mbldp_backup()
+{
+  load_config
+  if [ "$3" == "INC" ]; then
+    AFTER="\&query=after:"$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
+  fi
+  ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
+             -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldiff
+  wget --quiet -O $TEMPDIR/$1.tgz --http-user $ADMINUSER --http-passwd $ADMINPASS \
+        "https://$MAILHOST:7071/home/$1/?fmt=tgz"$AFTER --no-check-certificate
+  echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+}
+
+loop_ldap_restore()
+{
+  load_config
+  ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c \
+              -w $LDAPPASS \
+              $(grep ^dn: $WORKDIR/$1/$2.ldiff \
+              | awk '{print $2}') > /dev/null 2>&1
+  ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
+           -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff > /dev/null 2>&1
+}
+
+################################################################################
+# ZMBACKUP LIST SESSIONS
+################################################################################
+
+# List all the backups
+list_sessions ()
+{
+  for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
+    SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+    QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
+    OPT=$(echo $i | cut -d"-" -f1 )
+    printf "\nSession: $i\n    Size: $SIZE"
+    printf "\nAccounts: $QTDE"
+    case $OPT in
+      "full") printf "\n    Type: Full Backup\n"
+      ;;
+      "inc") printf "\n    Type: Incremental Backup\n"
+      ;;
+      "distlist") printf "\n    Type: Distribution List Backup\n"
+      ;;
+    esac
+  done
+  echo ""
+}
+
+################################################################################
+# ZMBACKUP HELP
+################################################################################
 
 # show_help: It will show a quick help about each command from zmbackup
 show_help (){
@@ -124,6 +255,10 @@ show_help (){
 
   printf "\n\n\n"
 }
+
+################################################################################
+# ZMBACKUP MAIL NOTIFICATION
+################################################################################
 
 # Function to notify when the backup process began through e-mail
 notify_email_begin()
@@ -174,120 +309,86 @@ notify_email_finish()
   rm -f "$TEMPSESSION"
 }
 
-# Search the LDAP for all accounts and backup an account inside a LDIFF file.
-# Parameters:
-# $1 -> Inform the LDAP query to search;
-ldap_bkp()
-{
-  if [ -z $3 ]; then
-    ldapsearch -x -H $LDAPSERVER \
-                  -D $LDAPADMIN \
-                  -w $LDAPPASS \
-                  -b '' \
-                  -LLL "$1" $2 | \
-                  grep "^$2" | \
-                  awk '{print $2}' > $TEMPINCACCOUNT
-  else
-    for i in $(echo "$3" | sed 's/,/\n/g'); do
-      echo $i >> $TEMPINCACCOUNT
-    done
-  fi
-  for i in $(cat $TEMPINCACCOUNT); do
-    EXIST=$(grep $i $WORKDIR/sessions.txt 2> /dev/null | tail -1 | awk -F: '{print $3}')
-    if  [[ "$i" != "galsync."* ]] && \
-        [[ "$i" != "virus-"* ]] && \
-        [[ "$i" != "ham"* ]] && \
-        [[ "$i" != "admin"* ]] && \
-        [[ "$i" != "spam"* ]] && \
-        [[ "$i" != "zmbackup"* ]] && \
-        [[ "$i" != "postmaster"* ]] && \
-        [[ "$i" != "root"* ]]; then
-      if [ "$EXIST" = "$(date +%m/%d/%y)" ]; then
-        echo "WARN: $i already has backup today. Nothing to do."
-      else
-        echo $i >> $TEMPACCOUNT
-      fi
-    fi
-  done
-  if [ $? -eq 0 ]; then
-    if ! [ -s $TEMPACCOUNT ]; then
-      clear_temp
-      echo "Nothing to do.."
-      exit 0
-    fi
-    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-                              "ldapsearch -x -H $LDAPSERVER \
-                                             -D $LDAPADMIN \
-                                             -w $LDAPPASS \
-                                             -b '' \
-                                             -LLL '(&(|(mail={})(uid={}))$1)' > $TEMPDIR/{}.ldiff && \
-                               test '$2' == '$ACFILTER' || echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
-  else
-    notify_email_finish "NOK" $SESSION
-    exit 1
-  fi
-}
+################################################################################
+# ZMBACKUP BACKUP OPERATION
+################################################################################
 
 # Backup all the distribution lists and the accounts associated to them
 backup_dl()
 {
-  SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
-  notify_email_begin $SESSION
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  ldap_bkp $DLOBJECT $DLFILTER $1
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
-  cat $TEMPSESSION >> $WORKDIR/sessions.txt
-  echo "$(date) - Backup completed for all lists" >> $LOGFILE
-  notify_email_finish "OK" $SESSION
+  export SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
+  if [ -z $1 ]; then
+    build_backup_list $DLOBJECT $DLFILTER
+  else
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
+      echo $i >> $TEMPACCOUNT
+    done
+  fi
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    notify_email_begin $SESSION
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                                'loop_ldap_backup {} "$DLOBJECT"'
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+    cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    echo "$(date) - Backup completed for all lists" >> $LOGFILE
+    notify_email_finish "OK" $SESSION
+  fi
 }
 
 # Backup all the alias
 backup_alias()
 {
-  SESSION="alias-"$(date  +%Y%m%d%H%M%S)
-  notify_email_begin $SESSION
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  ldap_bkp $ALOBJECT $ALFILTER $1
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
-  cat $TEMPSESSION >> $WORKDIR/sessions.txt
-  echo "$(date) - Backup completed for all alias" >> $LOGFILE
-  notify_email_finish "OK" $SESSION
+  export SESSION="alias-"$(date  +%Y%m%d%H%M%S)
+  if [ -z $1 ]; then
+    build_backup_list $ALOBJECT $ALFILTER
+  else
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
+      echo $i >> $TEMPACCOUNT
+    done
+  fi
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    notify_email_begin $SESSION
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                                'loop_ldap_backup {} "$ALOBJECT"'
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+    cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    echo "$(date) - Backup completed for all alias" >> $LOGFILE
+    notify_email_finish "OK" $SESSION
+  fi
 }
 
 # Backup all the accounts - PARALLEL_SUPPORT
 backup_full()
 {
-  SESSION="full-"$(date  +%Y%m%d%H%M%S)
-  ldap_bkp $ACOBJECT $ACFILTER $1
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  notify_email_begin $SESSION
-  cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-           "wget --quiet -O $TEMPDIR/{}.tgz \
-                 --http-user $ADMINUSER \
-                 --http-passwd $ADMINPASS \
-                 https://$MAILHOST:7071/home/{}/?fmt=tgz \
-                 --no-check-certificate && \
-            echo $SESSION:{}:$(date +%m/%d/%y) >> $TEMPSESSION"
-  mv "$TEMPDIR" "$WORKDIR/$SESSION"
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
-  notify_email_finish "OK" $SESSION
-  echo "$(date) - Backup completed for all accounts" >> $LOGFILE
-}
-
-loop_inc()
-{
-  source /etc/zmbackup/zmbackup.conf
-  source /opt/zimbra/.bashrc
-  AFTER=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
-  wget --quiet -O $TEMPDIR/$1.tgz \
-        --http-user $ADMINUSER \
-        --http-passwd $ADMINPASS \
-        https://$MAILHOST:7071/home/$1/?fmt=tgz\&query=after:$AFTER \
-        --no-check-certificate
-  echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+  export SESSION="full-"$(date  +%Y%m%d%H%M%S)
+  if [ -z $1 ]; then
+    build_backup_list $ACOBJECT $ACFILTER
+  else
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
+      echo $i >> $TEMPACCOUNT
+    done
+  fi
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    notify_email_begin $SESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+             'loop_mbldp_backup {} "$ACOBJECT"'
+    mv "$TEMPDIR" "$WORKDIR/$SESSION"
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
+    notify_email_finish "OK" $SESSION
+    echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+  fi
 }
 
 # Backup all the accounts - PARALLEL_SUPPORT
@@ -296,68 +397,37 @@ backup_incremental()
   #Check if exist a backup full. If not, do a backup full and not the incremental
   FULLSESSIONLABEL=$(grep "SESSION: full-" $WORKDIR/sessions.txt | tail -1 | awk '{print $2}')
   if [[ -z "$FULLSESSIONLABEL" && -d "$WORKDIR/$FULLSESSIONLABEL" ]]; then
+    echo "No Incremental Backup Found - Fall Back to Full Backup"
     backup_full $1
+    clear_temp
     exit
   fi
   export SESSION="inc-"$(date  +%Y%m%d%H%M%S)
-  ldap_bkp $ACOBJECT $ACFILTER $1
-  echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-  notify_email_begin $SESSION
-  export -f loop_inc
-  cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-           "loop_inc {}"
-  mv "$TEMPDIR" "$WORKDIR/$SESSION"
-  echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
-  cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
-  notify_email_finish "OK" $SESSION
-  echo "$(date) - Backup completed for all accounts" >> $LOGFILE
-}
-
-list_sessions ()
-{
-  for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-    SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
-    QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
-    OPT=$(echo $i | cut -d"-" -f1 )
-    printf "\nSession: $i\n    Size: $SIZE"
-    printf "\nAccounts: $QTDE"
-    case $OPT in
-      "full") printf "\n    Type: Full Backup\n"
-      ;;
-      "inc") printf "\n    Type: Incremental Backup\n"
-      ;;
-      "distlist") printf "\n    Type: Distribution List Backup\n"
-      ;;
-    esac
-  done
-  echo ""
-}
-
-build_restore_list()
-{
-  INBETWEEN=0
-  if [[ $2 == *"@"* ]]; then
-    for i in $(echo "$2" | sed 's/,/\n/g'); do
+  if [ -z $1 ]; then
+    build_backup_list $ACOBJECT $ACFILTER
+  else
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
-  else
-    grep $1 /backup/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
   fi
-  if [[ "$1" == "full-"* ]]; then
-    for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-      if [[ "$1" ==  "$i" ]]; then
-        echo $i >> $TEMPSESSION
-        INBETWEEN=1
-      elif [[ "$INBETWEEN" -eq 1 ]] && [[ "$i" == "inc-"* ]]; then
-        echo $i >> $TEMPSESSION
-      else
-        break
-      fi
-    done
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
   else
-    echo $1 >> $TEMPSESSION
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    notify_email_begin $SESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+             'loop_mbldp_backup {} "$ACOBJECT" INC'
+    mv "$TEMPDIR" "$WORKDIR/$SESSION"
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    cat "$TEMPSESSION" >> $WORKDIR/sessions.txt
+    notify_email_finish "OK" $SESSION
+    echo "$(date) - Backup completed for all accounts" >> $LOGFILE
   fi
 }
+
+################################################################################
+# ZMBACKUP RESTORE OPERATION
+################################################################################
 
 restore_accounts_mail ()
 {
@@ -369,12 +439,12 @@ restore_accounts_mail ()
     for i in $(cat $TEMPSESSION); do
       printf "\nRestoring Session - $i"
       if ! [ -z $3 ]; then
-        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+        cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/$3/?fmt=tgz > /dev/null"
       else
-        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+        cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/{}/?fmt=tgz > /dev/null"
@@ -385,18 +455,6 @@ restore_accounts_mail ()
   fi
 }
 
-loop_ldap()
-{
-  source /etc/zmbackup/zmbackup.conf
-  source /opt/zimbra/.bashrc
-  ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c \
-              -w $LDAPPASS \
-              $(grep ^dn: $WORKDIR/$1/$2.ldiff \
-              | awk '{print $2}') > /dev/null 2>&1
-  ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
-           -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff > /dev/null 2>&1
-}
-
 
 restore_accounts_ldap ()
 {
@@ -405,16 +463,19 @@ restore_accounts_ldap ()
     echo "No backup found. Impossible to restore"
   else
     echo "Restore LDAP process started at - $(date)"
-    export -f loop_ldap
     for i in $(cat $TEMPSESSION); do
       echo "Restoring Session - $i"
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
-                                "loop_ldap $i {}"
+      cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                                "loop_ldap_restore $i {}"
       echo "Session $i restored with SUCCESS"
     done
     echo "Restore LDAP process completed at - $(date)"
   fi
 }
+
+################################################################################
+# ZMBACKUP MANUAL BACKUP ROTATION
+################################################################################
 
 rotate_backup()
 {
@@ -431,105 +492,143 @@ rotate_backup()
 }
 
 ################################################################################
-# MAIN CODE - HERE IS WHERE THE MAGIC HAPPENS
+# ZMBACKUP MAIN CODE
 ################################################################################
 
 validate
 load_config
+export_functions
 
 case "$1" in
   "-f"|"--full" )
-    create_temp
-    echo "Running the Full Backup - Please wait..."
-    case "$2" in
-      "-dl"|"--distributionlist" )
-        backup_dl $3
-      ;;
-      "-al"|"--alias" )
-        backup_alias $3
-      ;;
-      "-ldp"|"--ldap" )
-        ldap_bkp $3
-      ;;
-      * )
-        backup_full $2
-    esac
-    echo "Backup finished!"
-    clear_temp
+    if ! [[ -f "$PID" ]]; then
+      create_temp
+      echo "Running the Full Backup - Please wait..."
+      echo $$ > $PID
+      case "$2" in
+        "-dl"|"--distributionlist" )
+          backup_dl $3
+        ;;
+        "-al"|"--alias" )
+          backup_alias $3
+        ;;
+        "-ldp"|"--ldap" )
+          ldap_bkp $3
+        ;;
+        * )
+          backup_full $2
+      esac
+      echo "Backup finished!"
+      clear_temp
+    else
+      echo "There is an already instance of zmbackup running in background."
+      echo "As a secure measurement, only one instance of zmbackup should be running"
+      echo "at this moment."
+      echo "If you are sure that this is the only instance running, please remove"
+      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
+      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+    fi
   ;;
   "-i"|"--incremental" )
-    create_temp
-    echo "Running the Incremental Backup - Please wait..."
-    backup_incremental $2
-    echo "Backup finished!"
-    clear_temp
+    if ! [[ -f "$PID" ]]; then
+      create_temp
+      echo "Running the Incremental Backup - Please wait..."
+      backup_incremental $2
+      echo "Backup finished!"
+      clear_temp
+    else
+      echo "There is an already instance of zmbackup running in background."
+      echo "As a secure measurement, only one instance of zmbackup should be running"
+      echo "at this moment."
+      echo "If you are sure that this is the only instance running, please remove"
+      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
+      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+    fi
   ;;
   "-l"|"--list" )
     list_sessions
   ;;
   "-r"|"--restore" )
-    create_temp
-    case "$2" in
-      "-dl"|"--distributionlist" )
+    if ! [[ -f "$PID" ]]; then
+      create_temp
+      case "$2" in
+        "-dl"|"--distributionlist" )
+          if [ -z "$3" ]; then
+            show_help
+            printf "\n\nError! Please inform the session that should be restored\n\n"
+          else
+            restore_accounts_ldap $3 $4
+          fi
+        ;;
+        "-al"|"--alias" )
+          if [ -z "$3" ]; then
+            show_help
+            printf "\n\nError! Please inform the session that should be restored\n\n"
+          else
+            restore_accounts_ldap $3 $4
+          fi
+        ;;
+        "-ldp"|"--ldap" )
         if [ -z "$3" ]; then
           show_help
           printf "\n\nError! Please inform the session that should be restored\n\n"
         else
           restore_accounts_ldap $3 $4
         fi
-      ;;
-      "-al"|"--alias" )
+        ;;
+        "-ro"|"--restoreOnAccount" )
+        if [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
+          show_help
+          printf "\n\nError! Please inform the session, the account that should be restored, and when the restore should be placed.\n\n"
+        else
+          restore_accounts_mail $5 $3 $4
+        fi
+        ;;
+        "-m"|"--mail" )
         if [ -z "$3" ]; then
           show_help
           printf "\n\nError! Please inform the session that should be restored\n\n"
         else
-          restore_accounts_ldap $3 $4
+          restore_accounts_mail $3 $4
         fi
-      ;;
-      "-ldp"|"--ldap" )
-      if [ -z "$3" ]; then
-        show_help
-        printf "\n\nError! Please inform the session that should be restored\n\n"
-      else
-        restore_accounts_ldap $3 $4
-      fi
-      ;;
-      "-ro"|"--restoreOnAccount" )
-      if [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
-        show_help
-        printf "\n\nError! Please inform the session, the account that should be restored, and when the restore should be placed.\n\n"
-      else
-        restore_accounts_mail $5 $3 $4
-      fi
-      ;;
-      "-m"|"--mail" )
-      if [ -z "$3" ]; then
-        show_help
-        printf "\n\nError! Please inform the session that should be restored\n\n"
-      else
-        restore_accounts_mail $3 $4
-      fi
-      ;;
-      * )
-        show_help
-        printf "\n\nError! Incorrect options\n\n"
-      ;;
-    esac
-    clear_temp
+        ;;
+        * )
+          show_help
+          printf "\n\nError! Incorrect options\n\n"
+        ;;
+      esac
+      clear_temp
+    else
+      echo "There is an already instance of zmbackup running in background."
+      echo "As a secure measurement, only one instance of zmbackup should be running"
+      echo "at this moment."
+      echo "If you are sure that this is the only instance running, please remove"
+      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
+      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+    fi
   ;;
   "-d"|"--delete" )
   if [ -z "$2" ]; then
     show_help
     printf "\n\nError! Please inform the session that should be deleted\n\n"
   else
-    rotate_backup $2
+    if ! [[ -f "$PID" ]]; then
+      rotate_backup $2
+    else
+      echo "There is an already instance of zmbackup running in background."
+      echo "As a secure measurement, only one instance of zmbackup should be running"
+      echo "at this moment."
+      echo "If you are sure that this is the only instance running, please remove"
+      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
+      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+    fi
   fi
   ;;
   "-h"|"--help" )
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.0.2"
+    echo "zmbackup version: 1.1.0"
   ;;
   * )
     show_help
