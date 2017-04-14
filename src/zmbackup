@@ -59,6 +59,9 @@ export ACFILTER="zimbraMailDeliveryAddress"
 export DLFILTER="mail"
 export ALFILTER="uid"
 
+# PID FILE
+export PID='/opt/zimbra/log/zmbackup.pid'
+
 ################################################################################
 # LOAD CLASS FILES
 ################################################################################
@@ -87,7 +90,6 @@ create_temp(){
   export TEMPSESSION=$(mktemp)
   export TEMPACCOUNT='/tmp/accounts.txt'
   export TEMPINCACCOUNT=$(mktemp)
-  export PID='/opt/zimbra/log/zmbackup.pid'
 }
 
 # Clear all the temporary files
@@ -497,7 +499,7 @@ export_functions
 
 case "$1" in
   "-f"|"--full" )
-    if [ -f $PID ]; then
+    if ! [[ -f "$PID" ]]; then
       create_temp
       echo "Running the Full Backup - Please wait..."
       echo $$ > $PID
@@ -526,7 +528,7 @@ case "$1" in
     fi
   ;;
   "-i"|"--incremental" )
-    if [ -f $PID ]; then
+    if ! [[ -f "$PID" ]]; then
       create_temp
       echo "Running the Incremental Backup - Please wait..."
       backup_incremental $2
@@ -545,7 +547,7 @@ case "$1" in
     list_sessions
   ;;
   "-r"|"--restore" )
-    if [ -f $PID ]; then
+    if ! [[ -f "$PID" ]]; then
       create_temp
       case "$2" in
         "-dl"|"--distributionlist" )
@@ -608,7 +610,7 @@ case "$1" in
     show_help
     printf "\n\nError! Please inform the session that should be deleted\n\n"
   else
-    if [ -f $PID ]; then
+    if ! [[ -f "$PID" ]]; then
       rotate_backup $2
     else
       echo "There is an already instance of zmbackup running in background."
