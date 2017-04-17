@@ -133,7 +133,7 @@ build_restore_list()
       echo $i >> $TEMPACCOUNT
     done
   else
-    grep $1 /backup/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
+    grep $1 $WORKDIR/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
   fi
   if [[ "$1" == "full-"* ]]; then
     for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
