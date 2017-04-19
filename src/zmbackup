@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 13/04/2017 - Version 1.1.1  - By Lucas Costa Beyeler
+# 18/04/2017 - Version 1.1.2  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -581,7 +581,7 @@ case "$1" in
           show_help
           printf "\n\nError! Please inform the session, the account that should be restored, and when the restore should be placed.\n\n"
         else
-          restore_accounts_mail $5 $3 $4
+          restore_accounts_mail $3 $4 $5
         fi
         ;;
         "-m"|"--mail" )
@@ -628,7 +628,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.1.1"
+    echo "zmbackup version: 1.1.2"
   ;;
   * )
     show_help
