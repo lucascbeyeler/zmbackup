@@ -365,6 +365,32 @@ backup_alias()
   fi
 }
 
+# Backup all the accounts - only LDAP entry
+backup_ldap()
+{
+  export SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
+  if [ -z $1 ]; then
+    build_backup_list $ALOBJECT $ALFILTER
+  else
+    for i in $(echo "$1" | sed 's/,/\n/g'); do
+      echo $i >> $TEMPACCOUNT
+    done
+  fi
+  if ! [ -s $TEMPACCOUNT ]; then
+    echo "Nothing to do"
+  else
+    notify_email_begin $SESSION
+    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+                                'loop_ldap_backup {} "$ACOBJECT"'
+    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+    mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
+    cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    echo "$(date) - Backup completed for all accounts" >> $LOGFILE
+    notify_email_finish "OK" $SESSION
+  fi
+}
+
 # Backup all the accounts - PARALLEL_SUPPORT
 backup_full()
 {
@@ -513,7 +539,7 @@ case "$1" in
           backup_alias $3
         ;;
         "-ldp"|"--ldap" )
-          ldap_bkp $3
+          backup_ldap $3
         ;;
         * )
           backup_full $2
