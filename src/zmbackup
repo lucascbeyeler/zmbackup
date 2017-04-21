@@ -207,6 +207,10 @@ list_sessions ()
       ;;
       "distlist") printf "\n    Type: Distribution List Backup\n"
       ;;
+      "alias") printf "\n    Type: Alias Backup\n"
+      ;;
+      "ldap") printf "\n    Type: Account Backup - Only LDAP\n"
+      ;;
     esac
   done
   echo ""
@@ -370,7 +374,7 @@ backup_ldap()
 {
   export SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
   if [ -z $1 ]; then
-    build_backup_list $ALOBJECT $ALFILTER
+    build_backup_list $ALOBJECT $ACFILTER
   else
     for i in $(echo "$1" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
