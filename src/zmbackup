@@ -551,12 +551,9 @@ case "$1" in
       echo "Backup finished!"
       clear_temp
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   ;;
   "-i"|"--incremental" )
@@ -567,12 +564,9 @@ case "$1" in
       echo "Backup finished!"
       clear_temp
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   ;;
   "-l"|"--list" )
@@ -629,12 +623,9 @@ case "$1" in
       esac
       clear_temp
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   ;;
   "-d"|"--delete" )
@@ -645,12 +636,9 @@ case "$1" in
     if ! [[ -f "$PID" ]]; then
       rotate_backup $2
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   fi
   ;;
