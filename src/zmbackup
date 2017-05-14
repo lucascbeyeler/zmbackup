@@ -333,7 +333,7 @@ backup_dl()
   else
     notify_email_begin $SESSION
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 'loop_ldap_backup {} "$DLOBJECT"'
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -359,7 +359,7 @@ backup_alias()
   else
     notify_email_begin $SESSION
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 'loop_ldap_backup {} "$ALOBJECT"'
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -385,7 +385,7 @@ backup_ldap()
   else
     notify_email_begin $SESSION
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 'loop_ldap_backup {} "$ACOBJECT"'
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -411,7 +411,7 @@ backup_full()
   else
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     notify_email_begin $SESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
              'loop_mbldp_backup {} "$ACOBJECT"'
     mv "$TEMPDIR" "$WORKDIR/$SESSION"
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
@@ -445,7 +445,7 @@ backup_incremental()
   else
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     notify_email_begin $SESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
              'loop_mbldp_backup {} "$ACOBJECT" INC'
     mv "$TEMPDIR" "$WORKDIR/$SESSION"
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
@@ -469,12 +469,12 @@ restore_accounts_mail ()
     for i in $(cat $TEMPSESSION); do
       printf "\nRestoring Session - $i"
       if ! [ -z $3 ]; then
-        cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/$3/?fmt=tgz > /dev/null"
       else
-        cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/{}/?fmt=tgz > /dev/null"
@@ -495,7 +495,7 @@ restore_accounts_ldap ()
     echo "Restore LDAP process started at - $(date)"
     for i in $(cat $TEMPSESSION); do
       echo "Restoring Session - $i"
-      cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 "loop_ldap_restore $i {}"
       echo "Session $i restored with SUCCESS"
     done
@@ -551,12 +551,9 @@ case "$1" in
       echo "Backup finished!"
       clear_temp
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   ;;
   "-i"|"--incremental" )
@@ -567,12 +564,9 @@ case "$1" in
       echo "Backup finished!"
       clear_temp
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   ;;
   "-l"|"--list" )
@@ -629,12 +623,9 @@ case "$1" in
       esac
       clear_temp
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   ;;
   "-d"|"--delete" )
@@ -645,12 +636,9 @@ case "$1" in
     if ! [[ -f "$PID" ]]; then
       rotate_backup $2
     else
-      echo "There is an already instance of zmbackup running in background."
-      echo "As a secure measurement, only one instance of zmbackup should be running"
-      echo "at this moment."
-      echo "If you are sure that this is the only instance running, please remove"
-      echo "the file /opt/zimbra/log/zmbackup.pid and try again."
-      echo "Manually removing the zmbackup.pid could cause data inconsistence."
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
     fi
   fi
   ;;
