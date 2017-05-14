@@ -333,7 +333,7 @@ backup_dl()
   else
     notify_email_begin $SESSION
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 'loop_ldap_backup {} "$DLOBJECT"'
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -359,7 +359,7 @@ backup_alias()
   else
     notify_email_begin $SESSION
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 'loop_ldap_backup {} "$ALOBJECT"'
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -385,7 +385,7 @@ backup_ldap()
   else
     notify_email_begin $SESSION
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 'loop_ldap_backup {} "$ACOBJECT"'
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
@@ -411,7 +411,7 @@ backup_full()
   else
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     notify_email_begin $SESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
              'loop_mbldp_backup {} "$ACOBJECT"'
     mv "$TEMPDIR" "$WORKDIR/$SESSION"
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
@@ -445,7 +445,7 @@ backup_incremental()
   else
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     notify_email_begin $SESSION
-    cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
              'loop_mbldp_backup {} "$ACOBJECT" INC'
     mv "$TEMPDIR" "$WORKDIR/$SESSION"
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
@@ -469,12 +469,12 @@ restore_accounts_mail ()
     for i in $(cat $TEMPSESSION); do
       printf "\nRestoring Session - $i"
       if ! [ -z $3 ]; then
-        cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/$3/?fmt=tgz > /dev/null"
       else
-        cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+        cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                  "curl --silent -k --data-binary @$WORKDIR/$i/{}.tgz \
                        -u $ADMINUSER:$ADMINPASS \
                        https://$MAILHOST:7071/home/{}/?fmt=tgz > /dev/null"
@@ -495,7 +495,7 @@ restore_accounts_ldap ()
     echo "Restore LDAP process started at - $(date)"
     for i in $(cat $TEMPSESSION); do
       echo "Restoring Session - $i"
-      cat $TEMPACCOUNT | parallel --no-notice --env --jobs '$MAX_PARALLEL_PROCESS' \
+      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                                 "loop_ldap_restore $i {}"
       echo "Session $i restored with SUCCESS"
     done
