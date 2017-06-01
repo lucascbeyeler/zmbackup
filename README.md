@@ -37,7 +37,7 @@ Enter inside the folder zmbackup and execute the script install.sh. Follow the i
 
 ```
 $ zmbackup -v
-zmbackup version: 1.1.4
+zmbackup version: 1.1.5
 ```
 
 Open the folder /etc/cron.d/zmbackup.cron and adjust each job scheduled to the time you want the execution. If you configured zmbkpose or any old release before, please undo and use this file for scheduling.
@@ -58,11 +58,11 @@ $ vim /etc/cron.d/zmbackup.cron
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 MAILTO=root
-0 1 * * 0     zimbra    zmbackup -f
-0 1 * * 1-6   zimbra    zmbackup -i
-0 1 * * *     zimbra    zmbackup -f -dl
-0 1 * * *     zimbra    zmbackup -f -al
-0 0 * * *     zimbra    zmhousekeep
+0  2 * * 0     zimbra    zmbackup -f
+0  2 * * 1-6   zimbra    zmbackup -i
+0  1 * * *     zimbra    zmbackup -f -dl
+30 1 * * *     zimbra    zmbackup -f -al
+0  0 * * *     zimbra    zmhousekeep
 ````
 
 Keep in mind that the script zmhousekeep is the one who is going to rotate your backups inside the folder, and do the cleaning inside each folder. Configure him to execute before the zmbackup proccess, because release the space for the next proccess, and is more quickly than the others.
