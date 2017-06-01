@@ -3,6 +3,7 @@
 # Repeatable Actions
 ################################################################################
 
+###############################################################################
 # ldap_backup: Backup a LDAP object inside a file
 # Options:
 # $1 - The object's mail account that should be backed up;
@@ -10,6 +11,7 @@
 #     DLOBJECT - Distribution List
 #     ACOBJECT - User Account
 #     ALOBJECT - Alias
+###############################################################################
 ldap_backup()
 {
   ERR=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
@@ -23,10 +25,13 @@ ldap_backup()
   fi
 }
 
+
+###############################################################################
 # mailbox_backup: Backup user's mailbox in TGZ format
 # Options:
 # $1 - The user's account to be backed up
 # $2 - OPTIONAL: Inform that this session is a incremental backup
+###############################################################################
 mailbox_backup()
 {
   if [ "$2" == "INC" ]; then
@@ -48,10 +53,13 @@ mailbox_backup()
   fi
 }
 
+
+###############################################################################
 # ldap_restore: Restore a LDAP object inside a file
 # Options:
 # $1 - The session file to be restored
 # $2 - The account that should be restored
+###############################################################################
 ldap_restore()
 {
   ERR=$(ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c -w $LDAPPASS \
