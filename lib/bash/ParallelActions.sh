@@ -74,3 +74,22 @@ function ldap_restore()
     echo "======================================================================"
   fi
 }
+
+
+###############################################################################
+# ldap_filter: Filter the account to see if you should do backup or not for that
+#              account
+# Options:
+# $1 - The email account to be validated
+###############################################################################
+function ldap_filter()
+{
+  EXIST=$(grep $1 $WORKDIR/sessions.txt 2> /dev/null | tail -1 | awk -F: '{print $3}')
+  if [[ grep -Fxq $1 /etc/zmbackup/blacklist.conf ]]; then
+    echo "WARN: $1 found inside blacklist - Nothing to do."
+  elif [[ "$EXIST" = "$(date +%m/%d/%y)" && "$LOCK_BACKUP" == "TRUE" ]]; then
+    echo "WARN: $1 already has backup today. Nothing to do."
+  else
+    echo $i >> $TEMPACCOUNT
+  fi
+}

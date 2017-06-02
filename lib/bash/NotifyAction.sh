@@ -5,10 +5,10 @@
 
 ################################################################################
 # notify_begin: Function to notify when the backup process began through e-mail
-################################################################################
 # Options:
 #    $1 -> Inform the backup's session name
 #    $2 -> Infomr the type of backup is in execution
+################################################################################
 function notify_begin()
 {
   MESSAGE=$(mktemp)
@@ -31,7 +31,6 @@ function notify_begin()
 
 ################################################################################
 # notify_finishOK: Function to notify when the backup process finish - SUCCESS
-################################################################################
 # Options:
 #    $1 -> Inform the backup's session name
 #    $2 -> Inform the type of backup is in execution
@@ -39,7 +38,8 @@ function notify_begin()
 #        - FAILURE - For some reason Zmbackup can't conclude this session;
 #        - SUCCESS - Zmbackup concluded the session with no problem;
 #        - CANCELED - The administrator canceled the session for some reason;
-notify_finish()
+################################################################################
+function notify_finish()
 {
   # Loading the variables
   MESSAGE=$(mktemp)
