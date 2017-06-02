@@ -1,0 +1,68 @@
+#!/bin/bash
+################################################################################
+# Mail Notification
+################################################################################
+
+################################################################################
+# notify_begin: Function to notify when the backup process began through e-mail
+################################################################################
+# Options:
+#    $1 -> Inform the backup's session name
+#    $2 -> Infomr the type of backup is in execution
+function notify_begin()
+{
+  MESSAGE=$(mktemp)
+  printf "Subject: Zmbackup - Backup routine for $1 start at $(date)" >> $MESSAGE
+  printf "\nGreetings Administrator," >> $MESSAGE
+  printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled started right now." >> $MESSAGE
+  printf " Depending on the ammount of accounts and/or data to be backed up, this process can take some hours before conclude." >> $MESSAGE
+  printf "\nDon't worry, we will inform you when the process finish." >> $MESSAGE
+  printf "\n\nRegards," >> $MESSAGE
+  printf "\nZmbackup Team" >> $MESSAGE
+  sendmail $EMAIL_NOTIFY < $MESSAGE
+  if [[ $? -eq 0 ]]; then
+    logger -i --id=$$ -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine begin."
+  else
+    logger -i --id=$$ -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
+  fi
+  rm $MESSAGE
+}
+
+
+################################################################################
+# notify_finishOK: Function to notify when the backup process finish - SUCCESS
+################################################################################
+# Options:
+#    $1 -> Inform the backup's session name
+#    $2 -> Inform the type of backup is in execution
+#    $3 -> Inform the status of the bacup. Valid Options:
+#        - FAILURE - For some reason Zmbackup can't conclude this session;
+#        - SUCCESS - Zmbackup concluded the session with no problem;
+#        - CANCELED - The administrator canceled the session for some reason;
+notify_finish()
+{
+  # Loading the variables
+  MESSAGE=$(mktemp)
+  SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
+  QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+
+  # The message
+  printf "Subject: Zmbackup - Backup routine for $1 complete at $(date) - $3" >> $MESSAGE
+  printf "\nGreetings Administrator," >> $MESSAGE
+  printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled ended right now." >> $MESSAGE
+  printf "\nHere some information about this session:"
+  printf "\n\nSize: $SIZE"
+  printf "\nAccounts: $QTDE"
+  printf "\nStatus: $3"
+  printf "\n\nRegards," >> $MESSAGE
+  printf "\nZmbackup Team" >> $MESSAGE
+  printf "\n\nSummary of files:\n" >> $MESSAGE
+  cat $TEMPSESSION >> $MESSAGE
+  ERR=$((sendmail $EMAIL_NOTIFY < $MESSAGE ) 2>&1)
+  if [[ $? -eq 0 ]]; then
+    logger -i --id=$$ -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine conclusion."
+  else
+    logger -i --id=$$ -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
+  fi
+  rm $MESSAGE
+}

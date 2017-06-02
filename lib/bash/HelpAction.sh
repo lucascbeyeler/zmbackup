@@ -6,7 +6,7 @@
 ################################################################################
 # show_help: It will show a quick help about each command from zmbackup
 ################################################################################
-show_help (){
+function show_help (){
   printf "usage: zmbackup [-f] [options] <mail>"
   printf "\n       zmbackup [-i] <mail>"
   printf "\n       zmbackup [-r] [options] <session> <mail>"

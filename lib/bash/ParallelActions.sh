@@ -12,7 +12,7 @@
 #     ACOBJECT - User Account
 #     ALOBJECT - Alias
 ###############################################################################
-ldap_backup()
+function ldap_backup()
 {
   ERR=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
              -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldiff)2>&1)
@@ -32,7 +32,7 @@ ldap_backup()
 # $1 - The user's account to be backed up
 # $2 - OPTIONAL: Inform that this session is a incremental backup
 ###############################################################################
-mailbox_backup()
+function mailbox_backup()
 {
   if [ "$2" == "INC" ]; then
     AFTER="\&query=after:"$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
@@ -60,7 +60,7 @@ mailbox_backup()
 # $1 - The session file to be restored
 # $2 - The account that should be restored
 ###############################################################################
-ldap_restore()
+function ldap_restore()
 {
   ERR=$(ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c -w $LDAPPASS \
     $(grep ^dn: $WORKDIR/$1/$2.ldiff | awk '{print $2}') 2>&1)
