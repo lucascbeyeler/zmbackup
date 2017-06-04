@@ -11,7 +11,6 @@
 ################################################################################
 function notify_begin()
 {
-  MESSAGE=$(mktemp)
   printf "Subject: Zmbackup - Backup routine for $1 start at $(date)" >> $MESSAGE
   printf "\nGreetings Administrator," >> $MESSAGE
   printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled started right now." >> $MESSAGE
@@ -25,7 +24,6 @@ function notify_begin()
   else
     logger -i --id=$$ -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
   fi
-  rm $MESSAGE
 }
 
 
@@ -42,7 +40,6 @@ function notify_begin()
 function notify_finish()
 {
   # Loading the variables
-  MESSAGE=$(mktemp)
   SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
   QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
 
@@ -64,5 +61,4 @@ function notify_finish()
   else
     logger -i --id=$$ -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
   fi
-  rm $MESSAGE
 }
