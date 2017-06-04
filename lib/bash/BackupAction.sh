@@ -80,7 +80,7 @@ function backup_main()
     notify_begin $SESSION $STYPE
     logger -i --id=$$ -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
-    if [ $SESSION == "full*" || $SESSION == "inc*" ]; then
+    if [ $SESSION == "full*" ] || [ $SESSION == "inc*" ]; then
       export __backupFullInc
       cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $2'
