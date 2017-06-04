@@ -84,7 +84,7 @@ function backup_main()
       export __backupFullInc
       cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $2'
-    else if [ $SESSION == "mbox*" ];
+    elif [ $SESSION == "mbox*" ];
       export __backupMailbox
       cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
                          '__backupMailbox {} "$2"'

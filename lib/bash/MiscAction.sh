@@ -9,7 +9,7 @@
 function on_exit(){
   if [ $? == 1 ]; then
     notify_finish $SESSION $STYPE FAILURE
-  else if [ $? == 0 ]; then
+  elif [ $? == 0 ]; then
     notify_finish $SESSION $STYPE SUCCESS
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
@@ -73,13 +73,13 @@ function constant(){
   export readonly SESSION="$1-"$(date  +%Y%m%d%H%M%S)
   if [ $1 == '--full' || $1 == '-f' ]; then
     export readonly STYPE="Full Account"
-  else if [ $1 == '--incremental' || $1 == '-i' ]; then
+  elif [ $1 == '--incremental' || $1 == '-i' ]; then
     export readonly STYPE="Incremental Account"
-  else if [ $1 == '--alias' || $1 == '-al' ]; then
+  elif [ $1 == '--alias' || $1 == '-al' ]; then
     export readonly STYPE="Alias"
-  else if [ $1 == '-dl' || $1 == '--distributionlist' ]; then
+  elif [ $1 == '-dl' || $1 == '--distributionlist' ]; then
     export readonly STYPE="Distribution List"
-  else if [ $1 == '--ldap' || $1 == '-ldp' ]; then
+  elif [ $1 == '--ldap' || $1 == '-ldp' ]; then
     export readonly STYPE="Account - Only LDAP"
   fi
 }
