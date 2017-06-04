@@ -12,9 +12,9 @@
 ################################################################################
 function restore_main_mailbox()
 {
-  TEMPSESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
+  SESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
                 awk '{print $2}' | sort | uniq)
-  if ![ -z $TEMPSESSION ]; then
+  if ![ -z $SESSION ]; then
     echo "Restore mail process with session $i started at $(date)"
     if ! [ -z $3 && $2 == *"@"*"@"* ]; then
       ERR=$((http --check-status --verify=no POST 'https://$MAILHOST:7071/home/$3/?fmt=tgz'\
@@ -46,9 +46,9 @@ function restore_main_mailbox()
 ################################################################################
 function restore_main_ldap()
 {
-  TEMPSESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
+  SESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
                 awk '{print $2}' | sort | uniq)
-  if [ -s $TEMPSESSION ]; then
+  if [ -s $SESSION ]; then
     echo "Restore LDAP process with session $i started at $(date)"
     build_restore_list $1 $2
     cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \

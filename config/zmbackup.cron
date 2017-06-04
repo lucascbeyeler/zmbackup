@@ -1,0 +1,20 @@
+###############################################################################
+#                             ZMBACKUP CRON FILE                              #
+###############################################################################
+# This file is used to manage the time and day each backup activity will be
+# executed. Please modify this file rather than create a new one.
+# Default values for each activity:
+#       Full Backup: Every Sunday at 1 AM
+#       Incremental Backup: From Monday to Saturday at 1 AM
+#       Alias: Every day at 1 AM
+#       Distribution List: Every day at 1 AM
+#       Backup Rotation: Every day at Midnight
+###############################################################################
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+MAILTO=root
+0 1 * * 0     zimbra    zmbackup -f
+0 1 * * 1-6   zimbra    zmbackup -i
+0 1 * * *     zimbra    zmbackup -f -dl
+0 1 * * *     zimbra    zmbackup -f -al
+0 0 * * *     zimbra    zmbhousekeep
