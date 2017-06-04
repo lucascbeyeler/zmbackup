@@ -109,7 +109,7 @@ list_sessions ()
     esac
 
     # Printing the information as a table
-    printf "| %25s | %s/%s/%s | %8s | %23s |\n" $i $MONTH $DAY $YEAR $SIZE $OPT
+    printf "| %-25s | %s/%s/%s | %-8s | %-23s |\n" $i $MONTH $DAY $YEAR $SIZE "$OPT"
   done
   printf "+---------------------------+------------+----------+-------------------------+\n"
 }
