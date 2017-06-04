@@ -66,7 +66,7 @@ function mailbox_backup()
 function ldap_restore()
 {
   ERR=$((ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c -w $LDAPPASS \
-    $(grep ^dn: $WORKDIR/$1/$2.ldiff | awk '{print $2}') 2>&1)
+    $(grep ^dn: $WORKDIR/$1/$2.ldiff | awk '{print $2}')) 2>&1)
   if [[ $? -eq 0 ]]; then
     ERR=$((ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
              -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff > /dev/null) 2>&1)
