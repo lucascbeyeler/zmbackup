@@ -83,15 +83,15 @@ function backup_main()
     if [ $SESSION == "full*" || $SESSION == "inc*" ]; then
       export __backupFullInc
       cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
-               '__backupFullInc {} $2'
+                         '__backupFullInc {} $2'
     else if [ $SESSION == "mbox*" ];
       export __backupMailbox
       cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
-                                  '__backupMailbox {} "$2"'
+                         '__backupMailbox {} "$2"'
     else
       export __backupLdap
       cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
-                                  '__backupLdap {} "$2"'
+                         '__backupLdap {} "$2"'
     fi
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"

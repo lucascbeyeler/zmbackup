@@ -53,7 +53,7 @@ function load_config(){
 ################################################################################
 # constants: Initialize all the constants used by the Zmbackup.
 # Options:
-#    $1 - The list of accounts to be backed up
+#    $1 - The type of session that will be executed
 ################################################################################
 function constant(){
   # LDAP OBJECT
@@ -71,16 +71,16 @@ function constant(){
 
   # SESSION VARS
   export readonly SESSION="$1-"$(date  +%Y%m%d%H%M%S)
-  if [ $1 == 'full']; then
+  if [ $1 == '--full' || $1 == '-f' ]; then
     export readonly STYPE="Full Account"
-  else if [ $1 == 'inc']; then
-      export readonly STYPE="Incremental Account"
-  else if [ $1 == 'alias']; then
-      export readonly STYPE="Alias"
-  else if [ $1 == 'distlist']; then
-      export readonly STYPE="Distribution List"
-  else if [ $1 == 'ldap']; then
-      export readonly STYPE="Account - Only LDAP"
+  else if [ $1 == '--incremental' || $1 == '-i' ]; then
+    export readonly STYPE="Incremental Account"
+  else if [ $1 == '--alias' || $1 == '-al' ]; then
+    export readonly STYPE="Alias"
+  else if [ $1 == '-dl' || $1 == '--distributionlist' ]; then
+    export readonly STYPE="Distribution List"
+  else if [ $1 == '--ldap' || $1 == '-ldp' ]; then
+    export readonly STYPE="Account - Only LDAP"
   fi
 }
 
@@ -218,5 +218,19 @@ function validate_config(){
     echo "You need to define the variable ROTATE_TIME."
     logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable ROTATE_TIME."
     exit 1
+  fi
+}
+
+################################################################################
+# checkpid: Check if the PID file exist. If exist, exit with status 3 and do nothing
+################################################################################
+function checkpid(){
+  if [[ -f "$PID" ]]; then
+    echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+    echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+    echo "instances at the same time."
+    exit 3
+  else
+    echo $$ > $PID
   fi
 }

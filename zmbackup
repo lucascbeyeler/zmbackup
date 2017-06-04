@@ -1,0 +1,149 @@
+#!/bin/bash
+################################################################################
+# zmbackup - Bash script to hot backup and hot restore Zimbra Collaboration
+#            Suite Opensource
+#
+# Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of version 2 of the GNU General Public
+# License as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+# USA
+#
+################################################################################
+# zmbkpose:
+#
+# 26/10/2010 - Version 1.0.5 - By Alan Nikitiuk Milani
+#                              <alan.milani@4linux.com.br>
+#                              <niki.milani@gmail.com>
+#
+#                              Bruno Gurgel
+#                              <bruno@4linux.com.br>
+#                              <bruno.gurgel@gmail.com>
+#
+# 24/05/2012 - Version 2.0 Beta - By William Felipe Welter
+#                                 <william.welter@4linux.com.br>
+#                                 <wfelipew@gmail.com>
+################################################################################
+# zmbackup:
+#
+# 04/06/2017 - Version 1.2.0  - By Lucas Costa Beyeler
+#                               <lucas.beyeler@4linux.com.br>
+#                               <lucas.costab@outlook.com>
+################################################################################
+# parallel:
+#
+#   O. Tange (2011): GNU Parallel - The Command-Line Power Tool,
+#  ;login: The USENIX Magazine, February 2011:42-47.
+#
+################################################################################
+# LOADING ZMBACKUP LIBRARIES
+################################################################################
+source /usr/local/lib/zmbackup/bash/HelpAction.sh
+source /usr/local/lib/zmbackup/bash/MiscAction.sh
+source /usr/local/lib/zmbackup/bash/NotifyAction.sh
+source /usr/local/lib/zmbackup/bash/ParallelAction.sh
+source /usr/local/lib/zmbackup/bash/ListAction.sh
+source /usr/local/lib/zmbackup/bash/BackupAction.sh
+source /usr/local/lib/zmbackup/bash/RestoreAction.sh
+source /usr/local/lib/zmbackup/bash/DeleteAction.sh
+
+################################################################################
+# ZMBACKUP MAIN CODE
+################################################################################
+load_config
+validate_config
+case "$1" in
+  "-f"|"--full" )
+    case "$2" in
+      "-dl"|"--distributionlist" )
+        constant $2
+        checkpid
+        create_temp
+        backup_main $3 $DLOBJECT $DLFILTER
+      ;;
+      "-al"|"--alias" )
+        constant $2
+        checkpid
+        create_temp
+        backup_main $3 $ALOBJECT $ALFILTER
+      ;;
+      "-ldp"|"--ldap" )
+        constant $2
+        checkpid
+        create_temp
+        backup_main $3 $ACOBJECT $ACFILTER
+      ;;
+      * )
+        constant $1
+        checkpid
+        create_temp
+        backup_main $2 $ACOBJECT $ACFILTER
+    esac
+  ;;
+  "-i"|"--incremental" )
+    constant $1
+    checkpid
+    create_temp
+    backup_main $2 $ACOBJECT $ACFILTER
+  ;;
+  "-l"|"--list" )
+    list_sessions
+  ;;
+  "-r"|"--restore" )
+    checkpid
+    create_temp
+    if [ -z "$3" ]; then
+      show_help
+      printf "\n\nError! Please inform the session that should be restored\n\n"
+      exit 2
+    else
+      case "$2" in
+        "-dl"|"--distributionlist" )
+          constant $2
+          checkpid
+          restore_main_ldap $3 $4
+        ;;
+        "-al"|"--alias" )
+          constant $2
+          checkpid
+          restore_main_ldap $3 $4
+        ;;
+        "-ldp"|"--ldap" )
+          constant $2
+          checkpid
+          restore_main_ldap $3 $4
+        ;;
+        "-ro"|"--restoreOnAccount" )
+        if [ -z "$4" ] || [ -z "$5" ]; then
+          show_help
+          printf "\n\nError! Please inform the account that should be restored, and when the restore should be placed.\n\n"
+          exit 2
+        else
+          constant $2
+          checkpid
+          restore_accounts_mail $3 $4 $5
+        fi
+        ;;
+        "-m"|"--mail" )
+          constant $2
+          checkpid
+          restore_accounts_mail $3 $4
+        ;;
+        * )
+          show_help
+          printf "\n\nError! Incorrect option\n"
+        ;;
+      esac
+  ;;
+esac
+exit 0
