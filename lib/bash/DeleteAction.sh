@@ -41,7 +41,7 @@ function delete_old(){
 #    $1 - The session name to be excluded
 ################################################################################
 function __DELETEBACKUP(){
-  ERR=((rm -rf $WORKDIR/"$1") 2>&1)
+  ERR=$((rm -rf $WORKDIR/"$1") 2>&1)
   if [[ $? -eq 0 ]]; then
     grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/sessions.txt
     echo "Backup session $1 removed."
