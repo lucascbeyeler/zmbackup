@@ -53,6 +53,8 @@ function load_config(){
 
 ################################################################################
 # constants: Initialize all the constants used by the Zmbackup.
+# Options:
+#    $1 - The list of accounts to be backed up
 ################################################################################
 function constant(){
   # LDAP OBJECT
@@ -69,17 +71,17 @@ function constant(){
   export readonly PID='/var/run/zmbackup/zmbackup.pid'
 
   # SESSION VARS
-  export SESSION="$1-"$(date  +%Y%m%d%H%M%S)
+  export readonly SESSION="$1-"$(date  +%Y%m%d%H%M%S)
   if [ $1 == 'full']; then
-    export STYPE="Full Account"
+    export readonly STYPE="Full Account"
   else if [ $1 == 'inc']; then
-      export STYPE="Incremental Account"
+      export readonly STYPE="Incremental Account"
   else if [ $1 == 'alias']; then
-      export STYPE="Alias"
+      export readonly STYPE="Alias"
   else if [ $1 == 'distlist']; then
-      export STYPE="Distribution List"
+      export readonly STYPE="Distribution List"
   else if [ $1 == 'ldap']; then
-      export STYPE="Account - Only LDAP"
+      export readonly STYPE="Account - Only LDAP"
   fi
 }
 
