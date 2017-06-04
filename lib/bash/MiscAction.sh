@@ -34,12 +34,14 @@ function load_config(){
   else
     logger -i --id=$$ -p local7.err "Zmbackup: zmbackup.conf not found."
     echo "ERROR - zmbackup.conf not found. Can't proceed whitout the file."
+    exit 1
   fi
   if [ -f "/opt/zimbra/.bashrc" ]; then
     source /opt/zimbra/.bashrc 2> /dev/null
   else
     logger -i --id=$$ -p local7.err "Zmbackup: zimbra user's .bashrc not found."
     echo "ERROR - zimbra user's .bashrc not found. Can't proceed whitout the file."
+    exit 1
   fi
 }
 
@@ -62,9 +64,9 @@ function constant(){
 }
 
 ################################################################################
-# list_sessions: List all the sessions and bring information about it to the user
+# list_sessions: List all the sessions stored inside the server
 ################################################################################
-list_sessions ()
+function list_sessions ()
 {
   printf "+---------------------------+------------+----------+----------------------------+\n"
   printf "|       Session Name        |    Date    |   Size   |        Description         |\n"

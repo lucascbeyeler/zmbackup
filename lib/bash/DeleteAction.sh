@@ -1,0 +1,54 @@
+#!/bin/bash
+################################################################################
+# Delete Session
+################################################################################
+
+################################################################################
+# delete_one: Delete only one session from zmbackup
+# Options:
+#    $1 - The session name to be excluded
+################################################################################
+function delete_one(){
+  SESSION=$(grep "$1 started" $WORKDIR/sessions.txt -m 1 | awk '{print $2}')
+  if [ "$SESSION" == "$1" ]; then
+    echo "Removing session $1 - please wait."
+    __DELETEBACKUP $1
+  else
+    echo "Session $1 not found in database - ignoring."
+    exit 1
+  fi
+}
+
+################################################################################
+# delete_old: Delete only the oldest session from zmbackup baased on $ROTATE_TIME
+################################################################################
+function delete_old(){
+  OLDEST=$(date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days")
+  echo "Removing old backup folders - please wait."
+  logger -i --id=$$ -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from old backup sessions."
+  grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
+    if [ "$(echo $LINE | cut -d- -f2)" -lt "$OLDEST" ]; then
+       __DELETEBACKUP $LINE
+    fi
+  done
+}
+
+function __DELETEBACKUP(){
+  ERR=((rm -rf $WORKDIR/"$1") 2>&1)
+  if [[ $? -eq 0 ]]; then
+    grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/sessions.txt
+    echo "Backup session $1 removed."
+    logger -i --id=$$ -p local7.info "Zmbhousekeep: Backup session $1 removed."
+  else
+    echo "Can't remove the file $1 - $ERR"
+    logger -i --id=$$ -p local7.err "Zmbhousekeep: Backup session $1 can't be excluded - See the error message below:"
+    logger -i --id=$$ -p local7.err "Zmbhousekeep: $ERR"
+  fi
+}
+
+function clean_empty(){
+  echo "Removing empty files - please wait."
+  logger -i --id=$$ -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from empty files."
+  find $WORKDIR -type f -size 0 -delete
+  exit 0
+}
