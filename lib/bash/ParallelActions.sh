@@ -74,8 +74,27 @@ function ldap_restore()
   else
     echo "Error during the restore process for account $2. Error message below:"
     echo $ERR
-    echo "======================================================================"
   fi
+  printf "======================================================================\n\n"
+}
+
+###############################################################################
+# ldap_restore: Restore a LDAP object inside a file.
+# Options:
+# $1 - The session file to be restored;
+# $2 - The account that should be restored.
+###############################################################################
+function mailbox_restore()
+{
+  ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$2/?fmt=tgz"\
+       -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
+  if [[ $? -eq 0 ]]; then
+    echo "Account $2 restored with success"
+  else
+    echo "Error during the restore process for account $2. Error message below:"
+    echo $ERR
+  fi
+  printf "======================================================================\n\n"
 }
 
 

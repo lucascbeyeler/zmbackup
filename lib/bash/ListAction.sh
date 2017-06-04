@@ -33,12 +33,13 @@ function build_listBKP()
 ################################################################################
 # build_listRST: Build the list of accounts to be restored via LDAP &/or Mailbox
 # Options:
-#    $1 - The session to be restored or a list of accounts to be restored.
+#    $1 - The session to be restored;
+#    $2 - The list of accounts to be restored.
 ################################################################################
 function build_listRST()
 {
-  if [[ $1 == *"@"* ]]; then
-    for i in $(echo "$1" | sed 's/,/\n/g'); do
+  if [[ $2 == *"@"* ]]; then
+    for i in $(echo "$2" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
   else

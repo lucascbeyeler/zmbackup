@@ -24,7 +24,6 @@ trap clear_env TERM INT
 ################################################################################
 function create_temp(){
   export readonly TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
-  export readonly TEMPSESSION=$(mktemp)
   export readonly TEMPACCOUNT=$(mktemp)
   export readonly TEMPINCACCOUNT=$(mktemp)
   export readonly MESSAGE=$(mktemp)
