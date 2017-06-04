@@ -6,13 +6,18 @@
 ################################################################################
 # clear_temp: Clear all the temporary files.
 ################################################################################
-function clear_temp(){
+function on_exit(){
+  if [ $? == 1 ]; then
+    notify_finish $SESSION $STYPE FAILURE
+  else if [ $? == 0 ]; then
+    notify_finish $SESSION $STYPE SUCCESS
+  fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
   logger -i --id=$$ -p local7.info "Zmbackup: Excluding the temporary files before close."
 }
 
 #trap the function to be executed if the sript DIE
-trap clear_temp TERM INT
+trap clear_env TERM INT
 
 ################################################################################
 # create_temp: Create the temporary files used by the script.
@@ -23,6 +28,7 @@ function create_temp(){
   export readonly TEMPACCOUNT=$(mktemp)
   export readonly TEMPINCACCOUNT=$(mktemp)
   export readonly MESSAGE=$(mktemp)
+  export readonly FAILURE=$(mktemp)
 }
 
 ################################################################################
@@ -61,6 +67,20 @@ function constant(){
 
   # PID FILE
   export readonly PID='/var/run/zmbackup/zmbackup.pid'
+
+  # SESSION VARS
+  export SESSION="$1-"$(date  +%Y%m%d%H%M%S)
+  if [ $1 == 'full']; then
+    export STYPE="Full Account"
+  else if [ $1 == 'inc']; then
+      export STYPE="Incremental Account"
+  else if [ $1 == 'alias']; then
+      export STYPE="Alias"
+  else if [ $1 == 'distlist']; then
+      export STYPE="Distribution List"
+  else if [ $1 == 'ldap']; then
+      export STYPE="Account - Only LDAP"
+  fi
 }
 
 ################################################################################
