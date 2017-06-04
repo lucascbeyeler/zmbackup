@@ -4,13 +4,13 @@
 ################################################################################
 
 ###############################################################################
-# ldap_backup: Backup a LDAP object inside a file
+# ldap_backup: Backup a LDAP object inside a file.
 # Options:
 # $1 - The object's mail account that should be backed up;
 # $2 - The type of object should be backed up. Valid values:
-#     DLOBJECT - Distribution List
-#     ACOBJECT - User Account
-#     ALOBJECT - Alias
+#     DLOBJECT - Distribution List;
+#     ACOBJECT - User Account;
+#     ALOBJECT - Alias.
 ###############################################################################
 function ldap_backup()
 {
@@ -27,10 +27,10 @@ function ldap_backup()
 
 
 ###############################################################################
-# mailbox_backup: Backup user's mailbox in TGZ format
+# mailbox_backup: Backup user's mailbox in TGZ format.
 # Options:
-# $1 - The user's account to be backed up
-# $2 - OPTIONAL: Inform that this session is a incremental backup
+# $1 - The user's account to be backed up;
+# $2 - OPTIONAL: Inform that this session is a incremental backup.
 ###############################################################################
 function mailbox_backup()
 {
@@ -55,14 +55,14 @@ function mailbox_backup()
 
 
 ###############################################################################
-# ldap_restore: Restore a LDAP object inside a file
+# ldap_restore: Restore a LDAP object inside a file.
 # Options:
-# $1 - The session file to be restored
-# $2 - The account that should be restored
+# $1 - The session file to be restored;
+# $2 - The account that should be restored.
 ###############################################################################
 function ldap_restore()
 {
-  ERR=$(ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c -w $LDAPPASS \
+  ERR=$((ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c -w $LDAPPASS \
     $(grep ^dn: $WORKDIR/$1/$2.ldiff | awk '{print $2}') 2>&1)
   if [[ $? -eq 0 ]]; then
     ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
@@ -78,9 +78,9 @@ function ldap_restore()
 
 ###############################################################################
 # ldap_filter: Filter the account to see if you should do backup or not for that
-#              account
+#              account.
 # Options:
-# $1 - The email account to be validated
+# $1 - The email account to be validated.
 ###############################################################################
 function ldap_filter()
 {

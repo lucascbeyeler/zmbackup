@@ -4,17 +4,18 @@
 ################################################################################
 
 ################################################################################
-# clear_temp: Clear all the temporary files
+# clear_temp: Clear all the temporary files.
 ################################################################################
 function clear_temp(){
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
+  logger -i --id=$$ -p local7.info "Zmbackup: Excluding the temporary files before close."
 }
 
 #trap the function to be executed if the sript DIE
 trap clear_temp TERM INT
 
 ################################################################################
-# create_temp: Create the temporary files used by the script
+# create_temp: Create the temporary files used by the script.
 ################################################################################
 function create_temp(){
   export readonly TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
@@ -25,15 +26,25 @@ function create_temp(){
 }
 
 ################################################################################
-# load_config: Load the config file and zimbra's bashrc
+# load_config: Load the config file and zimbra's bashrc.
 ################################################################################
 function load_config(){
-  source /etc/zmbackup/zmbackup.conf
-  source /opt/zimbra/.bashrc
+  if [ -f "/etc/zmbackup/zmbackup.conf" ]; then
+    source /etc/zmbackup/zmbackup.conf 2> /dev/null
+  else
+    logger -i --id=$$ -p local7.err "Zmbackup: zmbackup.conf not found."
+    echo "ERROR - zmbackup.conf not found. Can't proceed whitout the file."
+  fi
+  if [ -f "/opt/zimbra/.bashrc" ]; then
+    source /opt/zimbra/.bashrc 2> /dev/null
+  else
+    logger -i --id=$$ -p local7.err "Zmbackup: zimbra user's .bashrc not found."
+    echo "ERROR - zimbra user's .bashrc not found. Can't proceed whitout the file."
+  fi
 }
 
 ################################################################################
-# constants: Initialize all the constants used i
+# constants: Initialize all the constants used by the Zmbackup.
 ################################################################################
 function constant(){
   # LDAP OBJECT
@@ -42,8 +53,8 @@ function constant(){
   export readonly ALOBJECT="(objectclass=zimbraAlias)"
 
   # LDAP FILTER
-  export readonly ACFILTER="zimbraMailDeliveryAddress"
   export readonly DLFILTER="mail"
+  export readonly ACFILTER="zimbraMailDeliveryAddress"
   export readonly ALFILTER="uid"
 
   # PID FILE

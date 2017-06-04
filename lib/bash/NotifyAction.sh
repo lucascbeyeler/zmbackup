@@ -4,10 +4,10 @@
 ################################################################################
 
 ################################################################################
-# notify_begin: Function to notify when the backup process began through e-mail
+# notify_begin: Function to notify when the backup process began through e-mail.
 # Options:
-#    $1 -> Inform the backup's session name
-#    $2 -> Infomr the type of backup is in execution
+#    $1 -> Inform the backup's session name;
+#    $2 -> Infomr the type of backup is in execution.
 ################################################################################
 function notify_begin()
 {
@@ -28,14 +28,14 @@ function notify_begin()
 
 
 ################################################################################
-# notify_finishOK: Function to notify when the backup process finish - SUCCESS
+# notify_finishOK: Function to notify when the backup process finish - SUCCESS.
 # Options:
-#    $1 -> Inform the backup's session name
-#    $2 -> Inform the type of backup is in execution
+#    $1 -> Inform the backup's session name;
+#    $2 -> Inform the type of backup is in execution;
 #    $3 -> Inform the status of the bacup. Valid Options:
 #        - FAILURE - For some reason Zmbackup can't conclude this session;
 #        - SUCCESS - Zmbackup concluded the session with no problem;
-#        - CANCELED - The administrator canceled the session for some reason;
+#        - CANCELED - The administrator canceled the session for some reason.
 ################################################################################
 function notify_finish()
 {
