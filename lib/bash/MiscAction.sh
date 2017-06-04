@@ -66,9 +66,9 @@ function constant(){
 ################################################################################
 list_sessions ()
 {
-  printf "+---------------------------+------------+----------+-------------------------+\n"
-  printf "|       Session Name        |    Date    |   Size   |       Description       |\n"
-  printf "+---------------------------+------------+----------+-------------------------+\n"
+  printf "+---------------------------+------------+----------+----------------------------+\n"
+  printf "|       Session Name        |    Date    |   Size   |        Description         |\n"
+  printf "+---------------------------+------------+----------+----------------------------+\n"
   for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
 
     # Load variables
@@ -109,7 +109,7 @@ list_sessions ()
     esac
 
     # Printing the information as a table
-    printf "| %-25s | %s/%s/%s | %-8s | %-23s |\n" $i $MONTH $DAY $YEAR $SIZE "$OPT"
+    printf "| %-25s | %s/%s/%s | %-8s | %-26s |\n" $i $MONTH $DAY $YEAR $SIZE "$OPT"
   done
-  printf "+---------------------------+------------+----------+-------------------------+\n"
+  printf "+---------------------------+------------+----------+----------------------------+\n"
 }
