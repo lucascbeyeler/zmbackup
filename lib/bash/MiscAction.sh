@@ -60,3 +60,56 @@ function constant(){
   # PID FILE
   export readonly PID='/var/run/zmbackup/zmbackup.pid'
 }
+
+################################################################################
+# list_sessions: List all the sessions and bring information about it to the user
+################################################################################
+list_sessions ()
+{
+  printf "+---------------------------+------------+----------+-------------------------+\n"
+  printf "|       Session Name        |    Date    |   Size   |       Description       |\n"
+  printf "+---------------------------+------------+----------+-------------------------+\n"
+  for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
+
+    # Load variables
+    SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+    QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
+    OPT=$(echo $i | cut -d"-" -f1 )
+    case $OPT in
+      "full")
+          OPT="Full Backup"
+          YEAR=$(echo $i | cut -c6-9)
+          MONTH=$(echo $i | cut -c10-11)
+          DAY=$(echo $i | cut -c12-13)
+      ;;
+      "inc")
+          OPT="Incremental Backup"
+          YEAR=$(echo $i | cut -c5-8)
+          MONTH=$(echo $i | cut -c9-10)
+          DAY=$(echo $i | cut -c11-12)
+      ;;
+      "distlist")
+          OPT="Distribution List Backup"
+          YEAR=$(echo $i | cut -c10-13)
+          MONTH=$(echo $i | cut -c14-15)
+          DAY=$(echo $i | cut -c16-17)
+      ;;
+      "alias")
+          OPT="Alias Backup"
+          YEAR=$(echo $i | cut -c7-10)
+          MONTH=$(echo $i | cut -c11-12)
+          DAY=$(echo $i | cut -c13-14)
+      ;;
+      "ldap")
+          OPT="Account Backup - Only LDAP"
+          YEAR=$(echo $i | cut -c6-9)
+          MONTH=$(echo $i | cut -c10-11)
+          DAY=$(echo $i | cut -c12-13)
+      ;;
+    esac
+
+    # Printing the information as a table
+    printf "| %25s | %s/%s/%s | %8s | %23s |\n" $i $MONTH $DAY $YEAR $SIZE $OPT
+  done
+  printf "+---------------------------+------------+----------+-------------------------+\n"
+}
