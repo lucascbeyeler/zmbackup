@@ -124,15 +124,15 @@ case "$1" in
           restore_main_ldap $3 $4
         ;;
         "-ro"|"--restoreOnAccount" )
-        if [ -z "$4" ] || [ -z "$5" ]; then
-          show_help
-          printf "\n\nError! Please inform the account that should be restored, and when the restore should be placed.\n\n"
-          exit 2
-        else
-          constant $2
-          checkpid
-          restore_accounts_mail $3 $4 $5
-        fi
+          if [ -z "$4" ] || [ -z "$5" ]; then
+            show_help
+            printf "\n\nError! Please inform the account that should be restored, and when the restore should be placed.\n\n"
+            exit 2
+          else
+            constant $2
+            checkpid
+            restore_accounts_mail $3 $4 $5
+          fi
         ;;
         "-m"|"--mail" )
           constant $2
@@ -144,6 +144,7 @@ case "$1" in
           printf "\n\nError! Incorrect option\n"
         ;;
       esac
+    fi
   ;;
   "-d"|"--delete" )
     if [ -z "$2" ]; then
