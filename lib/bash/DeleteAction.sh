@@ -13,6 +13,7 @@ function delete_one(){
   if [ "$SESSION" == "$1" ]; then
     echo "Removing session $1 - please wait."
     __DELETEBACKUP $1
+    echo "Backup session $1 removed."
   else
     echo "Session $1 not found in database - ignoring."
     exit 1
@@ -31,8 +32,14 @@ function delete_old(){
        __DELETEBACKUP $LINE
     fi
   done
+  logger -i --id=$$ -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
 }
 
+################################################################################
+# __DELETEBACKUP: Private function used by delete_old and delete_one to exclude sessions
+# Options:
+#    $1 - The session name to be excluded
+################################################################################
 function __DELETEBACKUP(){
   ERR=((rm -rf $WORKDIR/"$1") 2>&1)
   if [[ $? -eq 0 ]]; then
@@ -46,9 +53,19 @@ function __DELETEBACKUP(){
   fi
 }
 
+################################################################################
+# clean_empty: Remove all the empty files inside $WORKDIR
+################################################################################
 function clean_empty(){
   echo "Removing empty files - please wait."
   logger -i --id=$$ -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from empty files."
   find $WORKDIR -type f -size 0 -delete
-  exit 0
+  if [[ $? -eq 0 ]]; then
+    echo "Empty files removed with success."
+    logger -i --id=$$ -p local7.info "Zmbhousekeep: Empty files removed with success."
+  else
+    echo "Can't remove empty files - $ERR"
+    logger -i --id=$$ -p local7.err "Zmbhousekeep: Can't remove the empty files - See the error message below:"
+    logger -i --id=$$ -p local7.err "Zmbhousekeep: $ERR"
+  fi
 }
