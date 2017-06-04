@@ -4,13 +4,13 @@
 ################################################################################
 
 ################################################################################
-# restore_mbox:
+# restore_main_mailbox: Manage the restore action for one or all mailbox
 # Options:
 #    $1 - The session to be restored
 #    $2 - The list of accounts to be restored.
 #    $3 - The destination of the restored account
 ################################################################################
-restore_main_mailbox ()
+function restore_main_mailbox()
 {
   TEMPSESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
                 awk '{print $2}' | sort | uniq)
@@ -32,6 +32,28 @@ restore_main_mailbox ()
                "mailbox_restore $1 {}"
     fi
     echo "Restore mail process with session $i completed at $(date)"
+  else
+    echo "Nothing to do. Closing..."
+    exit 2
+  fi
+}
+
+################################################################################
+# restore_main_ldap: Manage the restore action for one or all ldap accounts
+# Options:
+#    $1 - The session to be restored
+#    $2 - The list of accounts to be restored.
+################################################################################
+function restore_main_ldap()
+{
+  TEMPSESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
+                awk '{print $2}' | sort | uniq)
+  if [ -s $TEMPSESSION ]; then
+    echo "Restore LDAP process with session $i started at $(date)"
+    build_restore_list $1 $2
+    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+                              "ldap_restore $i {}"
+    echo "Restore LDAP process with session $i completed at $(date)"
   else
     echo "Nothing to do. Closing..."
     exit 2

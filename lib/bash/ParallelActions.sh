@@ -68,9 +68,14 @@ function ldap_restore()
   ERR=$((ldapdelete -r -x -H $LDAPSERVER -D $LDAPADMIN -c -w $LDAPPASS \
     $(grep ^dn: $WORKDIR/$1/$2.ldiff | awk '{print $2}') 2>&1)
   if [[ $? -eq 0 ]]; then
-    ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
-             -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff > /dev/null 2>&1
-    echo "Account $2 restored with success"
+    ERR=$((ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
+             -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff > /dev/null) 2>&1)
+    if [[ $? -eq 0 ]]; then
+      echo "Account $2 restored with success"
+    else
+      echo "Error during the restore process for account $2. Error message below:"
+      echo $ERR
+    fi
   else
     echo "Error during the restore process for account $2. Error message below:"
     echo $ERR
