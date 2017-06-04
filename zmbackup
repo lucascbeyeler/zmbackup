@@ -145,5 +145,25 @@ case "$1" in
         ;;
       esac
   ;;
+  "-d"|"--delete" )
+    if [ -z "$2" ]; then
+      show_help
+      printf "\n\nError! Please inform the session that should be deleted\n\n"
+    else
+      constant
+      checkpid
+      delete_one $2
+    fi
+  ;;
+  "-h"|"--help" )
+    show_help
+  ;;
+  "-v"|"--version" )
+    echo "zmbackup version: 1.2.0 - BETA"
+  ;;
+  * )
+    show_help
+    printf "\n\nError! Incorrect options\n\n"
+  ;;
 esac
 exit 0

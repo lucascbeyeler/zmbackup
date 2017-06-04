@@ -81,6 +81,8 @@ function constant(){
     export readonly STYPE="Distribution List"
   elif [ $1 == '--ldap' || $1 == '-ldp' ]; then
     export readonly STYPE="Account - Only LDAP"
+  else
+    export readonly STYPE=""
   fi
 }
 
