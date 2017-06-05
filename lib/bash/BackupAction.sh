@@ -76,7 +76,6 @@ function backup_main()
 
   # If $TEMPACCOUNT is not empty, do a backup, if not do nothing
   if [ -s $TEMPACCOUNT ]; then
-    export ldap_backup
     notify_begin $SESSION $STYPE
     logger -i --id=$$ -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
