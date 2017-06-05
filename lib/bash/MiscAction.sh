@@ -241,3 +241,12 @@ function checkpid(){
     echo $$ > $PID
   fi
 }
+
+function export_function(){
+  export -f __backupMailbox
+  export -f __backupFullInc
+  export -f __backupLdap
+  export -f ldap_backup
+  export -f ldap_restore
+  export -f mailbox_backup
+}

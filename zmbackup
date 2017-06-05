@@ -62,6 +62,7 @@ source /usr/local/lib/zmbackup/bash/DeleteAction.sh
 ################################################################################
 load_config
 validate_config
+export_function
 case "$1" in
   "-f"|"--full" )
     case "$2" in
