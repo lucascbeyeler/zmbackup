@@ -68,7 +68,7 @@ function constant(){
   export readonly ALFILTER="uid"
 
   # PID FILE
-  export readonly PID='/var/run/zmbackup.pid'
+  export readonly PID='/opt/zimbra/log/zmbackup.pid'
 
   # SESSION VARS
   if [ $1 == '--full' ] || [ $1 == '-f' ]; then

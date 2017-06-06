@@ -66,10 +66,10 @@ function __backupMailbox(){
 function backup_main()
 {
   # Create a list of all accounts to be backed up
-  if [ -z $1 ]; then
-    build_listBKP $2 $3
+  if [ -z $3 ]; then
+    build_listBKP $1 $2
   else
-    for i in $(echo "$1" | sed 's/,/\n/g'); do
+    for i in $(echo "$3" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
   fi
@@ -81,16 +81,16 @@ function backup_main()
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     if [ $SESSION == "full*" ] || [ $SESSION == "inc*" ]; then
       export -f __backupFullInc
-      cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
-                         '__backupFullInc {} $2'
+      cat $TEMPACCOUNT | parallel --no-notice --env $1 --jobs $MAX_PARALLEL_PROCESS \
+                         '__backupFullInc {} $1'
     elif [ $SESSION == "mbox*" ]; then
       export -f __backupMailbox
-      cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
-                         '__backupMailbox {} "$2"'
+      cat $TEMPACCOUNT | parallel --no-notice --env $1 --jobs $MAX_PARALLEL_PROCESS \
+                         '__backupMailbox {} $1'
     else
       export -f __backupLdap
-      cat $TEMPACCOUNT | parallel --no-notice --env $2 --jobs $MAX_PARALLEL_PROCESS \
-                         '__backupLdap {} "$2"'
+      cat $TEMPACCOUNT | parallel --no-notice --env $1 --jobs $MAX_PARALLEL_PROCESS \
+                         '__backupLdap {} $1'
     fi
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"

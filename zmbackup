@@ -70,32 +70,32 @@ case "$1" in
         constant $2
         checkpid
         create_temp
-        backup_main $3 $DLOBJECT $DLFILTER
+        backup_main $DLOBJECT $DLFILTER $3
       ;;
       "-al"|"--alias" )
         constant $2
         checkpid
         create_temp
-        backup_main $3 $ALOBJECT $ALFILTER
+        backup_main $ALOBJECT $ALFILTER $3
       ;;
       "-ldp"|"--ldap" )
         constant $2
         checkpid
         create_temp
-        backup_main $3 $ACOBJECT $ACFILTER
+        backup_main $ACOBJECT $ACFILTER $3
       ;;
       * )
         constant $1
         checkpid
         create_temp
-        backup_main $2 $ACOBJECT $ACFILTER
+        backup_main $ACOBJECT $ACFILTER $2
     esac
   ;;
   "-i"|"--incremental" )
     constant $1
     checkpid
     create_temp
-    backup_main $2 $ACOBJECT $ACFILTER
+    backup_main $ACOBJECT $ACFILTER $2
   ;;
   "-l"|"--list" )
     list_sessions
