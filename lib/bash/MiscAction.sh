@@ -17,7 +17,7 @@ function on_exit(){
 }
 
 #trap the function to be executed if the sript DIE
-trap clear_env TERM INT EXIT
+trap on_exit TERM INT EXIT
 
 ################################################################################
 # create_temp: Create the temporary files used by the script.

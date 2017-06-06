@@ -113,7 +113,7 @@ function ldap_filter()
 {
   EXIST=$(grep $1 $WORKDIR/sessions.txt 2> /dev/null | tail -1 | awk -F: '{print $3}')
   grep -Fxq $1 /etc/zmbackup/blacklist.conf
-  if [[ $? -ne 0 ]]; then
+  if [[ $? -eq 0 ]]; then
     echo "WARN: $1 found inside blacklist - Nothing to do."
   elif [[ "$EXIST" = "$(date +%m/%d/%y)" && "$LOCK_BACKUP" == "TRUE" ]]; then
     echo "WARN: $1 already has backup today. Nothing to do."
