@@ -83,6 +83,9 @@ function constant(){
   elif [ $1 == '-dl' ] || [ $1 == '--distributionlist' ]; then
     export readonly STYPE="Distribution List"
     export readonly SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
+  elif [ $1 == '-m' ] || [ $1 == '--mail' ]; then
+    export readonly STYPE="Distribution List"
+    export readonly SESSION="mbox-"$(date  +%Y%m%d%H%M%S)
   elif [ $1 == '--ldap' ] || [ $1 == '-ldp' ]; then
     export readonly STYPE="Account - Only LDAP"
     export readonly SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
