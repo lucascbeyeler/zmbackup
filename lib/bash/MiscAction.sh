@@ -106,7 +106,11 @@ function list_sessions ()
 
     # Load variables
     SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
-    QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
+    if [[ $i == "mbox"* ]]; then
+      QTDE=$(ls $WORKDIR/$i/*.tgz | wc -l)
+    else
+      QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
+    fi
     OPT=$(echo $i | cut -d"-" -f1 )
     case $OPT in
       "full")
