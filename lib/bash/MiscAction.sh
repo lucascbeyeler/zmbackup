@@ -264,4 +264,5 @@ function export_vars(){
   export LDAPSERVER
   export LDAPADMIN
   export LDAPPASS
+  export MAILHOST
 }
