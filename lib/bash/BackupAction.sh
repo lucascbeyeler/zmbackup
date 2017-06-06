@@ -12,9 +12,9 @@
 ################################################################################
 function __backupFullInc(){
   ldap_backup $1 $2
-  if [ $ERROR_CODE -eq 0 ]; then
+  if [ $ERRCODE -eq 0 ]; then
     mailbox_backup $1 $2
-    if [ $ERROR_CODE -eq 0 ]; then
+    if [ $ERRCODE -eq 0 ]; then
       echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
     fi
   fi
@@ -31,7 +31,7 @@ function __backupFullInc(){
 ################################################################################
 function __backupLdap(){
   ldap_backup $1 $2
-  if [ $ERROR_CODE -eq 0 ]; then
+  if [ $ERRCODE -eq 0 ]; then
     echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
   fi
 }
@@ -45,7 +45,7 @@ function __backupLdap(){
 ################################################################################
 function __backupMailbox(){
   mailbox_backup $1 $2
-  if [ $ERROR_CODE -eq 0 ]; then
+  if [ $ERRCODE -eq 0 ]; then
     echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
   fi
 }

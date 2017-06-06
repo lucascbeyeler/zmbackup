@@ -18,11 +18,11 @@ function ldap_backup()
              -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldiff)2>&1)
   if [[ $? -eq 0 ]]; then
     logger -i --id=$$ -p local7.info "Zmbackup: LDAP - Backup for account $1 finished."
-    export ERROR_CODE=0
+    export ERRCODE=0
   else
     logger -i --id=$$ -p local7.err "Zmbackup: LDAP - Backup for account $1 failed. Error message below:"
     logger -i --id=$$ -p local7.err "Zmbackup: $ERR"
-    export ERROR_CODE=1
+    export ERRCODE=1
   fi
 }
 
@@ -48,11 +48,11 @@ function mailbox_backup()
       logger -i --id=$$ -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished, but the file is empty. Removing..."
       rm -rf $TEMPDIR/$1.tgz
     fi
-    export ERROR_CODE=0
+    export ERRCODE=0
   else
     logger -i --id=$$ -p local7.err "Zmbackup: Mailbox - Backup for account $1 failed. Error message below:"
     logger -i --id=$$ -p local7.err "Zmbackup: $ERR"
-    export ERROR_CODE=1
+    export ERRCODE=1
   fi
 }
 
