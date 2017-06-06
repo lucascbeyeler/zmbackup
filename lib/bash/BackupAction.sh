@@ -80,15 +80,12 @@ function backup_main()
     logger -i --id=$$ -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     if [ $SESSION == "full*" ] || [ $SESSION == "inc*" ]; then
-      export -f __backupFullInc
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $1'
     elif [ $SESSION == "mbox*" ]; then
-      export -f __backupMailbox
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                          '__backupMailbox {} $1'
     else
-      export -f __backupLdap
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                          '__backupLdap {} $1'
     fi

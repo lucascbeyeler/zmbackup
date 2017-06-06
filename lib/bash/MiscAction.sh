@@ -242,6 +242,9 @@ function checkpid(){
   fi
 }
 
+################################################################################
+# export_function: Export all the functions used by ParallelAction
+################################################################################
 function export_function(){
   export -f __backupMailbox
   export -f __backupFullInc
@@ -250,4 +253,15 @@ function export_function(){
   export -f ldap_restore
   export -f mailbox_backup
   export -f ldap_filter
+}
+
+################################################################################
+# export_vars: Export all the variables used by ParallelAction
+################################################################################
+function export_vars(){
+  export ADMINUSER
+  export ADMINPASS
+  export LDAPSERVER
+  export LDAPADMIN
+  export LDAPPASS
 }
