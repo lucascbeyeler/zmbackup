@@ -100,10 +100,20 @@ case "$1" in
     esac
   ;;
   "-i"|"--incremental" )
-    constant $1
-    checkpid
-    create_temp
-    backup_main $ACOBJECT $ACFILTER $2
+    case "$2" in
+      "-m"|"--mail" )
+        constant $2
+        checkpid
+        create_temp
+        backup_main $ACOBJECT $ACFILTER $3
+      ;;
+      * )
+        constant $1
+        checkpid
+        create_temp
+        backup_main $ACOBJECT $ACFILTER $1
+      ;;
+    esac
   ;;
   "-l"|"--list" )
     list_sessions
