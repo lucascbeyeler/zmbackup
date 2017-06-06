@@ -53,15 +53,15 @@ function __backupMailbox(){
 ################################################################################
 # backup_main: Backup accounts based on SESSION and STYPE
 # Options:
-#    $1 - The list of accounts to be backed up
-#    $2 - The type of object should be backed up. Valid values:
+#    $1 - The type of object should be backed up. Valid values:
 #        DLOBJECT - Distribution List;
 #        ACOBJECT - User Account;
 #        ALOBJECT - Alias;
-#    $3 - The filter used by LDAP to search for a type of object. Valid values:
+#    $2 - The filter used by LDAP to search for a type of object. Valid values:
 #        DLFILTER - Distribution List (Use together with DLOBJECT);
 #        ACFILTER - User Account (Use together with ACOBJECT);
 #        ALFILTER - Alias (Use together with ALOBJECT).
+#    $3 - The list of accounts to be backed up
 ################################################################################
 function backup_main()
 {

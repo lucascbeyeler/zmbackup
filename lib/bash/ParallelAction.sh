@@ -118,6 +118,6 @@ function ldap_filter()
   elif [[ "$EXIST" = "$(date +%m/%d/%y)" && "$LOCK_BACKUP" == "TRUE" ]]; then
     echo "WARN: $1 already has backup today. Nothing to do."
   else
-    echo $i >> $TEMPACCOUNT
+    echo $1 >> $TEMPACCOUNT
   fi
 }
