@@ -249,4 +249,5 @@ function export_function(){
   export -f ldap_backup
   export -f ldap_restore
   export -f mailbox_backup
+  export -f ldap_filter
 }
