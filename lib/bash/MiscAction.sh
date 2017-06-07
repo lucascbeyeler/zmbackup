@@ -98,6 +98,7 @@ function constant(){
     export readonly INC='TRUE'
   else
     export readonly INC='FALSE'
+  fi
 }
 
 ################################################################################
