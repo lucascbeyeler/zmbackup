@@ -279,4 +279,5 @@ function export_vars(){
   export LDAPADMIN
   export LDAPPASS
   export MAILHOST
+  export WORKDIR
 }
