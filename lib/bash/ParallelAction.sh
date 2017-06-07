@@ -31,11 +31,10 @@ function ldap_backup()
 # mailbox_backup: Backup user's mailbox in TGZ format.
 # Options:
 # $1 - The user's account to be backed up;
-# $2 - OPTIONAL: Inform that this session is a incremental backup.
 ###############################################################################
 function mailbox_backup()
 {
-  if [ "$2" == "INC" ]; then
+  if [[ "$INC" == "TRUE" ]]; then
     AFTER="\&query=after:"$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
   fi
   ERR=$((wget --quiet -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \

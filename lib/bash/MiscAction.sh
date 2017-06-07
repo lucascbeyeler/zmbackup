@@ -55,6 +55,7 @@ function load_config(){
 # constants: Initialize all the constants used by the Zmbackup.
 # Options:
 #    $1 - The type of session that will be executed
+#    $2 - OPTIONAL: Enable Incremental Backup
 ################################################################################
 function constant(){
   # LDAP OBJECT
@@ -76,7 +77,7 @@ function constant(){
     export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
   elif [ $1 == '--incremental' ] || [ $1 == '-i' ]; then
     export readonly STYPE="Incremental Account"
-    export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
+    export readonly SESSION="inc-"$(date  +%Y%m%d%H%M%S)
   elif [ $1 == '--alias' ] || [ $1 == '-al' ]; then
     export readonly STYPE="Alias"
     export readonly SESSION="alias-"$(date  +%Y%m%d%H%M%S)
@@ -84,7 +85,7 @@ function constant(){
     export readonly STYPE="Distribution List"
     export readonly SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
   elif [ $1 == '-m' ] || [ $1 == '--mail' ]; then
-    export readonly STYPE="Distribution List"
+    export readonly STYPE="Mailbox"
     export readonly SESSION="mbox-"$(date  +%Y%m%d%H%M%S)
   elif [ $1 == '--ldap' ] || [ $1 == '-ldp' ]; then
     export readonly STYPE="Account - Only LDAP"
@@ -92,6 +93,11 @@ function constant(){
   else
     export readonly STYPE=""
   fi
+
+  if [[ $2 == 'TRUE' ]]; then
+    export readonly INC='TRUE'
+  else
+    export readonly INC='FALSE'
 }
 
 ################################################################################

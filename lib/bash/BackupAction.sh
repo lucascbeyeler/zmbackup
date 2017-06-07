@@ -13,7 +13,7 @@
 function __backupFullInc(){
   ldap_backup $1 $2
   if [ $ERRCODE -eq 0 ]; then
-    mailbox_backup $1 $2
+    mailbox_backup $1
     if [ $ERRCODE -eq 0 ]; then
       echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
     fi
