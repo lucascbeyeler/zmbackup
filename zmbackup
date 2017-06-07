@@ -111,7 +111,7 @@ case "$1" in
         constant $1 'TRUE'
         checkpid
         create_temp
-        backup_main $ACOBJECT $ACFILTER $1
+        backup_main $ACOBJECT $ACFILTER $2
       ;;
     esac
   ;;
