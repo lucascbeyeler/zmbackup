@@ -139,13 +139,13 @@ case "$1" in
           else
             constant $2
             checkpid
-            restore_accounts_mail $3 $4 $5
+            restore_main_mailbox $3 $4 $5
           fi
         ;;
         "-m"|"--mail" )
           constant $2
           checkpid
-          restore_accounts_mail $3 $4
+          restore_main_mailbox $3 $4
         ;;
         * )
           show_help
