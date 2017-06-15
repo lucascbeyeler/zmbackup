@@ -13,7 +13,7 @@ function on_exit(){
     notify_finish $SESSION $STYPE SUCCESS
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
-  logger -i --id=$$ -p local7.info "Zmbackup: Excluding the temporary files before close."
+  logger -i -p local7.info "Zmbackup: Excluding the temporary files before close."
 }
 
 #trap the function to be executed if the sript DIE
@@ -38,14 +38,14 @@ function load_config(){
   if [ -f "/etc/zmbackup/zmbackup.conf" ]; then
     source /etc/zmbackup/zmbackup.conf 2> /dev/null
   else
-    logger -i --id=$$ -p local7.err "Zmbackup: zmbackup.conf not found."
+    logger -i -p local7.err "Zmbackup: zmbackup.conf not found."
     echo "ERROR - zmbackup.conf not found. Can't proceed whitout the file."
     exit 1
   fi
   if [ -f "/opt/zimbra/.bashrc" ]; then
     source /opt/zimbra/.bashrc 2> /dev/null
   else
-    logger -i --id=$$ -p local7.err "Zmbackup: zimbra user's .bashrc not found."
+    logger -i -p local7.err "Zmbackup: zimbra user's .bashrc not found."
     echo "ERROR - zimbra user's .bashrc not found. Can't proceed whitout the file."
     exit 1
   fi
@@ -165,80 +165,80 @@ function validate_config(){
 
   if [ -z "$BACKUPUSER" ]; then
   	BACKUPUSER="zimbra"
-    logger -i --id=$$ -p local7.warn "Zmbackup: BACKUPUSER not informed - setting as user zimbra instead."
+    logger -i -p local7.warn "Zmbackup: BACKUPUSER not informed - setting as user zimbra instead."
   fi
 
   if [ $(whoami) != "$BACKUPUSER" ]; then
     echo "You need to be $BACKUPUSER to run this software."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to be $BACKUPUSER to run this software."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to be $BACKUPUSER to run this software."
+    exit 2
   fi
 
   if [ -z "$WORKDIR" ]; then
     WORKDIR="/opt/zimbra/backup"
-    logger -i --id=$$ -p local7.warn "Zmbackup: WORKDIR not informed - setting as /opt/zimbra/backup/ instead."
+    logger -i -p local7.warn "Zmbackup: WORKDIR not informed - setting as /opt/zimbra/backup/ instead."
   fi
 
   if ! [ -d "$WORKDIR" ]; then
     echo "The directory $WORKDIR doesn't exist."
-    logger -i --id=$$ -p local7.err "Zmbackup: The directory $WORKDIR does not found."
-    exit 1
+    logger -i -p local7.err "Zmbackup: The directory $WORKDIR does not found."
+    exit 2
   fi
 
   if [ -z "$MAILHOST" ]; then
     MAILHOST="127.0.0.1"
-    logger -i --id=$$ -p local7.warn "Zmbackup: MAILHOST not informed - setting as 127.0.0.1 instead."
+    logger -i -p local7.warn "Zmbackup: MAILHOST not informed - setting as 127.0.0.1 instead."
   fi
 
   if [ -z "$EMAIL_NOTIFY" ]; then
     EMAIL_NOTIFY="root@localdomain.com"
-    logger -i --id=$$ -p local7.warn "Zmbackup: EMAIL_NOTIFY not informed - setting as root@localdomain.com instead."
+    logger -i -p local7.warn "Zmbackup: EMAIL_NOTIFY not informed - setting as root@localdomain.com instead."
   fi
 
   if [ -z "$MAX_PARALLEL_PROCESS" ]; then
     MAX_PARALLEL_PROCESS="1"
-    logger -i --id=$$ -p local7.warn "Zmbackup: MAX_PARALLEL_PROCESS not informed - disabling."
+    logger -i -p local7.warn "Zmbackup: MAX_PARALLEL_PROCESS not informed - disabling."
   fi
 
   if [ -z "$LOCK_BACKUP" ]; then
     LOCK_BACKUP=true
-    logger -i --id=$$ -p local7.warn "Zmbackup: LOCK_BACKUP not informed - enabling."
+    logger -i -p local7.warn "Zmbackup: LOCK_BACKUP not informed - enabling."
   fi
 
   if [ -z "$ADMINUSER" ]; then
     echo "You need to define the variable ADMINUSER."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable ADMINUSER."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to define the variable ADMINUSER."
+    exit 2
   fi
 
   if [ -z "$ADMINPASS" ]; then
     echo "You need to define the variable ADMINPASS."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable ADMINPASS."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to define the variable ADMINPASS."
+    exit 2
   fi
 
   if [ -z "$LDAPSERVER" ]; then
     echo "You need to define the variable LDAPSERVER."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable LDAPSERVER."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to define the variable LDAPSERVER."
+    exit 2
   fi
 
   if [ -z "$LDAPADMIN" ]; then
     echo "You need to define the variable LDAPADMIN."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable LDAPADMIN."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to define the variable LDAPADMIN."
+    exit 2
   fi
 
   if [ -z "$LDAPPASS" ]; then
     echo "You need to define the variable LDAPPASS."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable LDAPPASS."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to define the variable LDAPPASS."
+    exit 2
   fi
 
   if [ -z "$ROTATE_TIME" ]; then
     echo "You need to define the variable ROTATE_TIME."
-    logger -i --id=$$ -p local7.err "Zmbackup: You need to define the variable ROTATE_TIME."
-    exit 1
+    logger -i -p local7.err "Zmbackup: You need to define the variable ROTATE_TIME."
+    exit 2
   fi
 }
 

@@ -26,13 +26,13 @@ function delete_one(){
 function delete_old(){
   OLDEST=$(date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days")
   echo "Removing old backup folders - please wait."
-  logger -i --id=$$ -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from old backup sessions."
+  logger -i -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from old backup sessions."
   grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
     if [ "$(echo $LINE | cut -d- -f2)" -lt "$OLDEST" ]; then
        __DELETEBACKUP $LINE
     fi
   done
-  logger -i --id=$$ -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
+  logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
 }
 
 ################################################################################
@@ -45,11 +45,11 @@ function __DELETEBACKUP(){
   if [[ $? -eq 0 ]]; then
     grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/sessions.txt
     echo "Backup session $1 removed."
-    logger -i --id=$$ -p local7.info "Zmbhousekeep: Backup session $1 removed."
+    logger -i -p local7.info "Zmbhousekeep: Backup session $1 removed."
   else
     echo "Can't remove the file $1 - $ERR"
-    logger -i --id=$$ -p local7.err "Zmbhousekeep: Backup session $1 can't be excluded - See the error message below:"
-    logger -i --id=$$ -p local7.err "Zmbhousekeep: $ERR"
+    logger -i -p local7.err "Zmbhousekeep: Backup session $1 can't be excluded - See the error message below:"
+    logger -i -p local7.err "Zmbhousekeep: $ERR"
   fi
 }
 
@@ -58,14 +58,14 @@ function __DELETEBACKUP(){
 ################################################################################
 function clean_empty(){
   echo "Removing empty files - please wait."
-  logger -i --id=$$ -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from empty files."
+  logger -i -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from empty files."
   find $WORKDIR -type f -size 0 -delete
   if [[ $? -eq 0 ]]; then
     echo "Empty files removed with success."
-    logger -i --id=$$ -p local7.info "Zmbhousekeep: Empty files removed with success."
+    logger -i -p local7.info "Zmbhousekeep: Empty files removed with success."
   else
     echo "Can't remove empty files - $ERR"
-    logger -i --id=$$ -p local7.err "Zmbhousekeep: Can't remove the empty files - See the error message below:"
-    logger -i --id=$$ -p local7.err "Zmbhousekeep: $ERR"
+    logger -i -p local7.err "Zmbhousekeep: Can't remove the empty files - See the error message below:"
+    logger -i -p local7.err "Zmbhousekeep: $ERR"
   fi
 }

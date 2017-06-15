@@ -20,9 +20,9 @@ function notify_begin()
   printf "\nZmbackup Team" >> $MESSAGE
   sendmail $EMAIL_NOTIFY < $MESSAGE
   if [[ $? -eq 0 ]]; then
-    logger -i --id=$$ -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine begin."
+    logger -i -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine begin."
   else
-    logger -i --id=$$ -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
+    logger -i -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
   fi
 }
 
@@ -57,8 +57,8 @@ function notify_finish()
   cat $TEMPSESSION >> $MESSAGE
   ERR=$((sendmail $EMAIL_NOTIFY < $MESSAGE ) 2>&1)
   if [[ $? -eq 0 ]]; then
-    logger -i --id=$$ -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine conclusion."
+    logger -i -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine conclusion."
   else
-    logger -i --id=$$ -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
+    logger -i -p local7.info "Zmbackup: Cannot send mail for $EMAIL_NOTIFY - $ERR."
   fi
 }

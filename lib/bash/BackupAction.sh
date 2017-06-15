@@ -77,7 +77,7 @@ function backup_main()
   # If $TEMPACCOUNT is not empty, do a backup, if not do nothing
   if [ -s $TEMPACCOUNT ]; then
     notify_begin $SESSION $STYPE
-    logger -i --id=$$ -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
+    logger -i -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
     echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
@@ -92,7 +92,7 @@ function backup_main()
     echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
     cat $TEMPSESSION >> $WORKDIR/sessions.txt
-    logger -i --id=$$ -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"
+    logger -i -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"
   else
     echo "Nothing to do. Closing..."
     exit 2

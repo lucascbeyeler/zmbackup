@@ -22,8 +22,8 @@ function build_listBKP()
   if [[ $? -eq 0 ]]; then
     cat $TEMPINCACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS 'ldap_filter {}'
   else
-    logger -i --id=$$ -p local7.err "Zmbackup: LDAP - Can't extract accounts from LDAP - Error below:"
-    logger -i --id=$$ -p local7.err "Zmbackup: $ERR"
+    logger -i -p local7.err "Zmbackup: LDAP - Can't extract accounts from LDAP - Error below:"
+    logger -i -p local7.err "Zmbackup: $ERR"
     echo "ERROR - Can't extract accounts from LDAP - See log for more information"
     exit 1
   fi
