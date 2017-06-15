@@ -31,11 +31,6 @@ function show_help (){
   printf "\n -al,  --alias                  : Execute a backup of an alias instead of an account."
   printf "\n -ldp, --ldap                   : Execute a backup of an account, but only the ldap entry."
 
-  # All the options related to incremental Backups
-  printf "\n\nIncremental Backup Options:\n"
-
-  printf "\n -m,   --mail                   : Execute a backup of an account, but only the mailbox."
-
   # All the options related to Restore Backups
   printf "\n\nRestore Backup Options:\n"
 

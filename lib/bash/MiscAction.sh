@@ -9,7 +9,7 @@
 function on_exit(){
   if [ $? == 1 ]; then
     notify_finish $SESSION $STYPE FAILURE
-  elif [ $? == 0 ]; then
+  elif [[ $? == 0 && ! -z $SESSION ]]; then
     notify_finish $SESSION $STYPE SUCCESS
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
