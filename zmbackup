@@ -109,7 +109,6 @@ case "$1" in
     list_sessions
   ;;
   "-r"|"--restore" )
-    checkpid
     create_temp
     if [ -z "$3" ]; then
       show_help
