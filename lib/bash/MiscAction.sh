@@ -8,9 +8,9 @@
 ################################################################################
 function on_exit(){
   if [ $? == 1 ]; then
-    notify_finish $SESSION $STYPE FAILURE
+    notify_finish $SESSION $STYPE "FAILURE"
   elif [[ $? == 0 && ! -z $SESSION ]]; then
-    notify_finish $SESSION $STYPE SUCCESS
+    notify_finish $SESSION $STYPE "SUCCESS"
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
   logger -i -p local7.info "Zmbackup: Excluding the temporary files before close."
