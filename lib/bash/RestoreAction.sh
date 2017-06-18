@@ -17,7 +17,7 @@ function restore_main_mailbox()
   if ! [ -z $SESSION ]; then
     printf "\nRestore mail process with session $1 started at $(date)\n"
     if [[ ! -z $3 && $2 == *"@"* ]]; then
-      ERR=$((http --check-status --verify=no POST 'https://$MAILHOST:7071/home/$3/?fmt=tgz'\
+      ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$3/?fmt=tgz"\
            -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
       if [[ $? -eq 0 ]]; then
         printf "\nAccount $2 restored with success"
