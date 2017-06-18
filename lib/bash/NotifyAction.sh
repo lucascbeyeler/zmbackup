@@ -11,7 +11,7 @@
 ################################################################################
 function notify_begin()
 {
-  printf "Subject: Zmbackup - Backup routine for $1 start at $(date)" >> $MESSAGE
+  printf "Subject: Zmbackup - Backup routine for $1 start at $(date)" > $MESSAGE
   printf "\nGreetings Administrator," >> $MESSAGE
   printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled started right now." >> $MESSAGE
   printf " Depending on the ammount of accounts and/or data to be backed up, this process can take some hours before conclude." >> $MESSAGE
@@ -44,10 +44,10 @@ function notify_finish()
   QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
 
   # The message
-  printf "Subject: Zmbackup - Backup routine for $1 complete at $(date) - $3" >> $MESSAGE
+  printf "Subject: Zmbackup - Backup routine for $1 complete at $(date) - $3" > $MESSAGE
   printf "\nGreetings Administrator," >> $MESSAGE
   printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled ended right now." >> $MESSAGE
-  printf "\nHere some information about this session:"
+  printf "\nHere some information about this session:" >> $MESSAGE
   printf "\n\nSize: $SIZE" >> $MESSAGE
   printf "\nAccounts: $QTDE" >> $MESSAGE
   printf "\nStatus: $3" >> $MESSAGE
