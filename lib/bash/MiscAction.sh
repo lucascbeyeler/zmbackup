@@ -72,22 +72,22 @@ function constant(){
   export readonly PID='/opt/zimbra/log/zmbackup.pid'
 
   # SESSION VARS
-  if [ $1 == '--full' ] || [ $1 == '-f' ]; then
+  if [[ $1 == '--full' || $1 == '-f' ]]; then
     export readonly STYPE="Full Account"
     export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
-  elif [ $1 == '--incremental' ] || [ $1 == '-i' ]; then
+  elif [[ $1 == '--incremental' || $1 == '-i' ]]; then
     export readonly STYPE="Incremental Account"
     export readonly SESSION="inc-"$(date  +%Y%m%d%H%M%S)
-  elif [ $1 == '--alias' ] || [ $1 == '-al' ]; then
+  elif [[ $1 == '--alias' || $1 == '-al' ]]; then
     export readonly STYPE="Alias"
     export readonly SESSION="alias-"$(date  +%Y%m%d%H%M%S)
-  elif [ $1 == '-dl' ] || [ $1 == '--distributionlist' ]; then
+  elif [[ $1 == '-dl' || $1 == '--distributionlist' ]]; then
     export readonly STYPE="Distribution List"
     export readonly SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
-  elif [ $1 == '-m' ] || [ $1 == '--mail' ]; then
+  elif [[ $1 == '-m' || $1 == '--mail' ]]; then
     export readonly STYPE="Mailbox"
     export readonly SESSION="mbox-"$(date  +%Y%m%d%H%M%S)
-  elif [ $1 == '--ldap' ] || [ $1 == '-ldp' ]; then
+  elif [[ $1 == '--ldap' || $1 == '-ldp' ]]; then
     export readonly STYPE="Account - Only LDAP"
     export readonly SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
   else
