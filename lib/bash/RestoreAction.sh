@@ -15,7 +15,7 @@ function restore_main_mailbox()
   SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
                 awk '{print $2}' | sort | uniq)
   if ! [ -z $SESSION ]; then
-    echo "Restore mail process with session $1 started at $(date)"
+    print "\nRestore mail process with session $1 started at $(date)\n"
     if [[ ! -z $3 && $2 == *"@"*"@"* ]]; then
       ERR=$((http --check-status --verify=no POST 'https://$MAILHOST:7071/home/$3/?fmt=tgz'\
            -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$3.tgz) 2>&1)
