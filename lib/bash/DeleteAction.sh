@@ -43,7 +43,9 @@ function delete_old(){
 function __DELETEBACKUP(){
   ERR=$((rm -rf $WORKDIR/"$1") 2>&1)
   if [[ $? -eq 0 ]]; then
-    grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/sessions.txt 2>&1
+    grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+    cat $WORKDIR/.sessions.txt > $WORKDIR/sessions.txt
+    rm -rf $WORKDIR/.sessions.txt
     echo "Backup session $1 removed."
     logger -i -p local7.info "Zmbhousekeep: Backup session $1 removed."
   else
