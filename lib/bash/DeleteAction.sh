@@ -13,7 +13,6 @@ function delete_one(){
   if [ "$SESSION" == "$1" ]; then
     echo "Removing session $1 - please wait."
     __DELETEBACKUP $1
-    echo "Backup session $1 removed."
   else
     echo "Session $1 not found in database - ignoring."
     exit 1

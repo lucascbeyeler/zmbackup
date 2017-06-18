@@ -35,7 +35,7 @@ function ldap_backup()
 function mailbox_backup()
 {
   if [[ "$INC" == "TRUE" ]]; then
-    AFTER="\&after="$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $1}' | cut -d'-' -f2)
+    AFTER='&'"query=after:"$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
   fi
   ERR=$((wget -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \
         "https://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
