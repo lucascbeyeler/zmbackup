@@ -35,12 +35,12 @@ function ldap_backup()
 function mailbox_backup()
 {
   if [[ "$INC" == "TRUE" ]]; then
-    DATE=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $1}' | cut -d'-' -f2)
-    AFTER='&'"after="$(date -d $DATE +%s)"000"
+    DATE=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
+    AFTER='&'"start="$(date -d $DATE +%s)"000"
   fi
-  ERR=$((wget --timeout=10 --tries=3 -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \
+  ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \
         "https://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
-  if [[ $? -eq 0 ]]; then
+  if [[ $? -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
       logger -i -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished."
     else
