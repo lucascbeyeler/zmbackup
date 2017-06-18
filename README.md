@@ -65,7 +65,17 @@ MAILTO=root
 0  0  * * *     zimbra    zmbackup -hp
 ````
 
-Keep in mind that the option -hp or --housekeep is the one who is going to rotate your backups inside the folder, and do the cleaning inside each folder. Configure him to execute before the zmbackup proccess, because release the space for the next proccess, and is more quickly than the others.
+Keep in mind that the option -hp or --housekeep is the one who is going to rotate your backups inside the folder, and do the cleaning inside each folder. Configure him to execute before the zmbackup proccess, because he will release the space for the next proccess, and is more quickly than the others to run.
+
+And least, if you don't want to backup all the accounts, edit the file /etc/zmbackup/blacklist.conf and put in each line one account to be excluded.
+````
+$ vim /etc/zmbackup/blacklist.conf
+###############################################################################
+#                       ZMBACKUP MAIL BLACKLIST FILE                          #
+###############################################################################
+zmbackup@hollowbastion.com.br
+admin@hollowbastion.com.br
+````
 
 Documentation
 ------------
