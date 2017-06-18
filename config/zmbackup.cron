@@ -13,8 +13,8 @@
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 MAILTO=root
-0 1 * * 0     zimbra    zmbackup -f
-0 1 * * 1-6   zimbra    zmbackup -i
-0 1 * * *     zimbra    zmbackup -f -dl
-0 1 * * *     zimbra    zmbackup -f -al
-0 0 * * *     zimbra    zmbhousekeep
+30 1  * * 0     zimbra    zmbackup -f
+30 1  * * 1-6   zimbra    zmbackup -i
+0  1  * * *     zimbra    zmbackup -f -dl
+0  30 * * *     zimbra    zmbackup -f -al
+0  0  * * *     zimbra    zmbackup -hp
