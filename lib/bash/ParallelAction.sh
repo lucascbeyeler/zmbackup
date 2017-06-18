@@ -79,7 +79,7 @@ function ldap_restore()
     echo "Error during the restore process for account $2. Error message below:"
     echo $ERR
   fi
-  printf "======================================================================\n\n"
+  printf "\n======================================================================\n\n"
 }
 
 ###############################################################################
@@ -98,7 +98,7 @@ function mailbox_restore()
     echo "Error during the restore process for account $2. Error message below:"
     echo $ERR
   fi
-  printf "======================================================================\n\n"
+  printf "\n======================================================================\n\n"
 }
 
 
