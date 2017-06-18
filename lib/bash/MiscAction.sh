@@ -7,16 +7,17 @@
 # clear_temp: Clear all the temporary files.
 ################################################################################
 function on_exit(){
-  if [ $? == 1 ]; then
+  ERRCODE=$?
+  if [[ $ERRCODE -eq 1 ]]; then
     notify_finish $SESSION $STYPE "FAILURE"
-  elif [[ $? == 0 && ! -z $SESSION ]]; then
+  elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
     notify_finish $SESSION $STYPE "SUCCESS"
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
   logger -i -p local7.info "Zmbackup: Excluding the temporary files before close."
 }
 
-#trap the function to be executed if the sript DIE
+#trap the function to be executed if the sript die
 trap on_exit TERM INT EXIT
 
 ################################################################################

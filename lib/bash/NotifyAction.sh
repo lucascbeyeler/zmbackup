@@ -48,9 +48,9 @@ function notify_finish()
   printf "\nGreetings Administrator," >> $MESSAGE
   printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled ended right now." >> $MESSAGE
   printf "\nHere some information about this session:"
-  printf "\n\nSize: $SIZE"
-  printf "\nAccounts: $QTDE"
-  printf "\nStatus: $3"
+  printf "\n\nSize: $SIZE" >> $MESSAGE
+  printf "\nAccounts: $QTDE" >> $MESSAGE
+  printf "\nStatus: $3" >> $MESSAGE
   printf "\n\nRegards," >> $MESSAGE
   printf "\nZmbackup Team" >> $MESSAGE
   printf "\n\nSummary of files:\n" >> $MESSAGE
