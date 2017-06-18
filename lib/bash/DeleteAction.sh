@@ -69,4 +69,5 @@ function clean_empty(){
     logger -i -p local7.err "Zmbhousekeep: Can't remove the empty files - See the error message below:"
     logger -i -p local7.err "Zmbhousekeep: $ERR"
   fi
+  touch $WORKDIR/sessions.txt
 }
