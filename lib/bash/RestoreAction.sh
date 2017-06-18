@@ -12,11 +12,11 @@
 ################################################################################
 function restore_main_mailbox()
 {
-  SESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
+  SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
                 awk '{print $2}' | sort | uniq)
   if ! [ -z $SESSION ]; then
     echo "Restore mail process with session $i started at $(date)"
-    if ! [ -z $3 && $2 == *"@"*"@"* ]; then
+    if ! [[ -z $3 && $2 == *"@"*"@"* ]]; then
       ERR=$((http --check-status --verify=no POST 'https://$MAILHOST:7071/home/$3/?fmt=tgz'\
            -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$3.tgz) 2>&1)
       if [[ $? -eq 0 ]]; then
@@ -27,7 +27,7 @@ function restore_main_mailbox()
       fi
       printf "======================================================================\n\n"
     else
-      build_restore_list $1 $2
+      build_listRST $1 $2
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                "mailbox_restore $1 {}"
     fi
@@ -50,7 +50,7 @@ function restore_main_ldap()
                 awk '{print $2}' | sort | uniq)
   if [ -s $SESSION ]; then
     echo "Restore LDAP process with session $i started at $(date)"
-    build_restore_list $1 $2
+    build_listRST $1 $2
     cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                               "ldap_restore $i {}"
     echo "Restore LDAP process with session $i completed at $(date)"
