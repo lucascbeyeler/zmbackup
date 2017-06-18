@@ -15,8 +15,8 @@ function delete_one(){
     __DELETEBACKUP $1
   else
     echo "Session $1 not found in database - ignoring."
-    exit 1
   fi
+  exit 2
 }
 
 ################################################################################

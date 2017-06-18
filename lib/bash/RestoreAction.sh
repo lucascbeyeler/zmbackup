@@ -15,7 +15,7 @@ function restore_main_mailbox()
   SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
                 awk '{print $2}' | sort | uniq)
   if ! [ -z $SESSION ]; then
-    print "\nRestore mail process with session $1 started at $(date)\n"
+    printf "\nRestore mail process with session $1 started at $(date)\n"
     if [[ ! -z $3 && $2 == *"@"*"@"* ]]; then
       ERR=$((http --check-status --verify=no POST 'https://$MAILHOST:7071/home/$3/?fmt=tgz'\
            -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$3.tgz) 2>&1)
@@ -34,8 +34,8 @@ function restore_main_mailbox()
     echo "Restore mail process with session $1 completed at $(date)"
   else
     echo "Nothing to do. Closing..."
-    exit 2
   fi
+  exit 2
 }
 
 ################################################################################
@@ -56,6 +56,6 @@ function restore_main_ldap()
     echo "Restore LDAP process with session $1 completed at $(date)"
   else
     echo "Nothing to do. Closing..."
-    exit 2
   fi
+  exit 2
 }
