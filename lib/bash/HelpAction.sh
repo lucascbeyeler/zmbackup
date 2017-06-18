@@ -21,6 +21,7 @@ function show_help (){
   printf "\n -l, --list                     : List all backup sessions that still exist in your disk."
   printf "\n -r, --restore                  : Restore the backup inside the users account."
   printf "\n -d, --delete                   : Delete a session of backup."
+  printf "\n -hp, --housekeep               : Execute the Housekeep to remove old sessions - Zmbhousekeep"
   printf "\n -v, --version                  : Show the zmbackup version."
 
   # All the options related to Full Backups

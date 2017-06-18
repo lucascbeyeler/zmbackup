@@ -164,6 +164,12 @@ case "$1" in
       delete_one $2
     fi
   ;;
+  "-hp"|"--housekeep")
+    constant
+    checkpid
+    delete_old
+    clean_empty
+  ;;
   "-h"|"--help" )
     show_help
   ;;
