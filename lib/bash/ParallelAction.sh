@@ -21,7 +21,7 @@ function ldap_backup()
     export ERRCODE=0
   else
     logger -i -p local7.err "Zmbackup: LDAP - Backup for account $1 failed. Error message below:"
-    logger -i -p local7.err "Zmbackup: $ERR"
+    logger -i -p local7.err "Zmbackup: $1 - $ERR"
     export ERRCODE=1
   fi
 }
@@ -50,7 +50,7 @@ function mailbox_backup()
     export ERRCODE=0
   else
     logger -i -p local7.err "Zmbackup: Mailbox - Backup for account $1 failed. Error message below:"
-    logger -i -p local7.err "Zmbackup: $ERR"
+    logger -i -p local7.err "Zmbackup: $1 - $ERR"
     export ERRCODE=1
   fi
 }
@@ -69,12 +69,11 @@ function ldap_restore()
   ERR=$((ldapadd -x -H $LDAPSERVER -D $LDAPADMIN \
            -c -w $LDAPPASS -f $WORKDIR/$1/$2.ldiff) 2>&1)
   if [[ $? -eq 0 ]]; then
-    echo "Account $2 restored with success"
+    printf "\nAccount $2 restored with success"
   else
-    echo "Error during the restore process for account $2. Error message below:"
-    echo $ERR
+    printf "\nError during the restore process for account $2. Error message below:"
+    printf "\n$2: $ERR"
   fi
-  printf "\n======================================================================\n\n"
 }
 
 ###############################################################################
@@ -88,14 +87,13 @@ function mailbox_restore()
   ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$2/?fmt=tgz"\
        -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
   if [[ $? -eq 0 ]]; then
-    echo "Account $2 restored with success"
+    printf "\nAccount $2 restored with success"
   elif [[ "$ERR"  == *"No such file or directory" ]]; then
-    echo "Account $2 has nothing to restore - skipping..."
+    printf "\nAccount $2 has nothing to restore - skipping..."
   else
-    echo "Error during the restore process for account $2. Error message below:"
-    echo $ERR
+    printf "\nError during the restore process for account $2. Error message below:"
+    printf "\n$2: $ERR"
   fi
-  printf "\n======================================================================\n\n"
 }
 
 
