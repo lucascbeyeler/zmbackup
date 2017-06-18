@@ -94,6 +94,8 @@ function mailbox_restore()
        -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
   if [[ $? -eq 0 ]]; then
     echo "Account $2 restored with success"
+  elif [[ "$ERR"  == *"No such file or directory" ]]
+    echo "Account $2 has nothing to restore - skipping..."
   else
     echo "Error during the restore process for account $2. Error message below:"
     echo $ERR
