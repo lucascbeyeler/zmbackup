@@ -151,6 +151,12 @@ The restore on account act different of the rest of the restore actions, as you 
 $ zmbackup -r -ro full-20170621201603 slayerofdemons@boletaria.com chosenundead@lordran.com
 ```
 
+To remove a backup session, you only need to use the option -d or --delete, and inform the session you want to delete. Or, if you want to remove all the backups before X days, you can use the option -hp or --housekeep to execute the Housekeep process. WARNING: The housekeep can take sometime depending the ammount of accounts you want to remove.
+
+```
+$ zmbackup -d full-20170621201603
+$ zmbackup -hp
+```
 
 License
 -------
