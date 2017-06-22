@@ -114,6 +114,44 @@ To execute a full backup routine, which include by default the mailbox and the l
 $ zmbackup -f
 ```
 
+You can filter for what you want using the options -m for Mailbox, -ldp for Accounts, -al for Alias, and -dl for Distribution List. REMEMBER - This options doesn't stack with each other, so don't try -dl and -al at the same time (The script will only broke if you do this).
+
+**CORRECT**
+```
+$ zmbackup -f -m
+```
+
+**INCORRECT**
+```
+$ zmbackup -f -m -ldp
+```
+
+Aside from the full backup action, Zmbackup still have a option to do incremental backups. This works like this: before a incremental be executed, Zmbackup should check the date for the latest routine for each account, and execute a restore action based on that date. At the moment, the incremental will backup the ldap account and the mailbox, and accept no paramenter aside the list of accounts to be backed up.
+
+```
+$ zmbackup -i
+```
+
+To restore a backup, you use the option -r or --restore, but this time you should inform what kind of restore you want to do, and the ID session you want to restore. You can check the sessionID with the command zmbackup -l.
+
+```
+$ zmbackup -l
++---------------------------+------------+----------+----------------------------+
+|       Session Name        |    Date    |   Size   |        Description         |
++---------------------------+------------+----------+----------------------------+
+| full-20170621201603       | 06/21/2017 | 32K      | Full Backup                |
++---------------------------+------------+----------+----------------------------+
+
+$ zmbackup -r -m  full-20170621201603
+```
+
+The restore on account act different of the rest of the restore actions, as you should inform the account you want to restore, and the destination of that account, aside from the sessionID. This will dump all the content inside that account in that session in the destination account.
+
+```
+$ zmbackup -r -ro full-20170621201603 slayerofdemons@boletaria.com chosenundead@lordran.com
+```
+
+
 License
 -------
 
