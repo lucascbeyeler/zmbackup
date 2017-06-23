@@ -38,3 +38,99 @@ function install_redhat() {
     exit $ERR_DEPNOTFOUND
   fi
 }
+
+################################################################################
+# check_demp: Check if all the dependencies are recognized by the OSE_USER
+################################################################################
+function check_demp() {
+  STATUS=0
+  printf "\n\nChecking system for dependencies...\n\n"
+
+  ## Check if the OSE_USER has access to the package wget
+  printf "  wget...                 "
+  su - $OSE_USER -c "which wget" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  ## Check if the OSE_USER has access to the package parallel
+  printf "  parallel...             "
+  su - $OSE_USER -c "which parallel" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  ## Check if the OSE_USER has access to the package httpie
+  printf "  httpie...                 "
+  su - $OSE_USER -c "which httpie" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  ## Check if the OSE_USER has access to the package grep
+  printf "  grep...                "
+  su - $OSE_USER -c "which grep" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  ## Check if the OSE_USER has access to the package date
+  printf "  date...                 "
+  su - $OSE_USER -c "which date" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  ## Check if the OSE_USER has access to the package crond
+  printf "  cron...                 "
+  su - $OSE_USER -c "which crontab" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  ## Check if the OSE_USER has access to the package ldap-utils
+  printf "  ldap-utils...	          "
+  su - $OSE_USER -c "which ldapsearch" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+  }
+
+  ## Check if the OSE_USER has access to the package mktemp
+  printf "  mktemp...               "
+  su - $OSE_USER -c "which mktemp" > /dev/null 2>&1
+  if [ $? = 0 ]; then
+    printf "[OK]\n"
+  else
+    printf "[NOT FOUND]\n"
+    STATUS=$ERR_DEPNOTFOUND
+  fi
+
+  if [[ $STATUS -ne 0 ]]; then
+  	echo ""
+  	echo "Some dependencies are missing for the $OSE_USER's PATH variable."
+  	echo "Please correct the problem and run the installer again."
+  	exit $ERR_DEPNOTFOUND
+  fi
+}

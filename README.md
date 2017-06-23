@@ -34,10 +34,12 @@ Requirements
 * **HTTPie** - a command line HTTP client with an intuitive UI, JSON support, syntax highlighting, wget-like downloads, plugins, and more.
 * **GNU grep** - a command-line utility for searching plain-text data sets for lines matching a regular expression;
 * **date** - command used to print out, or change the value of, the system's time and date information;
-* **cron** - a time-based job scheduler in Unix-like computer operating systems.
+* **cron** - a time-based job scheduler in Unix-like computer operating systems;
 * **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download HTTPie and GNU Parallel;
+* **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
+* **mktemp** - make a temporary file or directory;
 
-Instalation
+Installation
 ------------
 
 If you use CentOS, first install the package **[epel-release](https://fedoraproject.org/wiki/EPEL)**, as we will need this repository to download part of the dependencies.
@@ -46,7 +48,7 @@ If you use CentOS, first install the package **[epel-release](https://fedoraproj
 # yum install epel-release
 ```
 
-Now, install the packages **parallel**, **wget** and **httpie** in your server. You don't need to install grep, date and cron, because they are already part of all GNU/Linux distros.
+Now, install the packages **parallel**, **wget** and **httpie** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
 
 ```
 # apt-get install parallel wget httpie
