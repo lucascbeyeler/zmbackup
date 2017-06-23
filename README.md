@@ -16,7 +16,7 @@ Zmbackup is a reliable Bash shell script developed to help you in your daily tas
 
 Features
 ------------
-* Online Backup and Restore - no need to stop the base to do;
+* Online Backup and Restore - no need to stop the server to do;
 * Backup routines for one, many, or all mailbox, accounts, alias and distribution lists;
 * Restore the routines in your respective places, or inside another account using Restore on Account;
 * Multithreading - Execute each rotine quickly as possible;
@@ -46,7 +46,7 @@ If you use CentOS, first install the package **[epel-release](https://fedoraproj
 # yum install epel-release
 ```
 
-Now, install the packages parallel, wget and httpie in your server. You don't need to install grep, date and cron, because they are already part of all GNU/Linux distros.
+Now, install the packages **parallel**, **wget** and **httpie** in your server. You don't need to install grep, date and cron, because they are already part of all GNU/Linux distros.
 
 ```
 # apt-get install parallel wget httpie
@@ -59,7 +59,7 @@ Download the latest package with the BETA tag in "Release" section, or git clone
 git clone -b dev https://github.com/lucascbeyeler/zmbackup.git
 ```
 
-Inside the project folder, execute the script wizard.sh and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
+Inside the project folder, execute the script **install.sh** and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
 
 ```
 # cd zmbackup
@@ -71,7 +71,7 @@ $ zmbackup -v
 Usage
 ------------
 
-To check all the options available to Zmbackup, just execute zmbackup -h or zmbackup --help. This will return for you a list with all the options, what each one of them does, and the syntax.
+To check all the options available to Zmbackup, just execute **zmbackup -h** or **zmbackup --help**. This will return for you a list with all the options, what each one of them does, and the syntax.
 
 ```
 $ zmbackup -h
@@ -108,13 +108,13 @@ Restore Backup Options:
 
 ```
 
-To execute a full backup routine, which include by default the mailbox and the ldiff, just run the script with the option -f or --full. Depending of the ammount of accounts or the number of proccess you set in the option **MAX_PARALLEL_PROCESS**, this will take sometime before conclude.
+To execute a full backup routine, which include by default the mailbox and the ldiff, just run the script with the option **-f** or **--full**. Depending of the ammount of accounts or the number of proccess you set in the option **MAX_PARALLEL_PROCESS**, this will take sometime before conclude.
 
 ```
 $ zmbackup -f
 ```
 
-You can filter for what you want using the options -m for Mailbox, -ldp for Accounts, -al for Alias, and -dl for Distribution List. REMEMBER - This options doesn't stack with each other, so don't try -dl and -al at the same time (The script will only broke if you do this).
+You can filter for what you want using the options **-m** for Mailbox, **-ldp** for Accounts, **-al** for Alias, and **-dl** for Distribution List. REMEMBER - This options doesn't stack with each other, so don't try -dl and -al at the same time (The script will only broke if you do this).
 
 **CORRECT**
 ```
@@ -132,7 +132,7 @@ Aside from the full backup action, Zmbackup still have a option to do incrementa
 $ zmbackup -i
 ```
 
-To restore a backup, you use the option -r or --restore, but this time you should inform what kind of restore you want to do, and the ID session you want to restore. You can check the sessionID with the command zmbackup -l.
+To restore a backup, you use the option **-r** or **--restore**, but this time you should inform what kind of restore you want to do, and the ID session you want to restore. You can check the sessionID with the command zmbackup -l.
 
 ```
 $ zmbackup -l
@@ -145,13 +145,13 @@ $ zmbackup -l
 $ zmbackup -r -m  full-20170621201603
 ```
 
-The restore on account act different of the rest of the restore actions, as you should inform the account you want to restore, and the destination of that account, aside from the sessionID. This will dump all the content inside that account in that session in the destination account.
+The restoreOnAccount act different of the rest of the restore actions, as you should inform the account you want to restore, and the destination of that account, aside from the sessionID. This will dump all the content inside that account from that session in the destination account.
 
 ```
 $ zmbackup -r -ro full-20170621201603 slayerofdemons@boletaria.com chosenundead@lordran.com
 ```
 
-To remove a backup session, you only need to use the option -d or --delete, and inform the session you want to delete. Or, if you want to remove all the backups before X days, you can use the option -hp or --housekeep to execute the Housekeep process. **WARNING**: The housekeep can take sometime depending the ammount of data you want to remove.
+To remove a backup session, you only need to use the option **-d** or **--delete**, and inform the session you want to delete. Or, if you want to remove all the backups before X days, you can use the option **-hp** or **--housekeep** to execute the Housekeep process. **WARNING**: The housekeep can take sometime depending the ammount of data you want to remove.
 
 ```
 $ zmbackup -d full-20170621201603
