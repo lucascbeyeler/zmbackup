@@ -19,3 +19,15 @@ source installScript/vars.sh
 ################################################################################
 contract
 check_env
+set_values
+check_config
+if [[ $SO == "ubuntu" ]]; then
+  install_ubuntu
+else
+  install_redhat
+fi
+if [[ $UPGRADE == "Y" ]];
+  deploy_upgrade
+else
+  deploy_new
+fi

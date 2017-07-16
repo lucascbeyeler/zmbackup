@@ -22,6 +22,20 @@ function check_env() {
     printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
     UPGRADE="Y"
   fi
+  printf "  Checking SO...	          "
+  whereis apt > /dev/null 2>&1
+  if [ $? != 0 ]; then
+    printf "[UBUNTU SERVER]\n"
+    SO="ubuntu"
+  fi
+  whereis yum > /dev/null 2>&1
+  if [ $? != 0 ]; then
+    printf "[RED HAT ENTERPRISE LINUX]\n"
+    SO="redhat"
+  else
+    printf "[UNSUPPORTED]\n"
+    exit 1
+  fi
 }
 
 ################################################################################
