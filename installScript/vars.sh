@@ -24,3 +24,5 @@ ZMBKP_MAIL_ALERT="admin@"$(hostname -d)
 MAX_PARALLEL_PROCESS="3"
 ROTATE_TIME="30"
 LOCK_BACKUP=true
+ZMBKP_ACCOUNT="zmbackup@"$(hostname -d)
+ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)
