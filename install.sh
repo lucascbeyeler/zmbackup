@@ -29,6 +29,7 @@ if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
     remove_redhat
   fi
   uninstall
+  echo "Uninstall completed. Thanks for using Zmbackup. Have a nice day!"
   exit 0
 fi
 
