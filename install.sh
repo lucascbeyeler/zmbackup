@@ -26,7 +26,7 @@ if [[ $SO = "ubuntu" ]]; then
 else
   install_redhat
 fi
-if [[ $UPGRADE = "Y" ]];
+if [[ $UPGRADE = "Y" ]]; then
   deploy_upgrade
 else
   deploy_new
