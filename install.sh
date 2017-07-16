@@ -37,16 +37,21 @@ fi
 ################################################################################
 contract
 check_env
-if [[ $SO = "ubuntu" ]]; then
-  install_ubuntu
-else
-  install_redhat
-fi
 if [[ $UPGRADE = "Y" ]]; then
+  if [[ $SO = "ubuntu" ]]; then
+    install_ubuntu
+  else
+    install_redhat
+  fi
   deploy_upgrade
 else
   set_values
   check_config
+  if [[ $SO = "ubuntu" ]]; then
+    install_ubuntu
+  else
+    install_redhat
+  fi
   deploy_new
 fi
 
