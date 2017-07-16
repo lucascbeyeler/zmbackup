@@ -91,15 +91,26 @@ function set_values() {
   # Configure mail alert
   printf "\nInform the account to receive all Zmbackup's alerts - DEFAULT [$ZMBKP_MAIL_ALERT]:"
   read TMP
-  OSE_DEFAULT_BKP_DIR=${TMP:-$ZMBKP_MAIL_ALERT}
+  ZMBKP_MAIL_ALERT=${TMP:-$ZMBKP_MAIL_ALERT}
 
   # Configure mail alert
   printf "\nInform Zmbackup's number of threads - DEFAULT [$MAX_PARALLEL_PROCESS]:"
   read TMP
-  OSE_DEFAULT_BKP_DIR=${TMP:-$MAX_PARALLEL_PROCESS}
+  MAX_PARALLEL_PROCESS=${TMP:-$MAX_PARALLEL_PROCESS}
 
   # Configure mail alert
   printf "\nInform the number of days Zmbackup should store the backups - DEFAULT [$ROTATE_TIME]:"
   read TMP
-  OSE_DEFAULT_BKP_DIR=${TMP:-$ROTATE_TIME}
+  ROTATE_TIME=${TMP:-$ROTATE_TIME}
+
+  # Configure mail alert
+  printf "\nZmbackup should limit backups for one per day? - DEFAULT [$LOCK_BACKUP]:"
+  read TMP
+  LOCK_BACKUP=${TMP:-$LOCK_BACKUP}
+  echo -e "\n\n"
+  echo "##################################################################################"
+  echo "#                                                                                #"
+  echo "#                            CONFIGURATION COMPLETED                             #"
+  echo "#                                                                                #"
+  echo "##################################################################################"
 }

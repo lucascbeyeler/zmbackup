@@ -23,3 +23,4 @@ OSE_DEFAULT_BKP_DIR="/opt/zimbra/backup"        # Where you will store your back
 ZMBKP_MAIL_ALERT="admin@"$(hostname -d)
 MAX_PARALLEL_PROCESS="3"
 ROTATE_TIME="30"
+LOCK_BACKUP=true
