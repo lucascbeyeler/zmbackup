@@ -87,6 +87,7 @@ function deploy_new() {
 ################################################################################
 function deploy_upgrade(){
   # Removing old version
+  echo "Upgrading... Please wait while we made some changes."
   echo -ne '                     (0%)\r'
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
   echo -ne '##########            (50%)\r'
@@ -94,6 +95,21 @@ function deploy_upgrade(){
   # Copy files
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '###############       (75%)\r'
-  install -o $OSE_USER -m 600 $MYDIR/project/lib/* $ZMBKP_LIB
+  test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
+  cp -R $MYDIR/project/lib/* $ZMBKP_LIB
+  chown -R $OSE_USER. $ZMBKP_LIB
+  chmod -R 700 $ZMBKP_LIB
   echo -ne '####################  (100%)\r'
+}
+
+################################################################################
+# uninstall: Remove zmbackup, their dependencies, and all files related
+################################################################################
+function uninstall() {
+  echo "Removing... Please wait while we made some changes."
+  echo -ne '                     (0%)\r'
+  rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
+  echo -ne '##########            (50%)\r'
+  rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
+  echo -ne '###############       (75%)\r'
 }
