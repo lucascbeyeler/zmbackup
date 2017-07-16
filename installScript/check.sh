@@ -10,10 +10,12 @@ function check_env() {
     printf "[NO ROOT]\n"
   	echo "You need root privileges to install zmbackup"
   	exit $ERR_NOROOT
+  else
+    printf "[ROOT]\n"
   fi
-  printf "  Old Zmbackup Install...	          "
+  printf "  Old Zmbackup Install...	  "
   su - $OSE_USER -c "which zmbackup" > /dev/null 2>&1
-  if [ $? = 0 ]; then
+  if [ $? != 0 ]; then
     printf "[NEW INSTALL]\n"
     UPGRADE="N"
   else

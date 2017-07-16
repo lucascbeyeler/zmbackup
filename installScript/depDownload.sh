@@ -115,7 +115,6 @@ function check_demp() {
     printf "[NOT FOUND]\n"
     STATUS=$ERR_DEPNOTFOUND
   fi
-  }
 
   ## Check if the OSE_USER has access to the package mktemp
   printf "  mktemp...               "
