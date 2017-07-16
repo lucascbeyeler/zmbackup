@@ -32,7 +32,7 @@ function check_env() {
   if [[ $? = 0 ]]; then
     printf "[RED HAT ENTERPRISE LINUX]\n"
     SO="redhat"
-  else if [[ -z $SO ]]; then
+  elif [[ -z $SO ]]; then
     printf "[UNSUPPORTED]\n"
     exit 1
   fi
