@@ -30,7 +30,7 @@ EOF
   echo "#         This script was made by the community for the community.               #"
   echo "#                                                                                #"
   echo "##################################################################################"
-  echo -e "\n\n"
+  echo -e "\n"
   echo "##################################################################################"
   echo "#                                                                                #"
   echo "# PLEASE, READ THIS AGREEMENT CAREFULLY BEFORE USING THE SOFTWARE. THIS PROGRAM  #"
@@ -53,4 +53,53 @@ EOF
   	echo "Stoping the installation process..."
   	exit 0
   fi
+}
+
+################################################################################
+# set_values: Set all the variables for Zmbackup
+################################################################################
+function set_values() {
+  echo "##################################################################################"
+  echo "#                                                                                #"
+  echo "# The follow messages will ask you about some configurations for Zmbackup run in #"
+  echo "# your server. Please answer each one of then or press ENTER to assume the       #"
+  echo "# default value.                                                                 #"
+  echo "#                                                                                #"
+  echo "##################################################################################"
+  echo -e "\n"
+
+  # Inform Zimbra's default user
+  printf "Inform Zimbra's defaut user - DEFAULT [$OSE_USER]:"
+  read TMP
+  OSE_USER=${TMP:-$OSE_USER}
+
+  # Inform Zimbra's default install path
+  printf "\nInform Zimbra's defaut install path - DEFAULT [$OSE_INSTALL_DIR]:"
+  read TMP
+  OSE_INSTALL_DIR=${TMP:-$OSE_INSTALL_DIR}
+
+  # Inform Zimbra's default install path
+  printf "\nInform Zimbra's defaut install path - DEFAULT [$OSE_INSTALL_DIR]:"
+  read TMP
+  OSE_INSTALL_DIR=${TMP:-$OSE_INSTALL_DIR}
+
+  # Inform Zmbackup's backup store
+  printf "\nInform the path Zmbackup will use to store - DEFAULT [$OSE_DEFAULT_BKP_DIR]:"
+  read TMP
+  OSE_DEFAULT_BKP_DIR=${TMP:-$OSE_DEFAULT_BKP_DIR}
+
+  # Configure mail alert
+  printf "\nInform the account to receive all Zmbackup's alerts - DEFAULT [$ZMBKP_MAIL_ALERT]:"
+  read TMP
+  OSE_DEFAULT_BKP_DIR=${TMP:-$ZMBKP_MAIL_ALERT}
+
+  # Configure mail alert
+  printf "\nInform Zmbackup's number of threads - DEFAULT [$MAX_PARALLEL_PROCESS]:"
+  read TMP
+  OSE_DEFAULT_BKP_DIR=${TMP:-$MAX_PARALLEL_PROCESS}
+
+  # Configure mail alert
+  printf "\nInform the number of days Zmbackup should store the backups - DEFAULT [$ROTATE_TIME]:"
+  read TMP
+  OSE_DEFAULT_BKP_DIR=${TMP:-$ROTATE_TIME}
 }
