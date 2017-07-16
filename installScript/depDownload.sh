@@ -9,7 +9,7 @@ function install_ubuntu() {
   apt-get update > /dev/null 2>&1
   apt-get install -y parallel wget httpie > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
-    echo "Dependencies installed with success! Procceding with the installation"
+    echo "Dependencies installed with success!"
   else
     echo "Dependencies wasn't installed in your server"
     echo "Please check if you have connection with the internet and apt-get is"
@@ -28,7 +28,7 @@ function install_redhat() {
   yum install -y epel-release  > /dev/null 2>&1
   yum install -y parallel wget httpie  > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
-    echo "Dependencies installed with success! Procceding with the installation"
+    echo "Dependencies installed with success!"
   else
     echo "Dependencies wasn't installed in your server"
     echo "Please check if you have connection with the internet and yum is"
