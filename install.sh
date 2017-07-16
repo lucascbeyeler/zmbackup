@@ -21,7 +21,7 @@ source installScript/vars.sh
 #
 #  Uninstall code
 ################################################################################
-if [[ $1 == "--remove" || $1 == "-r" ]]; then
+if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
   check_env
   if [[ $SO = "ubuntu" ]]; then
     remove_ubuntu
