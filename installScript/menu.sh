@@ -78,11 +78,6 @@ function set_values() {
   read TMP
   OSE_INSTALL_DIR=${TMP:-$OSE_INSTALL_DIR}
 
-  # Inform Zimbra's default install path
-  printf "\nInform Zimbra's defaut install path - DEFAULT [$OSE_INSTALL_DIR]:"
-  read TMP
-  OSE_INSTALL_DIR=${TMP:-$OSE_INSTALL_DIR}
-
   # Inform Zmbackup's backup store
   printf "\nInform the path Zmbackup will use to store - DEFAULT [$OSE_DEFAULT_BKP_DIR]:"
   read TMP
