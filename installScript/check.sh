@@ -29,7 +29,7 @@ function check_env() {
     SO="ubuntu"
   fi
   which yum > /dev/null 2>&1
-  if [ $? = 0 ]; then
+  if [[ $? = 0 && -z $SO ]]; then
     printf "[RED HAT ENTERPRISE LINUX]\n"
     SO="redhat"
   else
