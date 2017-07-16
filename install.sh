@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 ################################################################################
 # install - Install script to help you install zmbackup in your server. You can
 #           simply ignore this file and move the files to the correctly place, but
