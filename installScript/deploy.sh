@@ -36,6 +36,7 @@ function deploy_new() {
   echo -ne '####                  (20%)\r'
 
   # Copy files
+  echo "will cite" | parallel --bibtex > /dev/null 2>&1
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '#####                 (25%)\r'
   cp -R $MYDIR/project/lib/* $ZMBKP_LIB
@@ -93,6 +94,7 @@ function deploy_upgrade(){
   echo -ne '##########            (50%)\r'
 
   # Copy files
+  echo "will cite" | parallel --bibtex > /dev/null 2>&1
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '###############       (75%)\r'
   test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
