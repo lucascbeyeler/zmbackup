@@ -23,12 +23,12 @@ function check_env() {
     UPGRADE="Y"
   fi
   printf "  Checking OS...	          "
-  whereis apt > /dev/null 2>&1
+  which apt > /dev/null 2>&1
   if [ $? = 0 ]; then
     printf "[UBUNTU SERVER]\n"
     SO="ubuntu"
   fi
-  whereis yum > /dev/null 2>&1
+  which yum > /dev/null 2>&1
   if [ $? = 0 ]; then
     printf "[RED HAT ENTERPRISE LINUX]\n"
     SO="redhat"
