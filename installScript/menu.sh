@@ -47,7 +47,7 @@ EOF
   echo "#                                                                                #"
   echo "##################################################################################"
   echo -e "\n"
-  echo "Do you agree with the terms of the software license agreements? [N/y]"
+  printf "Do you agree with the terms of the software license agreements? [N/y]"
   read OPT
   if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
   	echo "Stoping the installation process..."
