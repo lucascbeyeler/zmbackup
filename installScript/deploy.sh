@@ -32,6 +32,7 @@ function deploy_new() {
   test -d $ZMBKP_SRC  || mkdir -p $ZMBKP_SRC
   echo -ne '###                   (15%)\r'
   test -d $ZMBKP_SHARE || mkdir -p $ZMBKP_SHARE
+  test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
   echo -ne '####                  (20%)\r'
 
   # Copy files
@@ -91,8 +92,8 @@ function deploy_upgrade(){
   echo -ne '##########            (50%)\r'
 
   # Copy files
-  install -o $OSE_USER -m 700 $MYDIR/zmbackup $ZMBKP_SRC
+  install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '###############       (75%)\r'
-  install -o $OSE_USER -m 600 $MYDIR/lib/* $ZMBKP_LIB
+  install -o $OSE_USER -m 600 $MYDIR/project/lib/* $ZMBKP_LIB
   echo -ne '####################  (100%)\r'
 }
