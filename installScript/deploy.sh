@@ -112,4 +112,6 @@ function uninstall() {
   echo -ne '##########            (50%)\r'
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '###############       (75%)\r'
+  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da zmbackup@$DOMAIN" > /dev/null 2>&1
+  echo -ne '####################  (100%)\r'
 }
