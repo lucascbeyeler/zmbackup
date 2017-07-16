@@ -37,7 +37,9 @@ function deploy_new() {
   # Copy files
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '#####                 (25%)\r'
-  install -D -o $OSE_USER -m 600 $MYDIR/project/lib/* $ZMBKP_LIB
+  cp -R $MYDIR/project/lib/* $ZMBKP_LIB
+  chown -R $OSE_USER. $ZMBKP_LIB
+  chmod -R 600 $ZMBKP_LIB
   echo -ne '######                (30%)\r'
   install --backup=numbered -o root -m 600 $MYDIR/project/config/zmbackup.cron /etc/cron.d
   echo -ne '#######               (35%)\r'
