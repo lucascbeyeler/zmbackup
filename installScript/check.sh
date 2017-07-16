@@ -29,10 +29,10 @@ function check_env() {
     SO="ubuntu"
   fi
   which yum > /dev/null 2>&1
-  if [[ $? = 0 && -z $SO ]]; then
+  if [[ $? = 0 ]]; then
     printf "[RED HAT ENTERPRISE LINUX]\n"
     SO="redhat"
-  else
+  else if [[ -z $SO ]]; then
     printf "[UNSUPPORTED]\n"
     exit 1
   fi
