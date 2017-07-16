@@ -29,6 +29,7 @@ if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
     remove_redhat
   fi
   uninstall
+  exit 0
 fi
 
 #
