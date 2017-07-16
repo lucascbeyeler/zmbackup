@@ -31,3 +31,13 @@ if [[ $UPGRADE = "Y" ]]; then
 else
   deploy_new
 fi
+
+# We're done!
+read -p "Install completed. Do you want to display the README file? (Y/n)" tmp
+case "$tmp" in
+	y|Y|Yes|"") less $MYDIR/README.md;;
+	*) echo "Done!";;
+esac
+
+clear
+exit $ERR_OK

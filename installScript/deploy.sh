@@ -40,7 +40,7 @@ function deploy_new() {
   echo -ne '#####                 (25%)\r'
   cp -R $MYDIR/project/lib/* $ZMBKP_LIB
   chown -R $OSE_USER. $ZMBKP_LIB
-  chmod -R 600 $ZMBKP_LIB
+  chmod -R 700 $ZMBKP_LIB
   echo -ne '######                (30%)\r'
   install --backup=numbered -o root -m 600 $MYDIR/project/config/zmbackup.cron /etc/cron.d
   echo -ne '#######               (35%)\r'
