@@ -37,13 +37,13 @@ function deploy_new() {
   # Copy files
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '#####                 (25%)\r'
-  install -o $OSE_USER -m 600 $MYDIR/project/lib/* $ZMBKP_LIB
+  install -D -o $OSE_USER -m 600 $MYDIR/project/lib/* $ZMBKP_LIB
   echo -ne '######                (30%)\r'
-  install --backup=numbered -o root -m 600 $MYDIR/project/etc/zmbackup.cron /etc/cron.d
+  install --backup=numbered -o root -m 600 $MYDIR/project/config/zmbackup.cron /etc/cron.d
   echo -ne '#######               (35%)\r'
-  install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/etc/zmbackup.conf $ZMBKP_CONF
+  install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/config/zmbackup.conf $ZMBKP_CONF
   echo -ne '########              (40%)\r'
-  install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/etc/blacklist.conf $ZMBKP_CONF
+  install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/config/blacklist.conf $ZMBKP_CONF
   echo -ne '#########             (45%)\r'
 
   # Including custom settings
