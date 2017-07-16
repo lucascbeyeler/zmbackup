@@ -25,7 +25,7 @@ function blacklist_gen(){
 function deploy_new() {
   echo "Installing... Please wait while we made some changes."
   echo -ne '                      (0%)\r'
-  mkdir $ZMBKP_BKPDIR > /dev/null 2>&1 && chown $OSE_USER.$OSE_USER $ZMBKP_BKPDIR > /dev/null 2>&1
+  mkdir $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1 && chown $OSE_USER.$OSE_USER $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1
   echo -ne '#                     (5%)\r'
   test -d $ZMBKP_CONF || mkdir -p $ZMBKP_CONF
   echo -ne '##                    (10%)\r'
@@ -47,7 +47,7 @@ function deploy_new() {
   echo -ne '#########             (45%)\r'
 
   # Including custom settings
-  sed -i "s|{ZMBKP_BKPDIR}|${ZMBKP_BKPDIR}|g" $ZMBKP_CONF/zmbackup.conf
+  sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '##########            (50%)\r'
   sed -i "s|{ZMBKP_ACCOUNT}|${ZMBKP_ACCOUNT}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '###########           (55%)\r'
@@ -60,12 +60,14 @@ function deploy_new() {
   sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '###############       (75%)\r'
   sed -i "s|{OSE_USER}|${OSE_USER}|g" $ZMBKP_CONF/zmbackup.conf
+  sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '################      (80%)\r'
-  sed -i "s|{ROTATE_TIME}|${ZMBKP_BKPTIME}|g" $ZMBKP_CONF/zmbackup.conf
+  sed -i "s|{ROTATE_TIME}|${ROTATE_TIME}|g" $ZMBKP_CONF/zmbackup.conf
+  sed -i "s|{LOCK_BACKUP}|${LOCK_BACKUP}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '#################     (85%)\r'
 
   # Fix backup dir permissions (owner MUST be $OSE_USER)
-  chown $OSE_USER $ZMBKP_BKPDIR
+  chown $OSE_USER $OSE_DEFAULT_BKP_DIR
   echo -ne '##################    (90%)\r'
 
   # Generate Zmbackup's blacklist
