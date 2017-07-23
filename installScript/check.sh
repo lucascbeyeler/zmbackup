@@ -14,13 +14,19 @@ function check_env() {
     printf "[ROOT]\n"
   fi
   printf "  Old Zmbackup Install...	  "
-  su - $OSE_USER -c "which zmbackup" > /dev/null 2>&1
+  VERSION=$((su - $OSE_USER -c "zmbackup -v") 2> /dev/null)
   if [ $? != 0 ]; then
     printf "[NEW INSTALL]\n"
     UPGRADE="N"
-  else
+  elif [[ $1 = '--remove' ]] && [[ $1 = '-r' ]]; then
+    printf "[UNINSTALL] - EXECUTING UNINSTALL ROUTINE\n"
+    UPGRADE="N"
+  elif [[ $VERSION = $ZMBKP_VERSION ]]; then
     printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
     UPGRADE="Y"
+  else
+    printf "[NEWEST VERSION] - Nothing to do..."
+    exit 0
   fi
   printf "  Checking OS...	          "
   which apt > /dev/null 2>&1
