@@ -36,7 +36,8 @@ function deploy_new() {
   echo -ne '####                  (20%)\r'
 
   # Copy files
-  echo "will cite" | parallel --bibtex > /dev/null 2>&1
+  mkdir $OSE_INSTALL_DIR/.parallel && touch $OSE_INSTALL_DIR/.parallel/will_cite
+  chown -R zimbra. $OSE_INSTALL_DIR/.parallel
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '#####                 (25%)\r'
   cp -R $MYDIR/project/lib/* $ZMBKP_LIB
