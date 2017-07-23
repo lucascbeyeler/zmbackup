@@ -112,6 +112,7 @@ function uninstall() {
   echo "Removing... Please wait while we made some changes."
   echo -ne '                     (0%)\r'
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
+  rm -rf $OSE_INSTALL_DIR/.parallel
   echo -ne '#####                 (25%)\r'
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '##########            (50%)\r'
