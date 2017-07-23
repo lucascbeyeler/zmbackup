@@ -25,7 +25,7 @@ function check_env() {
     printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
     UPGRADE="Y"
   else
-    printf "[NEWEST VERSION] - Nothing to do..."
+    echo "[NEWEST VERSION] - Nothing to do..."
     exit 0
   fi
   printf "  Checking OS...	          "
