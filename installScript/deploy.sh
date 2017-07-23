@@ -35,9 +35,11 @@ function deploy_new() {
   test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
   echo -ne '####                  (20%)\r'
 
-  # Copy files
+  # Disable Parallel's message - Zmbackup remind the user about GNU Parallel
   mkdir $OSE_INSTALL_DIR/.parallel && touch $OSE_INSTALL_DIR/.parallel/will_cite
   chown -R zimbra. $OSE_INSTALL_DIR/.parallel
+
+  # Copy file
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '#####                 (25%)\r'
   cp -R $MYDIR/project/lib/* $ZMBKP_LIB
@@ -94,8 +96,11 @@ function deploy_upgrade(){
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
   echo -ne '##########            (50%)\r'
 
+  # Disable Parallel's message - Zmbackup remind the user about GNU Parallel
+  mkdir $OSE_INSTALL_DIR/.parallel && touch $OSE_INSTALL_DIR/.parallel/will_cite
+  chown -R zimbra. $OSE_INSTALL_DIR/.parallel
+
   # Copy files
-  echo "will cite" | parallel --bibtex > /dev/null 2>&1
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '###############       (75%)\r'
   test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
