@@ -84,14 +84,15 @@ function importaccounts(){
 # migration: Execute migration action
 ###############################################################################
 function migration(){
-  create_session
   if [[ $SESSION_TYPE == "SQLITE3" ]] && ! [[ -f $WORKDIR/sessions.sqlite3 ]]; then
     echo "Starting the migration - please wait until the conclusion"
+    create_session
     importsession
     importaccounts
     echo "Migration completed"
     rm $WORKDIR/sessions.txt
   elif [[ $SESSION_TYPE == "TXT" ]] && ! [[ -f $WORKDIR/sessions.txt ]]; then
+    create_session
     rm $WORKDIR/sessions.sqlite3
   else
     echo "Nothing to do."
