@@ -14,13 +14,19 @@ function check_env() {
     printf "[ROOT]\n"
   fi
   printf "  Old Zmbackup Install...	  "
-  su - $OSE_USER -c "which zmbackup" > /dev/null 2>&1
+  VERSION=$((su - $OSE_USER -c "zmbackup -v") 2> /dev/null)
   if [ $? != 0 ]; then
     printf "[NEW INSTALL]\n"
     UPGRADE="N"
-  else
+  elif [[ $1 == '--remove' ]] || [[ $1 == '-r' ]]; then
+    printf "[UNINSTALL] - EXECUTING UNINSTALL ROUTINE\n"
+    UPGRADE="N"
+  elif [[ $VERSION != $ZMBKP_VERSION ]]; then
     printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
     UPGRADE="Y"
+  else
+    echo "[NEWEST VERSION] - Nothing to do..."
+    exit 0
   fi
   printf "  Checking OS...	          "
   which apt > /dev/null 2>&1
@@ -63,6 +69,7 @@ function check_config() {
   echo "Zmbackup Backups Days Max: $ROTATE_TIME"
   echo "Zmbackup Number of Threads: $MAX_PARALLEL_PROCESS"
   echo "Zmbackup Backup Lock: $LOCK_BACKUP"
+  echo "Zmbackup Session Default Type: $SESSION_TYPE"
   echo ""
   echo "Press ENTER to continue or CTRL+C to cancel."
   read

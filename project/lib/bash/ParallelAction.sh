@@ -109,7 +109,7 @@ function ldap_filter()
   grep -Fxq $1 /etc/zmbackup/blacklist.conf
   if [[ $? -eq 0 ]]; then
     echo "WARN: $1 found inside blacklist - Nothing to do."
-  elif [[ "$EXIST" = "$(date +%m/%d/%y)" && "$LOCK_BACKUP" == "TRUE" ]]; then
+  elif [[ "$EXIST" = "$(date +%m/%d/%y)" && "$LOCK_BACKUP" == "true" ]]; then
     echo "WARN: $1 already has backup today. Nothing to do."
   else
     echo $1 >> $TEMPACCOUNT

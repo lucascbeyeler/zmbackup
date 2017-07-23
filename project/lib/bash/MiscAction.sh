@@ -241,6 +241,12 @@ function validate_config(){
     logger -i -p local7.err "Zmbackup: You need to define the variable ROTATE_TIME."
     exit 2
   fi
+
+  if [ -z "$SESSION_TYPE" ]; then
+    echo "You need to define the variable SESSION_TYPE."
+    logger -i -p local7.err "Zmbackup: You need to define the variable SESSION_TYPE."
+    exit 2
+  fi
 }
 
 ################################################################################
@@ -282,4 +288,5 @@ function export_vars(){
   export LDAPPASS
   export MAILHOST
   export WORKDIR
+  export LOCK_BACKUP
 }

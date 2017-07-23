@@ -102,6 +102,12 @@ function set_values() {
   printf "\nZmbackup should limit backups for one per day? - DEFAULT [$LOCK_BACKUP]:"
   read TMP
   LOCK_BACKUP=${TMP:-$LOCK_BACKUP}
+
+  # Configure mail alert
+  printf "\nWhere you want to store Zmbackup's sessions? TXT or SQLITE3 - DEFAULT [$SESSION_TYPE]:"
+  read TMP
+  SESSION_TYPE=${TMP:-$SESSION_TYPE}
+
   echo -e "\n\n"
   echo "##################################################################################"
   echo "#                                                                                #"

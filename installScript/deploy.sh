@@ -6,17 +6,18 @@
 ################################################################################
 function blacklist_gen(){
   for ACCOUNT in $(sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov -l gaa"); do
-    if  [[ "$ACCOUNT" == "galsync."* ]] && \
-    [[ "$ACCOUNT" == "virus-"* ]] && \
-    [[ "$ACCOUNT" == "ham."* ]] && \
-    [[ "$ACCOUNT" == "admin@"* ]] && \
-    [[ "$ACCOUNT" == "spam."* ]] && \
-    [[ "$ACCOUNT" == "zmbackup@"* ]] && \
-    [[ "$ACCOUNT" == "postmaster@"* ]] && \
-    [[ "$ACCOUNT" == "root@"* ]]; then
-      echo $ACCOUNT >> /etc/zmbackup.conf
+    if  [[ "$ACCOUNT" = "galsync"* ]] || \
+    [[ "$ACCOUNT" = "virus"* ]] || \
+    [[ "$ACCOUNT" = "ham"* ]] || \
+    [[ "$ACCOUNT" = "admin"* ]] || \
+    [[ "$ACCOUNT" = "spam"* ]] || \
+    [[ "$ACCOUNT" = "zmbackup"* ]] || \
+    [[ "$ACCOUNT" = "postmaster"* ]] || \
+    [[ "$ACCOUNT" = "root"* ]]; then
+      echo $ACCOUNT >> $ZMBKP_CONF/blacklist.conf
     fi
   done
+  echo $ZMBKP_ACCOUNT >> $ZMBKP_CONF/blacklist.conf
 }
 
 ################################################################################
@@ -35,8 +36,11 @@ function deploy_new() {
   test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
   echo -ne '####                  (20%)\r'
 
-  # Copy files
-  echo "will cite" | parallel --bibtex > /dev/null 2>&1
+  # Disable Parallel's message - Zmbackup remind the user about GNU Parallel
+  mkdir $OSE_INSTALL_DIR/.parallel && touch $OSE_INSTALL_DIR/.parallel/will-cite
+  chown -R zimbra. $OSE_INSTALL_DIR/.parallel
+
+  # Copy file
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '#####                 (25%)\r'
   cp -R $MYDIR/project/lib/* $ZMBKP_LIB
@@ -62,6 +66,7 @@ function deploy_new() {
   sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '##############        (70%)\r'
   sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
+  sed -i "s|{SESSION_TYPE}|${SESSION_TYPE}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '###############       (75%)\r'
   sed -i "s|{OSE_USER}|${OSE_USER}|g" $ZMBKP_CONF/zmbackup.conf
   sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" $ZMBKP_CONF/zmbackup.conf
@@ -79,7 +84,7 @@ function deploy_new() {
   echo -ne '###################   (95%)\r'
 
   # Creating Zmbackup backup user
-  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
+  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
 }
 
@@ -93,8 +98,11 @@ function deploy_upgrade(){
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
   echo -ne '##########            (50%)\r'
 
+  # Disable Parallel's message - Zmbackup remind the user about GNU Parallel
+  mkdir $OSE_INSTALL_DIR/.parallel && touch $OSE_INSTALL_DIR/.parallel/will-cite
+  chown -R zimbra. $OSE_INSTALL_DIR/.parallel
+
   # Copy files
-  echo "will cite" | parallel --bibtex > /dev/null 2>&1
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '###############       (75%)\r'
   test -d $ZMBKP_LIB || mkdir -p $ZMBKP_LIB
@@ -111,9 +119,15 @@ function uninstall() {
   echo "Removing... Please wait while we made some changes."
   echo -ne '                     (0%)\r'
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
-  echo -ne '##########            (50%)\r'
+  rm -rf $OSE_INSTALL_DIR/.parallel
+  echo -ne '#####                 (25%)\r'
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
+  echo -ne '##########            (50%)\r'
+  if [[ -f $ZMBKP_CONF/blacklist.conf ]]; then
+    install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/config/blacklist.conf $ZMBKP_CONF
+    blacklist_gen
+  fi
   echo -ne '###############       (75%)\r'
-  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da zmbackup@$DOMAIN" > /dev/null 2>&1
+  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
 }

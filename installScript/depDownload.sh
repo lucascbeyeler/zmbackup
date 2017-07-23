@@ -46,7 +46,7 @@ function remove_ubuntu() {
   echo "Removing dependencies. Please wait..."
   apt-get --purge remove -y parallel wget httpie > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
-    echo "Dependencies installed with success!"
+    echo "Dependencies removed with success!"
   else
     echo "Dependencies wasn't removed in your server"
     echo "Please check if you have connection with the internet and apt-get is"

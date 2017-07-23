@@ -12,6 +12,7 @@ function show_help (){
   printf "\n       zmbackup [-r] [options] <session> <mail>"
   printf "\n       zmbackup [-r] [-ro] <session> <mail_origin> <mail_destination>"
   printf "\n       zmbackup [-d] <session>"
+  printf "\n       zmbackup [-m]"
 
   # All the basic options.
   printf "\n\nOptions:\n"
@@ -22,6 +23,7 @@ function show_help (){
   printf "\n -r, --restore                  : Restore the backup inside the users account."
   printf "\n -d, --delete                   : Delete a session of backup."
   printf "\n -hp, --housekeep               : Execute the Housekeep to remove old sessions - Zmbhousekeep"
+  printf "\n -m, --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa."
   printf "\n -v, --version                  : Show the zmbackup version."
 
   # All the options related to Full Backups
