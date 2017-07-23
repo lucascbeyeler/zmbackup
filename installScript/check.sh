@@ -69,6 +69,7 @@ function check_config() {
   echo "Zmbackup Backups Days Max: $ROTATE_TIME"
   echo "Zmbackup Number of Threads: $MAX_PARALLEL_PROCESS"
   echo "Zmbackup Backup Lock: $LOCK_BACKUP"
+  echo "Zmbackup Session Default Type: $SESSION_TYPE"
   echo ""
   echo "Press ENTER to continue or CTRL+C to cancel."
   read

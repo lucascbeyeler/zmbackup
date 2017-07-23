@@ -26,4 +26,5 @@ ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)    # Zmbacku
 MAX_PARALLEL_PROCESS="3"                                               # Zmbackup's number of threads
 ROTATE_TIME="30"                                                       # Zmbackup's max of days before housekeeper
 LOCK_BACKUP=true                                                       # Zmbackup's backup lock
-ZMBKP_VERSION="zmbackup version: 1.2.0 - BETA 3"                         # Zmbackup's latest version
+ZMBKP_VERSION="zmbackup version: 1.2.0 - BETA 3"                       # Zmbackup's latest version
+SESSION_TYPE="TXT"                                                     # Zmbackup's default session type

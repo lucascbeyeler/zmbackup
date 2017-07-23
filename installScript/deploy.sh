@@ -66,6 +66,7 @@ function deploy_new() {
   sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '##############        (70%)\r'
   sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" $ZMBKP_CONF/zmbackup.conf
+  sed -i "s|{SESSION_TYPE}|${SESSION_TYPE}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '###############       (75%)\r'
   sed -i "s|{OSE_USER}|${OSE_USER}|g" $ZMBKP_CONF/zmbackup.conf
   sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" $ZMBKP_CONF/zmbackup.conf
