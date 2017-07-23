@@ -167,7 +167,8 @@ loop_mbldp_backup()
 {
   load_config
   if [ "$3" == "INC" ]; then
-    AFTER="\&query=after:"$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}')
+    DATE=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
+    AFTER='&'"start="$(date -d $DATE +%s)"000"
   fi
   ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
              -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldiff
