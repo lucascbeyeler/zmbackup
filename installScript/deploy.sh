@@ -6,14 +6,14 @@
 ################################################################################
 function blacklist_gen(){
   for ACCOUNT in $(sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov -l gaa"); do
-    if  [[ "$ACCOUNT" == "galsync."* ]] && \
-    [[ "$ACCOUNT" == "virus-"* ]] && \
-    [[ "$ACCOUNT" == "ham."* ]] && \
-    [[ "$ACCOUNT" == "admin@"* ]] && \
-    [[ "$ACCOUNT" == "spam."* ]] && \
-    [[ "$ACCOUNT" == "zmbackup@"* ]] && \
-    [[ "$ACCOUNT" == "postmaster@"* ]] && \
-    [[ "$ACCOUNT" == "root@"* ]]; then
+    if  [[ "$ACCOUNT" = "galsync."* ]] && \
+    [[ "$ACCOUNT" = "virus-"* ]] && \
+    [[ "$ACCOUNT" = "ham."* ]] && \
+    [[ "$ACCOUNT" = "admin@"* ]] && \
+    [[ "$ACCOUNT" = "spam."* ]] && \
+    [[ "$ACCOUNT" = "zmbackup@"* ]] && \
+    [[ "$ACCOUNT" = "postmaster@"* ]] && \
+    [[ "$ACCOUNT" = "root@"* ]]; then
       echo $ACCOUNT >> /etc/zmbackup.conf
     fi
   done
@@ -111,8 +111,13 @@ function uninstall() {
   echo "Removing... Please wait while we made some changes."
   echo -ne '                     (0%)\r'
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
-  echo -ne '##########            (50%)\r'
+  echo -ne '#####                 (25%)\r'
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
+  echo -ne '##########            (50%)\r'
+  if [[ -f $ZMBKP_CONF/blacklist.conf ]]; then
+    install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/config/blacklist.conf $ZMBKP_CONF
+    blacklist_gen
+  fi
   echo -ne '###############       (75%)\r'
   sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
