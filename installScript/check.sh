@@ -18,7 +18,7 @@ function check_env() {
   if [ $? != 0 ]; then
     printf "[NEW INSTALL]\n"
     UPGRADE="N"
-  elif [[ $1 == '--remove' ]] && [[ $1 == '-r' ]]; then
+  elif [[ $1 == '--remove' ]] || [[ $1 == '-r' ]]; then
     printf "[UNINSTALL] - EXECUTING UNINSTALL ROUTINE\n"
     UPGRADE="N"
   elif [[ $VERSION != $ZMBKP_VERSION ]]; then
