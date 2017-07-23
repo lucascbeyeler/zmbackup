@@ -12,7 +12,7 @@ Zmbackup is a reliable Bash shell script developed to help you in your daily tas
 [![Zimbra Version](https://img.shields.io/badge/Zimbra%20OSE-8.7.11-orange.svg)](https://www.zimbra.com/downloads/zimbra-collaboration-open-source/)
 ![Linux Distro](https://img.shields.io/badge/platform-CentOS%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
 ![Branch](https://img.shields.io/badge/Branch-Development-red.svg)
-![Release](https://img.shields.io/badge/Release-1.2.0%20BETA-green.svg)
+![Release](https://img.shields.io/badge/Release-1.2.0%20BETA-3-green.svg)
 
 Features
 ------------
@@ -67,7 +67,7 @@ Inside the project folder, execute the script **install.sh** and follow all the 
 # cd zmbackup
 # ./wizard.sh
 $ zmbackup -v
-  zmbackup version: 1.2.0 BETA
+  zmbackup version: 1.2.0 BETA 3
 ```
 
 Usage

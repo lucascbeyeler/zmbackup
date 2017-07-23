@@ -17,6 +17,7 @@ function blacklist_gen(){
       echo $ACCOUNT >> $ZMBKP_CONF/blacklist.conf
     fi
   done
+  echo $ZMBKP_ACCOUNT >> $ZMBKP_CONF/blacklist.conf
 }
 
 ################################################################################
