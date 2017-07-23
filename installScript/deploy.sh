@@ -79,7 +79,7 @@ function deploy_new() {
   echo -ne '###################   (95%)\r'
 
   # Creating Zmbackup backup user
-  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca zmbackup@$DOMAIN '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
+  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
 }
 
@@ -114,6 +114,6 @@ function uninstall() {
   echo -ne '##########            (50%)\r'
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '###############       (75%)\r'
-  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da zmbackup@$DOMAIN" > /dev/null 2>&1
+  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
 }
