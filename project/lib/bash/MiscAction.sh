@@ -282,4 +282,5 @@ function export_vars(){
   export LDAPPASS
   export MAILHOST
   export WORKDIR
+  export LOCK_BACKUP
 }
