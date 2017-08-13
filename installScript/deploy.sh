@@ -26,7 +26,13 @@ function blacklist_gen(){
 function deploy_new() {
   echo "Installing... Please wait while we made some changes."
   echo -ne '                      (0%)\r'
-  mkdir $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1 && touch $OSE_DEFAULT_BKP_DIR/sessions.txt && chown -R $OSE_USER.$OSE_USER $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1
+  mkdir $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1
+  if [[ $SESSION_TYPE == "TXT" ]]; then
+    touch $OSE_DEFAULT_BKP_DIR/sessions.txt
+  elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+    sqlite3 $OSE_DEFAULT_BKP_DIR/sessions.sqlite3 < project/lib/sqlite3/database.sql
+  fi
+  chown -R $OSE_USER.$OSE_USER $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1
   echo -ne '#                     (5%)\r'
   test -d $ZMBKP_CONF || mkdir -p $ZMBKP_CONF
   echo -ne '##                    (10%)\r'
