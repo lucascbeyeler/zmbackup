@@ -119,7 +119,7 @@ function backup_main()
       cat $TEMPSESSION >> $WORKDIR/sessions.txt
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+      SIZE=$(du -sh $WORKDIR/$i | awk {'print $1'})
       sqlite3 $WORKDIR/sessions.sqlite3 "update backup_session set conclusion_date='$DATE',size='$SIZE',status='FINISHED' where sessionID='$SESSION'"
     fi
     logger -i -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"
