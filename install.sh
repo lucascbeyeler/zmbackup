@@ -38,7 +38,7 @@ fi
 ################################################################################
 contract
 check_env
-if [[ $UPGRADE = "Y" ]] || [[ $1 = "--force-upgrade" ]] ; then
+if [[ $UPGRADE = "Y" ]]; then
   if [[ $SO = "ubuntu" ]]; then
     install_ubuntu
   else
