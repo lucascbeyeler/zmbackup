@@ -9,9 +9,10 @@
 function create_session(){
   if [[ $SESSION_TYPE == 'TXT' ]]; then
     touch $WORKDIR/sessions.txt
-    echo "Session file recreated"
+    echo "Session file TXT recreated"
   elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
     sqlite3 $WORKDIR/sessions.sqlite3 < /usr/local/lib/zmbackup/sqlite3/database.sql
+    echo "Session file SQLITE3 recreated"
   else
     echo "Invalid File Format - Nothing to do."
   fi
