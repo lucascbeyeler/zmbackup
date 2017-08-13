@@ -1,7 +1,7 @@
   create table backup_session(
     sessionID varchar primary key,
     initial_date timestamp not null,
-    conclusion_date timestamp not null,
+    conclusion_date timestamp,
     size varchar not null,
     type varchar not null,
     status varchar not null
