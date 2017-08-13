@@ -37,7 +37,7 @@ function deploy_new() {
   echo -ne '####                  (20%)\r'
 
   # Disable Parallel's message - Zmbackup remind the user about GNU Parallel
-  mkdir $OSE_INSTALL_DIR/.parallel && touch $OSE_INSTALL_DIR/.parallel/will-cite
+  mkdir $OSE_INSTALL_DIR/.parallel > /dev/null 2>&1 && touch $OSE_INSTALL_DIR/.parallel/will-cite
   chown -R zimbra. $OSE_INSTALL_DIR/.parallel
 
   # Copy file

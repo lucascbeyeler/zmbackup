@@ -178,17 +178,20 @@ function list_sessions_txt ()
 ################################################################################
 function list_sessions_sqlite3 ()
 {
-  printf "+---------------------------+------------+----------+----------------------------+\n"
-  printf "|       Session Name        |    Date    |   Size   |        Description         |\n"
-  printf "+---------------------------+------------+----------+----------------------------+\n"
-  for i in $(sqlite3 $WORKDIR/sessions.sqlite3 "select * from backup_session"); do
+  printf "+---------------------------+-------------+-------------+----------+----------------------------+\n"
+  printf "|       Session Name        |    Start    |    Ending   |   Size   |        Description         |\n"
+  printf "+---------------------------+-------------+-------------+----------+----------------------------+\n"
+  for i in "$(sqlite3 $WORKDIR/sessions.sqlite3 'select * from backup_session')"; do
     NAME=$(echo $i | cut -d'|' -f1)
-    MONTH=$(echo $i | cut -d'|' -f2 | cut -d'-' -f2)
-    DAY=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f1)
-    YEAR=$(echo $i | cut -d'|' -f2 | cut -d'-' -f1)
+    SMONTH=$(echo $i | cut -d'|' -f2 | cut -d'-' -f2)
+    SDAY=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f1)
+    SYEAR=$(echo $i | cut -d'|' -f2 | cut -d'-' -f1)
+    EMONTH=$(echo $i | cut -d'|' -f3 | cut -d'-' -f2)
+    EDAY=$(echo $i | cut -d'|' -f3 | cut -d'-' -f3 | cut -d'T' -f1)
+    EYEAR=$(echo $i | cut -d'|' -f3 | cut -d'-' -f1)
     SIZE=$(echo $i | cut -d'|' -f4)
     OPT=$(echo $i | cut -d'|' -f5)
-    printf "| %-25s | %s/%s/%s | %-8s | %-26s |\n" $NAME $MONTH $DAY $YEAR $SIZE "$OPT"
+    printf "| %-25s |  %s/%s/%s  |  %s/%s/%s  | %-8s | %-26s |\n" $NAME $SMONTH $SDAY $SYEAR $EMONTH $EDAY $EYEAR $SIZE "$OPT"
   done
   printf "+---------------------------+------------+----------+----------------------------+\n"
 }
