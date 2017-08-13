@@ -17,12 +17,12 @@ source installScript/vars.sh
 ################################################################################
 # INSTALL MAIN CODE
 ################################################################################
+check_env $1
 
 #
 #  Uninstall code
 ################################################################################
 if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
-  check_env $1
   if [[ $SO = "ubuntu" ]]; then
     remove_ubuntu
   else
@@ -37,7 +37,6 @@ fi
 # Install & Upgrade code
 ################################################################################
 contract
-check_env
 if [[ $UPGRADE = "Y" ]]; then
   if [[ $SO = "ubuntu" ]]; then
     install_ubuntu
