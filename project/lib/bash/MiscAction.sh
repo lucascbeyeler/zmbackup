@@ -103,9 +103,23 @@ function constant(){
 }
 
 ################################################################################
-# list_sessions: List all the sessions stored inside the server
+# list_sessions: Just call the correct function based on $SESSION_TYPE
 ################################################################################
-function list_sessions ()
+function list_sessions()
+{
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    list_sessions_txt
+  elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+    list_sessions_sqlite3
+  else
+    echo "Invalid File Format - Nothing to do."
+  fi
+}
+
+################################################################################
+# list_sessions_txt: List all the sessions stored inside the server - TXT
+################################################################################
+function list_sessions_txt ()
 {
   printf "+---------------------------+------------+----------+----------------------------+\n"
   printf "|       Session Name        |    Date    |   Size   |        Description         |\n"
@@ -155,6 +169,26 @@ function list_sessions ()
 
     # Printing the information as a table
     printf "| %-25s | %s/%s/%s | %-8s | %-26s |\n" $i $MONTH $DAY $YEAR $SIZE "$OPT"
+  done
+  printf "+---------------------------+------------+----------+----------------------------+\n"
+}
+
+################################################################################
+# list_sessions_sqlite3: List all the sessions stored inside the server - SQLITE3
+################################################################################
+function list_sessions_sqlite3 ()
+{
+  printf "+---------------------------+------------+----------+----------------------------+\n"
+  printf "|       Session Name        |    Date    |   Size   |        Description         |\n"
+  printf "+---------------------------+------------+----------+----------------------------+\n"
+  for i in $(sqlite3 $WORKDIR/sessions.sqlite3 "select * from backup_session"); do
+    NAME=$(echo $i | cut -d'|' -f1)
+    MONTH=$(echo $i | cut -d'|' -f2 | cut -d'-' -f2)
+    DAY=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f1)
+    YEAR=$(echo $i | cut -d'|' -f2 | cut -d'-' -f1)
+    SIZE=$(echo $i | cut -d'|' -f4)
+    OPT=$(echo $i | cut -d'|' -f5)
+    printf "| %-25s | %s/%s/%s | %-8s | %-26s |\n" $NAME $MONTH $DAY $YEAR $SIZE "$OPT"
   done
   printf "+---------------------------+------------+----------+----------------------------+\n"
 }
