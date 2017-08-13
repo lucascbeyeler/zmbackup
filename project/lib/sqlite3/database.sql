@@ -8,15 +8,11 @@
   );
 
   create table backup_account(
-    accountID integer primary key autoincrement unique,
-    email varchar not null);
-
-  create table session_account(
     id integer primary key autoincrement,
     accountID int not null,
     sessionID varchar not null,
     account_size varchar not null,
-    foreign key (accountID) references backup_account(accountID),
+    email varchar not null,
     foreign key (sessionID) references backup_session(sessionID)
   );
 

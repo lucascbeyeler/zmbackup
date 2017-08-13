@@ -6,7 +6,7 @@
 ################################################################################
 # __backupFullInc: All the functions used by backup Full and Incremental
 # Options:
-#    $1 - The list of accounts to be backed up
+#    $1 - The account to be backed up
 #    $2 - The type of object should be backed up. Valid values:
 #        ACOBJECT - User Account;
 ################################################################################
@@ -15,7 +15,13 @@ function __backupFullInc(){
   if [ $ERRCODE -eq 0 ]; then
     mailbox_backup $1
     if [ $ERRCODE -eq 0 ]; then
-      echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+      if [[ $SESSION_TYPE == 'TXT' ]]; then
+        echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+      elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+        DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+        SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
+        sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+      fi
     fi
   fi
 }
@@ -32,7 +38,13 @@ function __backupFullInc(){
 function __backupLdap(){
   ldap_backup $1 $2
   if [ $ERRCODE -eq 0 ]; then
-    echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+    elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+      DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+    fi
   fi
 }
 
@@ -46,7 +58,13 @@ function __backupLdap(){
 function __backupMailbox(){
   mailbox_backup $1 $2
   if [ $ERRCODE -eq 0 ]; then
-    echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
+    elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+      DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+    fi
   fi
 }
 
@@ -79,7 +97,12 @@ function backup_main()
     notify_begin $SESSION $STYPE
     logger -i -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
     echo "Backup session $SESSION started on $(date)"
-    echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
+    elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+      DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      sqlite3 sessions.sqlite3 "insert into backup_session(sessionID,initial_date,type,status) values ('$SESSION','$DATE','$SIZE','$STYPE','IN PROGRESS')"
+    fi
     if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $1'
@@ -90,9 +113,15 @@ function backup_main()
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
                          '__backupLdap {} $1'
     fi
-    echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
-    cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
+      cat $TEMPSESSION >> $WORKDIR/sessions.txt
+    elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+      DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+      sqlite3 sessions.sqlite3 "update backup_session set conclusion_date='$DATE',size='$SIZE',status='FINISHED' where sessionID='$SESSION'"
+    fi
     logger -i -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"
     echo "Backup session $SESSION finished on $(date)"
   else

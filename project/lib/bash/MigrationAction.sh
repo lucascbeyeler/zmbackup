@@ -74,9 +74,7 @@ function importaccounts(){
     for j in $(egrep $i $WORKDIR/sessions.txt | grep -v 'SESSION:' | sort | uniq); do
       EMAIL=$(echo $j | cut -d":" -f2)
       SIZE=$(du -h $WORKDIR/$i/$EMAIL.tgz | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email) values ('$EMAIL')" > /dev/null
-      ID=$(sqlite3 $WORKDIR/sessions.sqlite3 "select accountID from backup_account where email='$EMAIL'")
-      sqlite3 $WORKDIR/sessions.sqlite3"insert into session_account (accountID,sessionID,account_size) values ('$ID','$SESSIONID','$SIZE')" > /dev/null
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$EMAIL','$SESSIONID','$SIZE')" > /dev/null
     done
   done
 }
