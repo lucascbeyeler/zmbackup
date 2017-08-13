@@ -104,7 +104,7 @@ function set_values() {
   LOCK_BACKUP=${TMP:-$LOCK_BACKUP}
 
   # Configure mail alert
-  while ! [[ $TMP == 'SQLITE3' ]] || ! [[ $TMP == 'TXT' ]]; do
+  while ! [[ "$TMP" == 'SQLITE3' || "$TMP" == 'TXT' ]]; do
       printf "\nWhere you want to store Zmbackup's sessions? TXT or SQLITE3 - DEFAULT [$SESSION_TYPE]:"
       read TMP
   done
