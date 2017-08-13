@@ -108,6 +108,7 @@ function set_values() {
       printf "\nWhere you want to store Zmbackup's sessions? TXT or SQLITE3 - DEFAULT [$SESSION_TYPE]:"
       read TMP
       SESSION_TYPE=${TMP:-$SESSION_TYPE}
+  done
 
   echo -e "\n\n"
   echo "##################################################################################"
