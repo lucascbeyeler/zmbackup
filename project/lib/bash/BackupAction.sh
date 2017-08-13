@@ -101,7 +101,7 @@ function backup_main()
       echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_session(sessionID,initial_date,type,status) values ('$SESSION','$DATE','$SIZE','$STYPE','IN PROGRESS')"
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_session(sessionID,initial_date,type,status) values ('$SESSION','$DATE','$STYPE','IN PROGRESS')"
     fi
     if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
