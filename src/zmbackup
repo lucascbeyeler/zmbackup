@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 18/04/2017 - Version 1.1.6  - By Lucas Costa Beyeler
+# 31/08/2017 - Version 1.1.7  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -142,6 +142,8 @@ build_restore_list()
         INBETWEEN=1
       elif [[ "$INBETWEEN" -eq 1 ]] && [[ "$i" == "inc-"* ]]; then
         echo $i >> $TEMPSESSION
+      elif [[ "$i" == "alias-"* ]] || [[ "$i" == "distlist-"* ]]; then
+        continue
       else
         break
       fi
@@ -644,7 +646,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.1.6"
+    echo "zmbackup version: 1.1.7"
   ;;
   * )
     show_help
