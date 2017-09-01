@@ -181,7 +181,7 @@ function list_sessions_sqlite3 ()
   printf "+---------------------------+--------------+--------------+----------+----------------------------+\n"
   printf "|       Session Name        |    Start     |    Ending    |   Size   |        Description         |\n"
   printf "+---------------------------+--------------+--------------+----------+----------------------------+\n"
-  sqlite3 $WORKDIR/sessions.sqlite3 'select * from backup_session' | while i ; do
+  sqlite3 $WORKDIR/sessions.sqlite3 'select * from backup_session' | while read i ; do
     NAME=$(echo $i | cut -d'|' -f1)
     SMONTH=$(echo $i | cut -d'|' -f2 | cut -d'-' -f2)
     SDAY=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f1)

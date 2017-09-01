@@ -43,6 +43,10 @@ function build_listRST()
       echo $i >> $TEMPACCOUNT
     done
   else
-    grep "$1:" $WORKDIR/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      grep "$1:" $WORKDIR/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
+    elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+      SESSION=`sqlite3 "select * from backup_session where sessionID='$1'"`
+    fi
   fi
 }
