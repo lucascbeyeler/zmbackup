@@ -7,6 +7,7 @@
 #       Full Backup: Every Sunday at 1 AM
 #       Incremental Backup: From Monday to Saturday at 1 AM
 #       Alias: Every day at 1 AM
+#       LDAP: Every day at 1 AM
 #       Distribution List: Every day at 1 AM
 #       Backup Rotation: Every day at Midnight
 ###############################################################################
@@ -16,5 +17,6 @@ MAILTO=root
 0  2 * * 0     zimbra    zmbackup -f
 0  2 * * 1-6   zimbra    zmbackup -i
 0  1 * * *     zimbra    zmbackup -f -dl
+0  1 * * *     zimbra    zmbackup -f -ldp
 30 1 * * *     zimbra    zmbackup -f -al
 0  0 * * *     zimbra    zmbhousekeep
