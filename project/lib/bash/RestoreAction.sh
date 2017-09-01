@@ -12,8 +12,12 @@
 ################################################################################
 function restore_main_mailbox()
 {
-  SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
-                awk '{print $2}' | sort | uniq)
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
+                  awk '{print $2}' | sort | uniq)
+  elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+    SESSION=$(sqlite3 "select * from backup_session where sessionID='$1'")
+  fi
   if ! [ -z $SESSION ]; then
     printf "\nRestore mail process with session $1 started at $(date)\n"
     if [[ ! -z $3 && $2 == *"@"* ]]; then
@@ -45,8 +49,12 @@ function restore_main_mailbox()
 ################################################################################
 function restore_main_ldap()
 {
-  SESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
-                awk '{print $2}' | sort | uniq)
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
+                  awk '{print $2}' | sort | uniq)
+  elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+    SESSION=$(sqlite3 "select * from backup_session where sessionID='$1'")
+  fi
   if [ -s $SESSION ]; then
     echo "Restore LDAP process with session $1 started at $(date)"
     build_listRST $1 $2
