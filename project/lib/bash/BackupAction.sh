@@ -20,7 +20,7 @@ function __backupFullInc(){
       elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
         DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
         SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
-        sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+        sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
       fi
     fi
   fi
@@ -43,7 +43,7 @@ function __backupLdap(){
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
     fi
   fi
 }
@@ -63,7 +63,7 @@ function __backupMailbox(){
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into session_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
     fi
   fi
 }
