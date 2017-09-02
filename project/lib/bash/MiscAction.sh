@@ -326,4 +326,5 @@ function export_vars(){
   export MAILHOST
   export WORKDIR
   export LOCK_BACKUP
+  export SESSION_TYPE
 }
