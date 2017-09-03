@@ -57,6 +57,7 @@ source /usr/local/lib/zmbackup/bash/BackupAction.sh
 source /usr/local/lib/zmbackup/bash/RestoreAction.sh
 source /usr/local/lib/zmbackup/bash/DeleteAction.sh
 source /usr/local/lib/zmbackup/bash/MigrationAction.sh
+source /usr/local/lib/zmbackup/bash/SessionAction.sh
 
 ################################################################################
 # ZMBACKUP MAIN CODE
@@ -149,8 +150,15 @@ case "$1" in
           restore_main_mailbox $3 $4
         ;;
         * )
-          show_help
-          printf "\n\nError! Incorrect option\n"
+          if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
+            constant
+            checkpid
+            restore_main_ldap $2 $3
+            restore_main_mailbox $2 $3
+          else
+            show_help
+            printf "\n\nError! Incorrect option\n"
+          fi
         ;;
       esac
     fi
