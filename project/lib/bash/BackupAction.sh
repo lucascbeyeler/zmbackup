@@ -20,7 +20,7 @@ function __backupFullInc(){
       elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
         DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
         SIZE=$(du -ch $WORKDIR/$i* | grep total | cut -f1)
-        echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE')" >> $TEMPSQL
+        echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE');" >> $TEMPSQL
       fi
     fi
   fi
@@ -43,7 +43,7 @@ function __backupLdap(){
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -ch $WORKDIR/$i* | grep total | cut -f1)
-      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE')" >> $TEMPSQL
+      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE');" >> $TEMPSQL
     fi
   fi
 }
@@ -63,7 +63,7 @@ function __backupMailbox(){
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -ch $WORKDIR/$i* | grep total | cut -f1)
-      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE')"  >> $TEMPSQL
+      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE');"  >> $TEMPSQL
     fi
   fi
 }
