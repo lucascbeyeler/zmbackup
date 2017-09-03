@@ -12,9 +12,13 @@
 ################################################################################
 function restore_main_mailbox()
 {
-  SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
-                awk '{print $2}' | sort | uniq)
-  if ! [ -z $SESSION ]; then
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
+                  awk '{print $2}' | sort | uniq)
+  elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+    SESSION=$(sqlite3 $WORKDIR/sessions.sqlite3 "select * from backup_session where sessionID='$1'")
+  fi
+  if ! [ -z "$SESSION" ]; then
     printf "\nRestore mail process with session $1 started at $(date)\n"
     if [[ ! -z $3 && $2 == *"@"* ]]; then
       ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$3/?fmt=tgz"\
@@ -45,9 +49,13 @@ function restore_main_mailbox()
 ################################################################################
 function restore_main_ldap()
 {
-  SESSION=$(egrep ': $1 started' $WORKDIR/sessions.txt | egrep 'started' | \
-                awk '{print $2}' | sort | uniq)
-  if [ -s $SESSION ]; then
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
+                  awk '{print $2}' | sort | uniq)
+  elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
+    SESSION=$(sqlite3 $WORKDIR/sessions.sqlite3 "select * from backup_session where sessionID='$1'")
+  fi
+  if ! [ -s "$SESSION" ]; then
     echo "Restore LDAP process with session $1 started at $(date)"
     build_listRST $1 $2
     cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \

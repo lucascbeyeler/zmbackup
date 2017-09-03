@@ -175,7 +175,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.2.0 - BETA 3"
+    echo "zmbackup version: 1.2.0 - Release Candidate"
   ;;
   "-m"|"--migrate" )
     migration

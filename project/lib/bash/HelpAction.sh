@@ -17,14 +17,14 @@ function show_help (){
   # All the basic options.
   printf "\n\nOptions:\n"
 
-  printf "\n -f, --full                     : Execute full backup of an account, a list of accounts, or all accounts."
-  printf "\n -i, --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts."
-  printf "\n -l, --list                     : List all backup sessions that still exist in your disk."
-  printf "\n -r, --restore                  : Restore the backup inside the users account."
-  printf "\n -d, --delete                   : Delete a session of backup."
-  printf "\n -hp, --housekeep               : Execute the Housekeep to remove old sessions - Zmbhousekeep"
-  printf "\n -m, --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa."
-  printf "\n -v, --version                  : Show the zmbackup version."
+  printf "\n -f,  --full                     : Execute full backup of an account, a list of accounts, or all accounts."
+  printf "\n -i,  --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts."
+  printf "\n -l,  --list                     : List all backup sessions that still exist in your disk."
+  printf "\n -r,  --restore                  : Restore the backup inside the users account."
+  printf "\n -d,  --delete                   : Delete a session of backup."
+  printf "\n -hp, --housekeep                : Execute the Housekeep to remove old sessions - Zmbhousekeep"
+  printf "\n -m,  --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa."
+  printf "\n -v,  --version                  : Show the zmbackup version."
 
   # All the options related to Full Backups
   printf "\n\nFull Backup Options:\n"
@@ -37,11 +37,11 @@ function show_help (){
   # All the options related to Restore Backups
   printf "\n\nRestore Backup Options:\n"
 
-  printf "\n -dl, --distributionlist        : Execute a restore of a distributionlist instead of an account."
-  printf "\n -al, --alias                   : Execute a restore of an alias instead of an account."
-  printf "\n -m, --mail                     : Execute a restore of an account,  but only the mailbox."
-  printf "\n -ldp, --ldap                   : Execute a restore of an account, but only the ldap entry."
-  printf "\n -ro, --restoreOnAccount        : Execute a restore of an account inside another account."
+  printf "\n -dl,  --distributionlist         : Execute a restore of a distributionlist instead of an account."
+  printf "\n -al,  --alias                    : Execute a restore of an alias instead of an account."
+  printf "\n -m,   --mail                     : Execute a restore of an account,  but only the mailbox."
+  printf "\n -ldp, --ldap                     : Execute a restore of an account, but only the ldap entry."
+  printf "\n -ro,  --restoreOnAccount         : Execute a restore of an account inside another account."
 
   printf "\n\n\n"
 }

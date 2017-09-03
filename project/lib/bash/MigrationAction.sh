@@ -9,9 +9,10 @@
 function create_session(){
   if [[ $SESSION_TYPE == 'TXT' ]]; then
     touch $WORKDIR/sessions.txt
-    echo "Session file recreated"
+    echo "Session file TXT recreated"
   elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
     sqlite3 $WORKDIR/sessions.sqlite3 < /usr/local/lib/zmbackup/sqlite3/database.sql
+    echo "Session file SQLITE3 recreated"
   else
     echo "Invalid File Format - Nothing to do."
   fi
@@ -60,7 +61,7 @@ function importsession(){
     CONCLUSION=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
     SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
     STATUS="FINISHED"
-    sqlite3 $DATABASE "insert into backup_session values ('$SESSIONID','$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
+    sqlite3 sessions.sqlite3 "insert into backup_session values ('$SESSIONID','$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
   done
 }
 
@@ -73,9 +74,7 @@ function importaccounts(){
     for j in $(egrep $i $WORKDIR/sessions.txt | grep -v 'SESSION:' | sort | uniq); do
       EMAIL=$(echo $j | cut -d":" -f2)
       SIZE=$(du -h $WORKDIR/$i/$EMAIL.tgz | awk {'print $1'})
-      sqlite3 $DATABASE "insert into backup_account (email) values ('$EMAIL')" > /dev/null
-      ID=$(sqlite3 $DATABASE "select accountID from backup_account where email='$EMAIL'")
-      sqlite3 $DATABASE "insert into session_account (accountID,sessionID,account_size) values ('$ID','$SESSIONID','$SIZE')" > /dev/null
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$EMAIL','$SESSIONID','$SIZE')" > /dev/null
     done
   done
 }
@@ -89,11 +88,12 @@ function migration(){
     create_session
     importsession
     importaccounts
-    echo "Migration completed"
     rm $WORKDIR/sessions.txt
+    echo "Migration completed"
   elif [[ $SESSION_TYPE == "TXT" ]] && ! [[ -f $WORKDIR/sessions.txt ]]; then
     create_session
     rm $WORKDIR/sessions.sqlite3
+    echo "Migration completed"
   else
     echo "Nothing to do."
   fi

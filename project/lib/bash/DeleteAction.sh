@@ -9,8 +9,12 @@
 #    $1 - The session name to be excluded
 ################################################################################
 function delete_one(){
-  SESSION=$(grep "$1 started" $WORKDIR/sessions.txt -m 1 | awk '{print $2}')
-  if [ "$SESSION" == "$1" ]; then
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    SESSION=$(grep "$1 started" $WORKDIR/sessions.txt -m 1 | awk '{print $2}')
+  elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+    SESSION=$(sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where sessionID='$1'")
+  fi
+  if [ ! -z "$SESSION" ]; then
     echo "Removing session $1 - please wait."
     __DELETEBACKUP $1
   else
@@ -23,14 +27,20 @@ function delete_one(){
 # delete_old: Delete only the oldest session from zmbackup baased on $ROTATE_TIME
 ################################################################################
 function delete_old(){
-  OLDEST=$(date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days")
   echo "Removing old backup folders - please wait."
   logger -i -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from old backup sessions."
-  grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
-    if [ "$(echo $LINE | cut -d- -f2)" -lt "$OLDEST" ]; then
-       __DELETEBACKUP $LINE
-    fi
-  done
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    OLDEST=$(date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days")
+    grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
+      if [ "$(echo $LINE | cut -d- -f2)" -lt "$OLDEST" ]; then
+         __DELETEBACKUP $LINE
+      fi
+    done
+  elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+    sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where conclusion_date > datetime('now','-$ROTATE_TIME day')" | while read LINE; do
+      __DELETEBACKUP $LINE
+    done
+  fi
   logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
 }
 
@@ -42,9 +52,14 @@ function delete_old(){
 function __DELETEBACKUP(){
   ERR=$((rm -rf $WORKDIR/"$1") 2>&1)
   if [[ $? -eq 0 ]]; then
-    grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
-    cat $WORKDIR/.sessions.txt > $WORKDIR/sessions.txt
-    rm -rf $WORKDIR/.sessions.txt
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+      cat $WORKDIR/.sessions.txt > $WORKDIR/sessions.txt
+      rm -rf $WORKDIR/.sessions.txt
+    elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+      sqlite3 $WORKDIR/sessions.sqlite3 "delete from backup_account where sessionID='$1'"
+      sqlite3 $WORKDIR/sessions.sqlite3 "delete from backup_session where sessionID='$1'"
+    fi
     echo "Backup session $1 removed."
     logger -i -p local7.info "Zmbhousekeep: Backup session $1 removed."
   else

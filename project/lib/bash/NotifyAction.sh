@@ -41,7 +41,10 @@ function notify_finish()
 {
   # Loading the variables
   SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
-  QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+  QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l) 2> /dev/null
+  if [[ $? -ne 0 ]]; then
+    QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
+  fi
 
   # The message
   printf "Subject: Zmbackup - Backup routine for $1 complete at $(date) - $3" > $MESSAGE
