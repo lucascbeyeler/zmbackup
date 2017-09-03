@@ -53,6 +53,10 @@ function deploy_new() {
   chown -R $OSE_USER. $ZMBKP_LIB
   chmod -R 700 $ZMBKP_LIB
   echo -ne '######                (30%)\r'
+
+  # Creating httpie config directory
+  mkdir $OSE_INSTALL_DIR/.httpie > /dev/null 2>&1 && chown zimbra. $OSE_INSTALL_DIR/.httpie
+
   install --backup=numbered -o root -m 600 $MYDIR/project/config/zmbackup.cron /etc/cron.d
   echo -ne '#######               (35%)\r'
   install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/config/zmbackup.conf $ZMBKP_CONF
@@ -108,6 +112,9 @@ function deploy_upgrade(){
   mkdir $OSE_INSTALL_DIR/.parallel > /dev/null 2>&1 && touch $OSE_INSTALL_DIR/.parallel/will-cite
   chown -R zimbra. $OSE_INSTALL_DIR/.parallel
 
+  # Creating httpie config directory
+  mkdir $OSE_INSTALL_DIR/.httpie > /dev/null 2>&1 && chown zimbra. $OSE_INSTALL_DIR/.httpie
+
   # Copy files
   install -o $OSE_USER -m 700 $MYDIR/project/zmbackup $ZMBKP_SRC
   echo -ne '###############       (75%)\r'
@@ -126,6 +133,7 @@ function uninstall() {
   echo -ne '                     (0%)\r'
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
   rm -rf $OSE_INSTALL_DIR/.parallel
+  rm -rf $OSE_INSTALL_DIR/.httpie
   echo -ne '#####                 (25%)\r'
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '##########            (50%)\r'
