@@ -173,7 +173,7 @@ Want to contribute to the project?
 ------------------
 * **We are looking for Beta Testers to use the latest release of Zmbackup at this moment.** Want to help? Install a Zimbra server in your note, create some accounts and keep using Zmbackup. Any problem you find can be reported in Issues and our Google Group, and will be fixed in the next release.
 
- * **Valid version:** 1.2.0 BETA 4
+  * **Valid version:** 1.2.0 BETA 4
 
 
 * **We are looking for peoples to correct and keep up to date the documentation:** At this moment the documentation is only this README.md file, but I have plans to expand to a real documentation using Read the Docs. Do you have time and want to write? You can fork this project and start right now! Remember to document only 1.2.0 content there!
