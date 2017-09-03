@@ -20,7 +20,7 @@ function __backupFullInc(){
       elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
         DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
         SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
-        sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+        echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" >> $TEMPSQL
       fi
     fi
   fi
@@ -43,7 +43,7 @@ function __backupLdap(){
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" >> $TEMPSQL
     fi
   fi
 }
@@ -63,7 +63,7 @@ function __backupMailbox(){
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -h $WORKDIR/$i* | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')" > /dev/null
+      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSIONID','$SIZE')"  >> $TEMPSQL
     fi
   fi
 }
@@ -120,6 +120,7 @@ function backup_main()
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -sh $WORKDIR/$i | awk {'print $1'})
+      sqlite3 $WORKDIR/sessions.sqlite3 < $TEMPSQL
       sqlite3 $WORKDIR/sessions.sqlite3 "update backup_session set conclusion_date='$DATE',size='$SIZE',status='FINISHED' where sessionID='$SESSION'"
     fi
     logger -i -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"

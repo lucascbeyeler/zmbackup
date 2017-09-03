@@ -13,7 +13,7 @@ function on_exit(){
   elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
     notify_finish $SESSION $STYPE "SUCCESS"
   fi
-  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE
+  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $PID $MESSAGE $TEMPSQL
   logger -i -p local7.info "Zmbackup: Excluding the temporary files before close."
 }
 
@@ -30,6 +30,7 @@ function create_temp(){
   export readonly MESSAGE=$(mktemp)
   export readonly FAILURE=$(mktemp)
   export readonly TEMPSESSION=$(mktemp)
+  export readonly TEMPSQL=$(mktemp)
 }
 
 ################################################################################
