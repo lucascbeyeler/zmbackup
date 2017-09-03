@@ -37,11 +37,11 @@ function delete_old(){
       fi
     done
   elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
-    sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where sessionID='$1' and conclusion_date <= datetime('now','-$ROTATE_TIME day')" | while read LINE; do
+    sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where conclusion_date > datetime('now','-$ROTATE_TIME day')" | while read LINE; do
       __DELETEBACKUP $LINE
     done
-    logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
   fi
+  logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
 }
 
 ################################################################################

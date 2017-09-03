@@ -30,7 +30,7 @@ function deploy_new() {
   if [[ $SESSION_TYPE == "TXT" ]]; then
     touch $OSE_DEFAULT_BKP_DIR/sessions.txt
   elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-    sqlite3 $OSE_DEFAULT_BKP_DIR/sessions.sqlite3 < project/lib/sqlite3/database.sql
+    sqlite3 $OSE_DEFAULT_BKP_DIR/sessions.sqlite3 < project/lib/sqlite3/database.sql > /dev/null 2>&1
   fi
   chown -R $OSE_USER.$OSE_USER $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1
   echo -ne '#                     (5%)\r'
