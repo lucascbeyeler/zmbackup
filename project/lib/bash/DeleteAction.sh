@@ -48,12 +48,12 @@ function __DELETEBACKUP(){
   if [[ $? -eq 0 ]]; then
     if [[ $SESSION_TYPE == 'TXT' ]]; then
       grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+      cat $WORKDIR/.sessions.txt > $WORKDIR/sessions.txt
+      rm -rf $WORKDIR/.sessions.txt
     elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
       sqlite3 $WORKDIR/sessions.sqlite3 "delete from backup_account where sessionID='$1'"
       sqlite3 $WORKDIR/sessions.sqlite3 "delete from backup_session where sessionID='$1'"
     fi
-    cat $WORKDIR/.sessions.txt > $WORKDIR/sessions.txt
-    rm -rf $WORKDIR/.sessions.txt
     echo "Backup session $1 removed."
     logger -i -p local7.info "Zmbhousekeep: Backup session $1 removed."
   else
