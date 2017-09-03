@@ -27,15 +27,21 @@ function delete_one(){
 # delete_old: Delete only the oldest session from zmbackup baased on $ROTATE_TIME
 ################################################################################
 function delete_old(){
-  OLDEST=$(date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days")
   echo "Removing old backup folders - please wait."
   logger -i -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from old backup sessions."
-  grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
-    if [ "$(echo $LINE | cut -d- -f2)" -lt "$OLDEST" ]; then
-       __DELETEBACKUP $LINE
-    fi
-  done
-  logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    OLDEST=$(date  +%Y%m%d%H%M%S -d "-$ROTATE_TIME days")
+    grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
+      if [ "$(echo $LINE | cut -d- -f2)" -lt "$OLDEST" ]; then
+         __DELETEBACKUP $LINE
+      fi
+    done
+  elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+    sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where sessionID='$1' and conclusion_date <= datetime('now','-$ROTATE_TIME day')" | while read LINE; do
+      __DELETEBACKUP $LINE
+    done
+    logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
+  fi
 }
 
 ################################################################################
