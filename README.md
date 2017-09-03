@@ -68,6 +68,7 @@ Inside the project folder, execute the script **install.sh** and follow all the 
 ```
 # cd zmbackup
 # ./wizard.sh
+# su - zimbra
 $ zmbackup -v
   zmbackup version: 1.2.0 Release Candidate
 ```
