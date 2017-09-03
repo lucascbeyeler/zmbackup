@@ -42,7 +42,12 @@ function delete_old(){
 function __DELETEBACKUP(){
   ERR=$((rm -rf $WORKDIR/"$1") 2>&1)
   if [[ $? -eq 0 ]]; then
-    grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      grep -v "$1" $WORKDIR/sessions.txt > $WORKDIR/.sessions.txt
+    elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+      sqlite3 $WORKDIR/sessions.sqlite3 "delete from backup_account where sessionID='$1'"
+      sqlite3 $WORKDIR/sessions.sqlite3 "delete from backup_session where sessionID='$1'"
+    fi
     cat $WORKDIR/.sessions.txt > $WORKDIR/sessions.txt
     rm -rf $WORKDIR/.sessions.txt
     echo "Backup session $1 removed."
