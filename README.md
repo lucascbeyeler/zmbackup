@@ -167,8 +167,16 @@ $ zmbackup -hp
 Get Involved
 ------------------
 * You can participate in our [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
-* You can send e-mail to zmbackup@protonmail.com if you need to discuss something direct to the developer. I will answer you as quickly as possible, but try to keep your questions in the Google Group - this way more and more peoples can be benefited with the answer.
+* You can send e-mail to zmbackup@protonmail.com if you need to discuss something direct to the developers. We will answer you as quickly as possible, but try to keep your questions in the Google Group - this way more and more peoples can be benefited with the answer.
 
+Want to contribute to the project?
+------------------
+* **We are looking for Beta Testers to use the latest release of Zmbackup at this moment.** Want to help? Install a Zimbra server in your note, create some accounts and keep using Zmbackup. Any problem you find can be reported in Issues and our Google Group, and will be fixed in the next release.
+
+ * **Valid version:** 1.2.0 BETA 4
+
+
+* **We are looking for peoples to correct and keep up to date the documentation:** At this moment the documentation is only this README.md file, but I have plans to expand to a real documentation using Read the Docs. Do you have time and want to write? You can fork this project and start right now! Remember to document only 1.2.0 content there!
 
 License
 -------
