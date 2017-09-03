@@ -14,11 +14,3 @@
     email varchar not null,
     foreign key (sessionID) references backup_session(sessionID)
   );
-
-  create table backup_queue(
-    id integer primary key autoincrement,
-    accountID int not null,
-    sessionID varchar not null,
-    foreign key (accountID) references backup_account(accountID),
-    foreign key (sessionID) references backup_session(sessionID)
-  );
