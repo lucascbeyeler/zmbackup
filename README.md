@@ -53,14 +53,14 @@ If you use CentOS, first install the package **[epel-release](https://fedoraproj
 Now, install the packages **parallel**, **wget** and **httpie** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
 
 ```
-# apt-get install parallel wget httpie
-# yum install parallel wget httpie
+# apt-get install parallel wget httpie sqlite3
+# yum install parallel wget httpie sqlite3
 ```
 
 Download the latest package with the BETA tag in "Release" section, or git clone the development branch:
 
 ```
-git clone -b dev https://github.com/lucascbeyeler/zmbackup.git
+git clone -b beta https://github.com/lucascbeyeler/zmbackup.git
 ```
 
 Inside the project folder, execute the script **install.sh** and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
@@ -88,29 +88,29 @@ usage: zmbackup [-f] [options] <mail>
 
 Options:
 
- -f, --full                     : Execute full backup of an account, a list of accounts, or all accounts.
- -i, --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts.
- -l, --list                     : List all backup sessions that still exist in your disk.
- -r, --restore                  : Restore the backup inside the users account.
- -d, --delete                   : Delete a session of backup.
- -hp, --housekeep               : Execute the Housekeep to remove old sessions - Zmbhousekeep
- -m,  --migrate                 : Migrate the database from TXT to SQLITE3 and vice versa.
- -v, --version                  : Show the zmbackup version.
+ -f,  --full                     : Execute full backup of an account, a list of accounts, or all accounts.
+ -i,  --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts.
+ -l,  --list                     : List all backup sessions that still exist in your disk.
+ -r,  --restore                  : Restore the backup inside the users account.
+ -d,  --delete                   : Delete a session of backup.
+ -hp, --housekeep                : Execute the Housekeep to remove old sessions - Zmbhousekeep
+ -m,  --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa.
+ -v,  --version                  : Show the zmbackup version.
 
 Full Backup Options:
 
- -m,   --mail                   : Execute a backup of an account, but only the mailbox.
- -dl,  --distributionlist       : Execute a backup of a distributionlist instead of an account.
- -al,  --alias                  : Execute a backup of an alias instead of an account.
- -ldp, --ldap                   : Execute a backup of an account, but only the ldap entry.
+ -m,   --mail                    : Execute a backup of an account, but only the mailbox.
+ -dl,  --distributionlist        : Execute a backup of a distributionlist instead of an account.
+ -al,  --alias                   : Execute a backup of an alias instead of an account.
+ -ldp, --ldap                    : Execute a backup of an account, but only the ldap entry.
 
 Restore Backup Options:
 
- -dl, --distributionlist        : Execute a restore of a distributionlist instead of an account.
- -al, --alias                   : Execute a restore of an alias instead of an account.
- -m, --mail                     : Execute a restore of an account,  but only the mailbox.
- -ldp, --ldap                   : Execute a restore of an account, but only the ldap entry.
- -ro, --restoreOnAccount        : Execute a restore of an account inside another account.
+ -dl, --distributionlist         : Execute a restore of a distributionlist instead of an account.
+ -al, --alias                    : Execute a restore of an alias instead of an account.
+ -m, --mail                      : Execute a restore of an account,  but only the mailbox.
+ -ldp, --ldap                    : Execute a restore of an account, but only the ldap entry.
+ -ro, --restoreOnAccount         : Execute a restore of an account inside another account.
 
 ```
 
@@ -163,6 +163,12 @@ To remove a backup session, you only need to use the option **-d** or **--delete
 $ zmbackup -d full-20170621201603
 $ zmbackup -hp
 ```
+
+Get Involved
+------------------
+* You can participate in your [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
+* You can send e-mail to zmbackup@protonmail.com if you need to discuss something direct to the developer. I will answer you as quickly as possible, but try to keep your questions in the Google Group - this way more and more peoples can be benefited with the answer.
+
 
 License
 -------
