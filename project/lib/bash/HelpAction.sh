@@ -25,6 +25,7 @@ function show_help (){
   printf "\n -hp, --housekeep                : Execute the Housekeep to remove old sessions - Zmbhousekeep"
   printf "\n -m,  --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa."
   printf "\n -v,  --version                  : Show the zmbackup version."
+  printf "\n -h,  --help                     : Show this help"
 
   # All the options related to Full Backups
   printf "\n\nFull Backup Options:\n"
