@@ -9,8 +9,12 @@
 #    $1 - The session name to be excluded
 ################################################################################
 function delete_one(){
-  SESSION=$(grep "$1 started" $WORKDIR/sessions.txt -m 1 | awk '{print $2}')
-  if [ "$SESSION" == "$1" ]; then
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    SESSION=$(grep "$1 started" $WORKDIR/sessions.txt -m 1 | awk '{print $2}')
+  elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+    SESSION=$(sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where sessionID='$1'")
+  fi
+  if [ ! -z "$SESSION" ]; then
     echo "Removing session $1 - please wait."
     __DELETEBACKUP $1
   else
