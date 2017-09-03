@@ -166,7 +166,7 @@ $ zmbackup -hp
 
 Get Involved
 ------------------
-* You can participate in your [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
+* You can participate in our [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
 * You can send e-mail to zmbackup@protonmail.com if you need to discuss something direct to the developer. I will answer you as quickly as possible, but try to keep your questions in the Google Group - this way more and more peoples can be benefited with the answer.
 
 
