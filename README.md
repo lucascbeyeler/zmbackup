@@ -24,7 +24,8 @@ Features
 * Receive alert everytime a backup session begins;
 * Better internal garbage manager;
 * Filter the accounts that should not be execute with blacklists;
-* Log management compatible with rsyslog.
+* Log management compatible with rsyslog;
+* Sessions stored in a relational database - SQLITE3 only - or TXT file;
 
 Requirements
 ------------
@@ -38,6 +39,7 @@ Requirements
 * **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download HTTPie and GNU Parallel;
 * **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
 * **mktemp** - make a temporary file or directory;
+* **SQLite3** - a relational database management system contained in a C programming library.
 
 Installation
 ------------
@@ -91,6 +93,7 @@ Options:
  -r, --restore                  : Restore the backup inside the users account.
  -d, --delete                   : Delete a session of backup.
  -hp, --housekeep               : Execute the Housekeep to remove old sessions - Zmbhousekeep
+ -m,  --migrate                 : Migrate the database from TXT to SQLITE3 and vice versa.
  -v, --version                  : Show the zmbackup version.
 
 Full Backup Options:
