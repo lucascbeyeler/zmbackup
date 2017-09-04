@@ -174,8 +174,8 @@ loop_mbldp_backup()
   fi
   ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
              -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldiff
-  wget --quiet -O $TEMPDIR/$1.tgz --http-user $ADMINUSER --http-passwd $ADMINPASS \
-        "https://$MAILHOST:7071/home/$1/?fmt=tgz"$AFTER --no-check-certificate
+  wget --timeout=5 --tries=2 --quiet -O $TEMPDIR/$1.tgz --user $ADMINUSER \
+       --passwd $ADMINPASS "https://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate
   echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
 }
 
