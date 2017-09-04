@@ -164,6 +164,20 @@ $ zmbackup -d full-20170621201603
 $ zmbackup -hp
 ```
 
+Zmbackup is capable to migrate from TXT to SQLite3, if you want to store you data inside a relational database. The advantage of doing this is more efficience when trying to list the sessions, and more details when you do this (like the beginning and conclusion of the session). To enable the SQLite3, first edit the option SESSION_TYPE insinde zmbackup.conf:
+
+```
+# vim /etc/zmbackup/zmbackup.conf
+...
+SESSION_TYPE=SQLITE3
+```
+
+With the SQLITE3 option enabled, now you need to migrate your entire sessions.txt to the relational database using the option **-m** or **--migrate**. After the end of the migration, you can run all zmbackup commands again.
+
+```
+$ zmbackup -m
+```
+
 Get Involved
 ------------------
 * You can participate in our [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
