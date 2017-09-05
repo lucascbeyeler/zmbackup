@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 04/09/2017 - Version 1.1.8  - By Lucas Costa Beyeler
+# 04/09/2017 - Version 1.1.9  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -135,22 +135,7 @@ build_restore_list()
   else
     grep $1 $WORKDIR/sessions.txt | grep -v "SESSION" | cut -d: -f2 > $TEMPACCOUNT
   fi
-  if [[ "$1" == "full-"* ]]; then
-    for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-      if [[ "$1" ==  "$i" ]]; then
-        echo $i >> $TEMPSESSION
-        INBETWEEN=1
-      elif [[ "$INBETWEEN" -eq 1 ]] && [[ "$i" == "inc-"* ]]; then
-        echo $i >> $TEMPSESSION
-      elif [[ "$i" == "alias-"* ]] || [[ "$i" == "distlist-"* ]] || [[ "$i" == "ldap-"* ]]; then
-        continue
-      else
-        break
-      fi
-    done
-  else
-    echo $1 >> $TEMPSESSION
-  fi
+  echo $1 >> $TEMPSESSION
 }
 
 ################################################################################
@@ -646,7 +631,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.1.8"
+    echo "zmbackup version: 1.1.9"
   ;;
   * )
     show_help

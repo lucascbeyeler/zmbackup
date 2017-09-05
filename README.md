@@ -37,7 +37,7 @@ Enter inside the folder zmbackup and execute the script install.sh. Follow the i
 
 ```
 $ zmbackup -v
-zmbackup version: 1.1.8
+zmbackup version: 1.1.9
 ```
 
 Open the folder /etc/cron.d/zmbackup.cron and adjust each job scheduled to the time you want the execution. If you configured zmbkpose or any old release before, please undo and use this file for scheduling.
