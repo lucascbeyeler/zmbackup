@@ -11,8 +11,8 @@ Zmbackup is a reliable Bash shell script developed to help you in your daily tas
 [![Build Status](https://travis-ci.org/lucascbeyeler/zmbackup.svg?branch=master)](https://travis-ci.org/lucascbeyeler/zmbackup)
 [![Zimbra Version](https://img.shields.io/badge/Zimbra%20OSE-8.7.11-orange.svg)](https://www.zimbra.com/downloads/zimbra-collaboration-open-source/)
 ![Linux Distro](https://img.shields.io/badge/platform-CentOS%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
-![Branch](https://img.shields.io/badge/Branch-Development-red.svg)
-![Release](https://img.shields.io/badge/Release-1.2.0%20Release%20Candidate-green.svg)
+![Branch](https://img.shields.io/badge/Branch-DEV-red.svg)
+![Release](https://img.shields.io/badge/Release-1.2.0%20BETA%205-green.svg)
 
 Features
 ------------
@@ -53,14 +53,14 @@ If you use CentOS, first install the package **[epel-release](https://fedoraproj
 Now, install the packages **parallel**, **wget** and **httpie** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
 
 ```
-# apt-get install parallel wget httpie
-# yum install parallel wget httpie
+# apt-get install parallel wget httpie sqlite3
+# yum install parallel wget httpie sqlite3
 ```
 
 Download the latest package with the BETA tag in "Release" section, or git clone the development branch:
 
 ```
-git clone -b dev https://github.com/lucascbeyeler/zmbackup.git
+git clone -b beta https://github.com/lucascbeyeler/zmbackup.git
 ```
 
 Inside the project folder, execute the script **install.sh** and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
@@ -70,7 +70,7 @@ Inside the project folder, execute the script **install.sh** and follow all the 
 # ./wizard.sh
 # su - zimbra
 $ zmbackup -v
-  zmbackup version: 1.2.0 Release Candidate
+  zmbackup version: 1.2.0 BETA 5
 ```
 
 Usage
@@ -88,29 +88,29 @@ usage: zmbackup [-f] [options] <mail>
 
 Options:
 
- -f, --full                     : Execute full backup of an account, a list of accounts, or all accounts.
- -i, --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts.
- -l, --list                     : List all backup sessions that still exist in your disk.
- -r, --restore                  : Restore the backup inside the users account.
- -d, --delete                   : Delete a session of backup.
- -hp, --housekeep               : Execute the Housekeep to remove old sessions - Zmbhousekeep
- -m,  --migrate                 : Migrate the database from TXT to SQLITE3 and vice versa.
- -v, --version                  : Show the zmbackup version.
+ -f,  --full                     : Execute full backup of an account, a list of accounts, or all accounts.
+ -i,  --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts.
+ -l,  --list                     : List all backup sessions that still exist in your disk.
+ -r,  --restore                  : Restore the backup inside the users account.
+ -d,  --delete                   : Delete a session of backup.
+ -hp, --housekeep                : Execute the Housekeep to remove old sessions - Zmbhousekeep
+ -m,  --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa.
+ -v,  --version                  : Show the zmbackup version.
 
 Full Backup Options:
 
- -m,   --mail                   : Execute a backup of an account, but only the mailbox.
- -dl,  --distributionlist       : Execute a backup of a distributionlist instead of an account.
- -al,  --alias                  : Execute a backup of an alias instead of an account.
- -ldp, --ldap                   : Execute a backup of an account, but only the ldap entry.
+ -m,   --mail                    : Execute a backup of an account, but only the mailbox.
+ -dl,  --distributionlist        : Execute a backup of a distributionlist instead of an account.
+ -al,  --alias                   : Execute a backup of an alias instead of an account.
+ -ldp, --ldap                    : Execute a backup of an account, but only the ldap entry.
 
 Restore Backup Options:
 
- -dl, --distributionlist        : Execute a restore of a distributionlist instead of an account.
- -al, --alias                   : Execute a restore of an alias instead of an account.
- -m, --mail                     : Execute a restore of an account,  but only the mailbox.
- -ldp, --ldap                   : Execute a restore of an account, but only the ldap entry.
- -ro, --restoreOnAccount        : Execute a restore of an account inside another account.
+ -dl, --distributionlist         : Execute a restore of a distributionlist instead of an account.
+ -al, --alias                    : Execute a restore of an alias instead of an account.
+ -m, --mail                      : Execute a restore of an account,  but only the mailbox.
+ -ldp, --ldap                    : Execute a restore of an account, but only the ldap entry.
+ -ro, --restoreOnAccount         : Execute a restore of an account inside another account.
 
 ```
 
@@ -163,6 +163,36 @@ To remove a backup session, you only need to use the option **-d** or **--delete
 $ zmbackup -d full-20170621201603
 $ zmbackup -hp
 ```
+
+Zmbackup is capable to migrate from TXT to SQLite3, if you want to store you data inside a relational database. The advantage of doing this is more efficience when trying to list the sessions, and more details when you do this (like the beginning and conclusion of the session). To enable the SQLite3, first edit the option SESSION_TYPE insinde zmbackup.conf:
+
+```
+# vim /etc/zmbackup/zmbackup.conf
+...
+SESSION_TYPE=SQLITE3
+```
+
+With the SQLITE3 option enabled, now you need to migrate your entire sessions.txt to the relational database using the option **-m** or **--migrate**. After the end of the migration, you can run all zmbackup commands again.
+
+```
+$ zmbackup -m
+```
+
+**REMEMBER:** at this moment, this migration activity is a only one way road. There is no rollback, and, if you try to do a rollback, you will lost your sessions file.
+
+Get Involved
+------------------
+* You can participate in our [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
+* You can send e-mail to zmbackup@protonmail.com if you need to discuss something direct to the developers. We will answer you as quickly as possible, but try to keep your questions in the Google Group - this way more and more peoples can be benefited with the answer.
+
+Want to contribute to the project?
+------------------
+* **We are looking for Beta Testers to use the latest release of Zmbackup at this moment.** Want to help? Install a Zimbra server in your note, create some accounts and keep using Zmbackup. Any problem you find can be reported in Issues and our Google Group, and will be fixed in the next release.
+
+  * **Valid version:** 1.2.0 BETA 5
+
+
+* **We are looking for peoples to correct and keep up to date the documentation:** At this moment the documentation is only this README.md file, but I have plans to expand to a real documentation using Read the Docs. Do you have time and want to write? You can fork this project and start right now! Remember to document only 1.2.0 content there!
 
 License
 -------
