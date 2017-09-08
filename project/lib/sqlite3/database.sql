@@ -12,5 +12,7 @@
     sessionID varchar not null,
     account_size varchar not null,
     email varchar not null,
+    initial_date timestamp not null,
+    conclusion_date timestamp,
     foreign key (sessionID) references backup_session(sessionID)
   );

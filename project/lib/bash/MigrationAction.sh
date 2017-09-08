@@ -59,9 +59,10 @@ function importsessionSQL(){
     esac
     INITIAL=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
     CONCLUSION=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
-    SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+    SIZE=$(du -ch $WORKDIR/$i | grep total | awk {'print $1'})
     STATUS="FINISHED"
-    sqlite3 sessions.sqlite3 "insert into backup_session values ('$SESSIONID','$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
+    sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_session values ('$SESSIONID',\
+                                       '$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
   done
 }
 
@@ -70,11 +71,13 @@ function importsessionSQL(){
 ###############################################################################
 function importaccountsSQL(){
   for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-    SESSIONID=$i
+    DATE=$(sqlite3 $WORKDIR/sessions.sqlite3 "select conclusion_date from backup_session where sessionID='$i'")
     for j in $(egrep $i $WORKDIR/sessions.txt | grep -v 'SESSION:' | sort | uniq); do
       EMAIL=$(echo $j | cut -d":" -f2)
-      SIZE=$(du -h $WORKDIR/$i/$EMAIL.tgz | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$EMAIL','$SESSIONID','$SIZE')" > /dev/null
+      SIZE=$(du -ch $WORKDIR/$i/$EMAIL* | grep total | awk {'print $1'})
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,\
+                                         account_size,initial_date, conclusion_date) \
+                                         values ('$EMAIL','$i','$SIZE','$DATE','$DATE')" > /dev/null
     done
   done
 }
@@ -82,7 +85,7 @@ function importaccountsSQL(){
 ###############################################################################
 # importaccountsTXT: Migrate the accounts from the txt file to the sqlite3 database
 ###############################################################################
-function importsessionSQL(){
+function importsessionTXT(){
   sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID,conclusion_date from backup_session" | while read SESSION; do
     MONTH=$(echo $i | cut -d'|' -f2 | cut -d'-' -f2)
     DAY=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f1)
