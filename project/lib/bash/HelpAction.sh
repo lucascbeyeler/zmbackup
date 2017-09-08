@@ -34,8 +34,6 @@ function show_help (){
   printf "\n -dl,  --distributionlist         : Execute a backup of a distributionlist instead of an account."
   printf "\n -al,  --alias                    : Execute a backup of an alias instead of an account."
   printf "\n -ldp, --ldap                     : Execute a backup of an account, but only the ldap entry."
-  printf "\n -fm,  --filtermail               : Execute a backup of all account's mail filters."
-  printf "\n -cos, --cos                      : Execute a backup of all class of services."
 
   # All the options related to Restore Backups
   printf "\n\nRestore Backup Options:\n"
@@ -45,8 +43,6 @@ function show_help (){
   printf "\n -m,   --mail                     : Execute a restore of an account,  but only the mailbox."
   printf "\n -ldp, --ldap                     : Execute a restore of an account, but only the ldap entry."
   printf "\n -ro,  --restoreOnAccount         : Execute a restore of an account inside another account."
-  printf "\n -fm,  --filtermail               : Execute a restore of an account's mail filters."
-  printf "\n -cos, --cos                      : Execute a restore of an class of services."
 
   printf "\n\n\n"
 }
