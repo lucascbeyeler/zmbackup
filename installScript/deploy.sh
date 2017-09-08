@@ -136,6 +136,7 @@ function uninstall() {
   rm -rf $OSE_INSTALL_DIR/.parallel
   rm -rf $OSE_INSTALL_DIR/.httpie
   echo -ne '#####                 (25%)\r'
+  rm -rf /etc/cron.d/zmbackup.cron
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '##########            (50%)\r'
   if [[ -f $ZMBKP_CONF/blacklist.conf ]]; then
