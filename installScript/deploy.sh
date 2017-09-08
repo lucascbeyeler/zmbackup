@@ -146,7 +146,7 @@ function uninstall() {
   echo -ne '###############       (75%)\r'
   sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
-  echo "Preserve Backup Storage?[n/Y]"
+  printf "Preserve Backup Storage?[n/Y]"
   read OPT
   if [[ $OPT != 'N' && $OPT != 'n' ]]; then
     echo "Removing backup storage..."
