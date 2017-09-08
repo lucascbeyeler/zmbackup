@@ -19,9 +19,9 @@ function create_session(){
 }
 
 ###############################################################################
-# importsession: Migrate the sessions from the txt file to the sqlite3 database
+# importsessionSQL: Migrate the sessions from the txt file to the sqlite3 database
 ###############################################################################
-function importsession(){
+function importsessionSQL(){
   for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
     SESSIONID=$i
     OPT=$(echo $i | cut -d"-" -f1 )
@@ -59,22 +59,42 @@ function importsession(){
     esac
     INITIAL=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
     CONCLUSION=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
-    SIZE=$(du -h $WORKDIR/$i | awk {'print $1'})
+    SIZE=$(du -ch $WORKDIR/$i | grep total | awk {'print $1'})
     STATUS="FINISHED"
-    sqlite3 sessions.sqlite3 "insert into backup_session values ('$SESSIONID','$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
+    sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_session values ('$SESSIONID',\
+                                       '$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
   done
 }
 
 ###############################################################################
-# importaccounts: Migrate the accounts from the txt file to the sqlite3 database
+# importaccountsSQL: Migrate the accounts from the txt file to the sqlite3 database
 ###############################################################################
-function importaccounts(){
+function importaccountsSQL(){
   for i in $(egrep 'SESSION:' $WORKDIR/sessions.txt | egrep 'started' |  awk '{print $2}' | sort | uniq); do
-    SESSIONID=$i
+    DATE=$(sqlite3 $WORKDIR/sessions.sqlite3 "select conclusion_date from backup_session where sessionID='$i'")
     for j in $(egrep $i $WORKDIR/sessions.txt | grep -v 'SESSION:' | sort | uniq); do
       EMAIL=$(echo $j | cut -d":" -f2)
-      SIZE=$(du -h $WORKDIR/$i/$EMAIL.tgz | awk {'print $1'})
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,account_size) values ('$EMAIL','$SESSIONID','$SIZE')" > /dev/null
+      SIZE=$(du -ch $WORKDIR/$i/$EMAIL* | grep total | awk {'print $1'})
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_account (email,sessionID,\
+                                         account_size,initial_date, conclusion_date) \
+                                         values ('$EMAIL','$i','$SIZE','$DATE','$DATE')" > /dev/null
+    done
+  done
+}
+
+###############################################################################
+# importaccountsTXT: Migrate the accounts from the txt file to the sqlite3 database
+###############################################################################
+function importsessionTXT(){
+  sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID,conclusion_date from backup_session" | while read SESSION; do
+    MONTH=$(echo $i | cut -d'|' -f2 | cut -d'-' -f2)
+    DAY=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f1)
+    YEAR=$(echo $i | cut -d'|' -f2 | cut -d'-' -f1)
+    HOUR=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d'T' -f2)
+    MINUTE=$(echo $i | cut -d'|' -f2 | cut -d'-' -f3 | cut -d':' -f2)
+    echo "SESSION: $SESSION started on $(date -d '$MONTH/$DAY/$YEAR $HOUR:$MINUTE')" >> $WORKDIR/sessions.txt
+    sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where sessionID='$SESSION'" | while read SESSION; do
+      echo "$SESSION:$ACCOUNT:$MONTH/$DAY/$YEAR" >> $WORKDIR/sessions.txt
     done
   done
 }
@@ -86,12 +106,13 @@ function migration(){
   if [[ $SESSION_TYPE == "SQLITE3" ]] && ! [[ -f $WORKDIR/sessions.sqlite3 ]]; then
     echo "Starting the migration - please wait until the conclusion"
     create_session
-    importsession
-    importaccounts
+    importsessionSQL
+    importaccountsSQL
     rm $WORKDIR/sessions.txt
     echo "Migration completed"
   elif [[ $SESSION_TYPE == "TXT" ]] && ! [[ -f $WORKDIR/sessions.txt ]]; then
     create_session
+    importsessionSQL
     rm $WORKDIR/sessions.sqlite3
     echo "Migration completed"
   else

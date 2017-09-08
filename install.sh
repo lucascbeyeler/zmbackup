@@ -13,9 +13,22 @@ source installScript/depDownload.sh
 source installScript/deploy.sh
 source installScript/menu.sh
 source installScript/vars.sh
+source installScript/help.sh
 
 ################################################################################
 # INSTALL MAIN CODE
+################################################################################
+
+#
+#  Help code
+################################################################################
+if [[ $1 == "--help" ]] || [[ $1 == "-h" ]]; then
+  show_help
+  exit 0
+fi
+
+#
+#  Checking your environment
 ################################################################################
 check_env $1
 

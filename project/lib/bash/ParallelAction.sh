@@ -35,7 +35,13 @@ function ldap_backup()
 function mailbox_backup()
 {
   if [[ "$INC" == "TRUE" ]]; then
-    DATE=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
+    if [[ $SESSION_TYPE == 'TXT' ]]; then
+      DATE=$(grep $1 $WORKDIR/sessions.txt | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
+    elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+      DATE=$(sqlite3 $WORKDIR/sessions.sqlite3 "select MAX(initial_date) \
+             from backup_account where email='$1' and \
+             (sessionID like 'full%' or sessionID like 'inc%' or sessionID like 'mbox%')")
+    fi
     AFTER='&'"start="$(date -d $DATE +%s)"000"
   fi
   ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \

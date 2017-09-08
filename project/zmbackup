@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 03/09/2017 - Version 1.2.0  - By Lucas Costa Beyeler
+# 07/09/2017 - Version 1.2.0  - By Lucas Costa Beyeler
 #                               <lucas.beyeler@4linux.com.br>
 #                               <lucas.costab@outlook.com>
 ################################################################################
@@ -57,6 +57,7 @@ source /usr/local/lib/zmbackup/bash/BackupAction.sh
 source /usr/local/lib/zmbackup/bash/RestoreAction.sh
 source /usr/local/lib/zmbackup/bash/DeleteAction.sh
 source /usr/local/lib/zmbackup/bash/MigrationAction.sh
+source /usr/local/lib/zmbackup/bash/SessionAction.sh
 
 ################################################################################
 # ZMBACKUP MAIN CODE
@@ -149,8 +150,15 @@ case "$1" in
           restore_main_mailbox $3 $4
         ;;
         * )
-          show_help
-          printf "\n\nError! Incorrect option\n"
+          if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
+            constant
+            checkpid
+            restore_main_ldap $2 $3
+            restore_main_mailbox $2 $3
+          else
+            show_help
+            printf "\n\nError! Incorrect option\n"
+          fi
         ;;
       esac
     fi
@@ -175,7 +183,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.2.0 - BETA 4"
+    echo "zmbackup version: 1.2.0 - BETA 5"
   ;;
   "-m"|"--migrate" )
     migration

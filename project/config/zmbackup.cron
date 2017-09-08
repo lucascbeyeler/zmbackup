@@ -16,5 +16,5 @@ MAILTO=root
 30 1  * * 0     zimbra    zmbackup -f
 30 1  * * 1-6   zimbra    zmbackup -i
 0  1  * * *     zimbra    zmbackup -f -dl
-0  30 * * *     zimbra    zmbackup -f -al
+30 0  * * *     zimbra    zmbackup -f -al
 0  0  * * *     zimbra    zmbackup -hp

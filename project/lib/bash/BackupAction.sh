@@ -11,6 +11,7 @@
 #        ACOBJECT - User Account;
 ################################################################################
 function __backupFullInc(){
+  SDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
   ldap_backup $1 $2
   if [ $ERRCODE -eq 0 ]; then
     mailbox_backup $1
@@ -18,9 +19,10 @@ function __backupFullInc(){
       if [[ $SESSION_TYPE == 'TXT' ]]; then
         echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
       elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-        DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+        EDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
         SIZE=$(du -ch $WORKDIR/$i* | grep total | cut -f1)
-        echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE');" >> $TEMPSQL
+        echo "insert into backup_account (email,sessionID,account_size, initial_date, \
+              conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
       fi
     fi
   fi
@@ -36,14 +38,16 @@ function __backupFullInc(){
 #        ALOBJECT - Alias;
 ################################################################################
 function __backupLdap(){
+  SDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
   ldap_backup $1 $2
   if [ $ERRCODE -eq 0 ]; then
     if [[ $SESSION_TYPE == 'TXT' ]]; then
       echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-      DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      EDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -ch $WORKDIR/$i* | grep total | cut -f1)
-      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE');" >> $TEMPSQL
+      echo "insert into backup_account (email,sessionID,account_size, initial_date, \
+            conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
   fi
 }
@@ -56,14 +60,16 @@ function __backupLdap(){
 #        ACOBJECT - User Account;
 ################################################################################
 function __backupMailbox(){
+  SDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
   mailbox_backup $1 $2
   if [ $ERRCODE -eq 0 ]; then
     if [[ $SESSION_TYPE == 'TXT' ]]; then
       echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-      DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      EDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -ch $WORKDIR/$i* | grep total | cut -f1)
-      echo "insert into backup_account (email,sessionID,account_size) values ('$1','$SESSION','$SIZE');"  >> $TEMPSQL
+      echo "insert into backup_account (email,sessionID,account_size, initial_date, \
+            conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
   fi
 }
@@ -101,7 +107,9 @@ function backup_main()
       echo "SESSION: $SESSION started on $(date)" >> $TEMPSESSION
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_session(sessionID,initial_date,type,status) values ('$SESSION','$DATE','$STYPE','IN PROGRESS')" > /dev/null 2>&1
+      sqlite3 $WORKDIR/sessions.sqlite3 "insert into backup_session(sessionID,\
+                                         initial_date,type,status) values \
+                                         ('$SESSION','$DATE','$STYPE','IN PROGRESS')" > /dev/null 2>&1
     fi
     if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
       cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
@@ -121,7 +129,9 @@ function backup_main()
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -sh $WORKDIR/$i | awk {'print $1'})
       sqlite3 $WORKDIR/sessions.sqlite3 < $TEMPSQL > /dev/null 2>&1
-      sqlite3 $WORKDIR/sessions.sqlite3 "update backup_session set conclusion_date='$DATE',size='$SIZE',status='FINISHED' where sessionID='$SESSION'" > /dev/null 2>&1
+      sqlite3 $WORKDIR/sessions.sqlite3 "update backup_session set conclusion_date='$DATE',\
+                                         size='$SIZE',status='FINISHED' where \
+                                         sessionID='$SESSION'" > /dev/null 2>&1
     fi
     logger -i -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"
     echo "Backup session $SESSION finished on $(date)"

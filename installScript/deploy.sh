@@ -130,6 +130,7 @@ function deploy_upgrade(){
 ################################################################################
 function uninstall() {
   echo "Removing... Please wait while we made some changes."
+  source $ZMBKP_CONF/zmbackup.conf
   echo -ne '                     (0%)\r'
   rm -rf $ZMBKP_SHARE $ZMBKP_SRC/zmbhousekeep > /dev/null 2>&1
   rm -rf $OSE_INSTALL_DIR/.parallel
@@ -144,4 +145,10 @@ function uninstall() {
   echo -ne '###############       (75%)\r'
   sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
+  echo "Preserve Backup Storage?[n/Y]"
+  read OPT
+  if [[ $OPT != 'N' && $OPT != 'n' ]]; then
+    echo "Removing backup storage..."
+    rm -rf $WORKDIR/*
+  fi
 }
