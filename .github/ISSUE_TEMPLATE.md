@@ -11,6 +11,7 @@ ISSUE TYPE: Inform what kind of issue we are talking about. Choose only one opti
 - Feature Idea
 - Documentation Report
 - Question
+- Checklist
 
 <!--
 ENVIRONMENT VERSION: Describe the environment you are using the Zmbackup and its version.

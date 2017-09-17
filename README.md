@@ -50,7 +50,7 @@ If you use CentOS, first install the package **[epel-release](https://fedoraproj
 # yum install epel-release
 ```
 
-Now, install the packages **parallel**, **wget** and **httpie** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
+Now, install the packages **parallel**, **wget**, **sqlite3** and **httpie** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
 
 ```
 # apt-get install parallel wget httpie sqlite3
@@ -60,14 +60,14 @@ Now, install the packages **parallel**, **wget** and **httpie** in your server. 
 Download the latest package with the BETA tag in "Release" section, or git clone the development branch:
 
 ```
-git clone -b beta https://github.com/lucascbeyeler/zmbackup.git
+git clone -b 1.2-version https://github.com/lucascbeyeler/zmbackup.git
 ```
 
 Inside the project folder, execute the script **install.sh** and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
 
 ```
 # cd zmbackup
-# ./wizard.sh
+# ./install.sh
 # su - zimbra
 $ zmbackup -v
   zmbackup version: 1.2.0 Release Candidate
