@@ -92,3 +92,15 @@ The reinstall process is the same as the Upgrade/Downgrade process. The main dif
 $ zmbackup -v
   zmbackup version: 1.2.0 Release Candidate
 ```
+
+### Uninstall
+
+The uninstall process can be done downloading the latest release of Zmbackup to your machine and running the script **install.sh** with **-r** or **--remove**. To validate if the script is removed, change to your server's zimbra user and execute zmbackup -v.
+
+```
+# cd zmbackup
+# ./install.sh --force-upgrade
+# su - zimbra
+$ zmbackup -v
+  -bash: zmbackup: command not found
+```
