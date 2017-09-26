@@ -4,17 +4,28 @@
 # This file is used to manage the time and day each backup activity will be
 # executed. Please modify this file rather than create a new one.
 # Default values for each activity:
-#       Full Backup: Every Sunday at 1 AM
-#       Incremental Backup: From Monday to Saturday at 1 AM
-#       Alias: Every day at 1 AM
-#       Distribution List: Every day at 1 AM
-#       Backup Rotation: Every day at Midnight
+#       Full Backup:            Every Sunday at 1:30 AM
+#       Incremental:            From Monday to Saturday at 1:30 AM
+#       Alias:                  Every day at 0:30 AM
+#       Distribution List:      Every day at 1 AM
+#       Backup Rotation:        Every day at Midnight
+###############################################################################
+#                             ZMBACKUP VARIABLES                              #
 ###############################################################################
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 MAILTO=root
 30 1  * * 0     zimbra    zmbackup -f
-30 1  * * 1-6   zimbra    zmbackup -i
 0  1  * * *     zimbra    zmbackup -f -dl
 30 0  * * *     zimbra    zmbackup -f -al
+30 1  * * 1-6   zimbra    zmbackup -i
 0  0  * * *     zimbra    zmbackup -hp
+
+###############################################################################
+#                          ZMBACKUP - OTHER OPTIONS                           #
+###############################################################################
+# Mailbox Backup:     Every day at 1:30AM
+# LDAP Backup:        Every day at 1:00AM
+###############################################################################
+# 30 1 * * *      zimbra    zmbackup -f -ldp
+# 30 1  * * 0     zimbra    zmbackup -f -m
