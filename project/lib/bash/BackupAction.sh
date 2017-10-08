@@ -98,7 +98,7 @@ function backup_main()
     done
   fi
 
-  # If $TEMPACCOUNT is not empty, do a backup, if not do nothing
+  # If $TEMPACCOUNT is not empty, do a backup, if is do nothing
   if [ -s $TEMPACCOUNT ]; then
     notify_begin $SESSION $STYPE
     logger -i -p local7.info "Zmbackup: Backup session $SESSION started on $(date)"
