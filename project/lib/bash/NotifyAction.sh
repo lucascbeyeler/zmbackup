@@ -43,7 +43,7 @@ function notify_finish()
   SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
   if [[ "$1" == "mbox"* ]]; then
     QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
-  else:
+  else
     QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
   fi
 
