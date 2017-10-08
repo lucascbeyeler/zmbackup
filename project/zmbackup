@@ -113,56 +113,50 @@ case "$1" in
   ;;
   "-r"|"--restore" )
     create_temp
-    if [ -z "$3" ]; then
-      show_help
-      printf "\n\nError! Please inform the session that should be restored\n\n"
-      exit 2
-    else
-      case "$2" in
-        "-dl"|"--distributionlist" )
+    case "$2" in
+      "-dl"|"--distributionlist" )
+        constant $2
+        checkpid
+        restore_main_ldap $3 $4
+      ;;
+      "-al"|"--alias" )
+        constant $2
+        checkpid
+        restore_main_ldap $3 $4
+      ;;
+      "-ldp"|"--ldap" )
+        constant $2
+        checkpid
+        restore_main_ldap $3 $4
+      ;;
+      "-ro"|"--restoreOnAccount" )
+        if [ -z "$4" ] || [ -z "$5" ]; then
+          show_help
+          printf "\n\nError! Please inform the account that should be restored, and when the restore should be placed.\n\n"
+          exit 2
+        else
           constant $2
           checkpid
-          restore_main_ldap $3 $4
-        ;;
-        "-al"|"--alias" )
-          constant $2
+          restore_main_mailbox $3 $4 $5
+        fi
+      ;;
+      "-m"|"--mail" )
+        constant $2
+        checkpid
+        restore_main_mailbox $3 $4
+      ;;
+      * )
+        if [[ "$2" == "full"* || "$2" == "inc"* ]]; then
+          constant
           checkpid
-          restore_main_ldap $3 $4
-        ;;
-        "-ldp"|"--ldap" )
-          constant $2
-          checkpid
-          restore_main_ldap $3 $4
-        ;;
-        "-ro"|"--restoreOnAccount" )
-          if [ -z "$4" ] || [ -z "$5" ]; then
-            show_help
-            printf "\n\nError! Please inform the account that should be restored, and when the restore should be placed.\n\n"
-            exit 2
-          else
-            constant $2
-            checkpid
-            restore_main_mailbox $3 $4 $5
-          fi
-        ;;
-        "-m"|"--mail" )
-          constant $2
-          checkpid
-          restore_main_mailbox $3 $4
-        ;;
-        * )
-          if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
-            constant
-            checkpid
-            restore_main_ldap $2 $3
-            restore_main_mailbox $2 $3
-          else
-            show_help
-            printf "\n\nError! Incorrect option\n"
-          fi
-        ;;
-      esac
-    fi
+          restore_main_ldap $2 $3
+          restore_main_mailbox $2 $3
+        else
+          show_help
+          printf "\n\nError! Invalid parameters for restore\n"
+        fi
+      ;;
+    esac
   ;;
   "-d"|"--delete" )
     if [ -z "$2" ]; then

@@ -37,8 +37,8 @@ function restore_main_mailbox()
     printf "\nRestore mail process with session $1 completed at $(date)\n"
   else
     echo "Nothing to do. Closing..."
+    exit 2
   fi
-  exit 2
 }
 
 ################################################################################
@@ -63,6 +63,6 @@ function restore_main_ldap()
     echo "Restore LDAP process with session $1 completed at $(date)"
   else
     echo "Nothing to do. Closing..."
+    exit 2
   fi
-  exit 2
 }
