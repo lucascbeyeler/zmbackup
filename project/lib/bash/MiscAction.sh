@@ -79,29 +79,29 @@ function constant(){
   if [[ $? -ne 0 || $1 == '--full' || $1 == '-f' ]]; then
     export readonly STYPE="Full Account"
     export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='FALSE'
   elif [[ $1 == '--incremental' || $1 == '-i' ]]; then
     export readonly STYPE="Incremental Account"
     export readonly SESSION="inc-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='TRUE'
   elif [[ $1 == '--alias' || $1 == '-al' ]]; then
     export readonly STYPE="Alias"
     export readonly SESSION="alias-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='FALSE'
   elif [[ $1 == '-dl' || $1 == '--distributionlist' ]]; then
     export readonly STYPE="Distribution List"
     export readonly SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='FALSE'
   elif [[ $1 == '-m' || $1 == '--mail' ]]; then
     export readonly STYPE="Mailbox"
     export readonly SESSION="mbox-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='FALSE'
   elif [[ $1 == '--ldap' || $1 == '-ldp' ]]; then
     export readonly STYPE="Account - Only LDAP"
     export readonly SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='FALSE'
   else
     export readonly STYPE=""
-  fi
-
-  if [[ $2 == 'TRUE' ]]; then
-    export readonly INC='TRUE'
-  else
-    export readonly INC='FALSE'
   fi
 }
 
