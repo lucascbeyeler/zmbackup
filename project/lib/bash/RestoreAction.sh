@@ -37,6 +37,7 @@ function restore_main_mailbox()
     printf "\nRestore mail process with session $1 completed at $(date)\n"
   else
     echo "Nothing to do. Closing..."
+    rm -rf $PID
     exit 2
   fi
 }

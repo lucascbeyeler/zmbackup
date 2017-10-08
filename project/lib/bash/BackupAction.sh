@@ -137,6 +137,7 @@ function backup_main()
     echo "Backup session $SESSION finished on $(date)"
   else
     echo "Nothing to do. Closing..."
+    rm -rf $PID
     exit 2
   fi
 }
