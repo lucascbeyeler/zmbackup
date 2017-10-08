@@ -73,8 +73,10 @@ function constant(){
   # PID FILE
   export readonly PID='/opt/zimbra/log/zmbackup.pid'
 
+  ls $WORKDIR/full* > /dev/null 2>&1
+
   # SESSION VARS
-  if [[ $1 == '--full' || $1 == '-f' ]]; then
+  if [[ $? -ne 0 || $1 == '--full' || $1 == '-f' ]]; then
     export readonly STYPE="Full Account"
     export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
   elif [[ $1 == '--incremental' || $1 == '-i' ]]; then
