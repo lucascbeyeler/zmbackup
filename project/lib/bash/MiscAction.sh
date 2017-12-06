@@ -200,10 +200,17 @@ function validate_config(){
 ################################################################################
 function checkpid(){
   if [[ -f "$PID" ]]; then
-    echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
-    echo "This file exist as a secure measurement to protect your system to run two zmbackup"
-    echo "instances at the same time."
-    exit 3
+    PIDP=`cat $PID`
+    PIDR=`ps -efa | awk '{print $2}' | grep -c "^$PIDP$"`
+    if [ $PIDR -gt 0 ]; then
+      echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
+      echo "This file exist as a secure measurement to protect your system to run two zmbackup"
+      echo "instances at the same time."
+      exit 3
+    else
+      echo 'Found stale PID file. Proceeding'
+      echo $$ > $PID
+    fi
   else
     echo $$ > $PID
   fi
