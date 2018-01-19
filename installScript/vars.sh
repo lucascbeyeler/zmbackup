@@ -8,6 +8,7 @@ ERR_OK="0"  		         # No error (normal exit)
 ERR_NOBKPDIR="1"  	     # No backup directory could be found
 ERR_NOROOT="2"  		     # Running without root privileges
 ERR_DEPNOTFOUND="3"  	   # Missing dependency
+ERR_NO_CONNECTION="4"    # Missing connection to install packages
 
 # ZMBACKUP INSTALLATION PATH
 MYDIR=`dirname $0`                       # The directory where the install script is

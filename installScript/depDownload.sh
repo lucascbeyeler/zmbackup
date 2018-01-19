@@ -27,7 +27,11 @@ function install_redhat() {
   echo "Installing dependencies. Please wait..."
   cat /etc/redhat-release | grep 6 > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
-    wget -O "/etc/yum.repos.d/tange.repo" $OLE_TANGE
+    wget -O "/etc/yum.repos.d/tange.repo" $OLE_TANGE > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+      echo "Failure - Can't install Tange's repository for Parallel"
+      exit $ERR_NO_CONNECTION
+    fi
   fi
   yum install -y epel-release  > /dev/null 2>&1
   yum install -y parallel wget httpie  > /dev/null 2>&1
