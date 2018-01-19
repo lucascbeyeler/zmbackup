@@ -28,3 +28,6 @@ ROTATE_TIME="30"                                                                
 LOCK_BACKUP=true                                                                  # Zmbackup's backup lock
 ZMBKP_VERSION="zmbackup version: 1.2.0 - Release Candidate 2"                       # Zmbackup's latest version
 SESSION_TYPE="TXT"                                                                # Zmbackup's default session type
+
+# REPOSITORIES FOR PACKAGES
+OLE_TANGE="http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo"
