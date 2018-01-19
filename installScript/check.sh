@@ -50,7 +50,7 @@ function check_env() {
 function check_config() {
   echo "Recovering all the configuration... Please wait"
   OSE_INSTALL_HOSTNAME=`su - $OSE_USER -c "zmhostname"`
-  OSE_INSTALL_ADDRESS=`grep $OSE_INSTALL_HOSTNAME /etc/hosts|awk '{print $1}'`
+  OSE_INSTALL_ADDRESS=`grep -m 1 $OSE_INSTALL_HOSTNAME /etc/hosts|awk '{print $1}'`
   OSE_INSTALL_LDAPPASS=`su - $OSE_USER -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`
 
   echo ""
