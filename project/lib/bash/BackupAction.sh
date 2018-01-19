@@ -112,13 +112,13 @@ function backup_main()
                                          ('$SESSION','$DATE','$STYPE','IN PROGRESS')" > /dev/null 2>&1
     fi
     if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $1'
     elif [[ "$SESSION" == "mbox"* ]]; then
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupMailbox {} $1'
     else
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupLdap {} $1'
     fi
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"

@@ -31,7 +31,7 @@ function restore_main_mailbox()
       fi
     else
       build_listRST $1 $2
-      cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                "mailbox_restore $1 {}"
     fi
     printf "\nRestore mail process with session $1 completed at $(date)\n"
@@ -59,7 +59,7 @@ function restore_main_ldap()
   if ! [ -s "$SESSION" ]; then
     echo "Restore LDAP process with session $1 started at $(date)"
     build_listRST $1 $2
-    cat $TEMPACCOUNT | parallel --no-notice --jobs $MAX_PARALLEL_PROCESS \
+    cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                               "ldap_restore $1 {}"
     echo "Restore LDAP process with session $1 completed at $(date)"
   else
