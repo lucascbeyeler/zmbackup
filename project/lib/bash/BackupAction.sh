@@ -26,6 +26,7 @@ function __backupFullInc(){
       fi
     fi
   fi
+  exit $ERRCODE
 }
 
 ################################################################################
@@ -50,6 +51,7 @@ function __backupLdap(){
             conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
   fi
+  exit $ERRCODE
 }
 
 ################################################################################
@@ -72,6 +74,7 @@ function __backupMailbox(){
             conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
   fi
+  exit $ERRCODE
 }
 
 ################################################################################
@@ -111,15 +114,28 @@ function backup_main()
                                          initial_date,type,status) values \
                                          ('$SESSION','$DATE','$STYPE','IN PROGRESS')" > /dev/null 2>&1
     fi
+    cat $TEMPACCOUNT
     if [[ "$SESSION" == "full"* ]] || [[ "$SESSION" == "inc"* ]]; then
       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $1'
+      ERRCODE=$?
+      if [ $ERRCODE > 0 ]; then
+        exit_code=$ERRCODE
+      fi
     elif [[ "$SESSION" == "mbox"* ]]; then
       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupMailbox {} $1'
+      ERRCODE=$?
+      if [ $ERRCODE > 0 ]; then
+        exit_code=$ERRCODE
+      fi
     else
       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupLdap {} $1'
+      ERRCODE=$?
+      if [ $ERRCODE > 0 ]; then
+        exit_code=$ERRCODE
+      fi
     fi
     mv "$TEMPDIR" "$WORKDIR/$SESSION" && rm -rf "$TEMPDIR"
     if [[ $SESSION_TYPE == 'TXT' ]]; then
@@ -135,6 +151,7 @@ function backup_main()
     fi
     logger -i -p local7.info "Zmbackup: Backup session $SESSION finished on $(date)"
     echo "Backup session $SESSION finished on $(date)"
+    export exit_code=$exit_code
   else
     echo "Nothing to do. Closing..."
     rm -rf $PID

@@ -67,6 +67,7 @@ load_config
 validate_config
 export_function
 export_vars
+exit_code=0
 case "$1" in
   "-f"|"--full" )
     case "$2" in
@@ -205,4 +206,4 @@ case "$1" in
     printf "\n\nError! Incorrect options\n\n"
   ;;
 esac
-exit 0
+exit $exit_code
