@@ -49,12 +49,11 @@ function mailbox_backup()
   if [[ $? -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
       logger -i -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished."
-      export ERRCODE=0
     else
       logger -i -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished, but the file is empty. Removing..."
       rm -rf $TEMPDIR/$1.tgz
-      export ERRCODE=1
     fi 
+    export ERRCODE=0
   else
     logger -i -p local7.err "Zmbackup: Mailbox - Backup for account $1 failed. Error message below:"
     logger -i -p local7.err "Zmbackup: $1 - $ERR"

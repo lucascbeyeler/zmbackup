@@ -8,7 +8,7 @@
 ################################################################################
 function on_exit(){
   ERRCODE=$?
-  if [[ $ERRCODE > 0 ]]; then
+  if [[ $ERRCODE == 1 || $ERRCODE > 2  ]]; then
     notify_finish "$SESSION" "$STYPE" "FAILURE"
   elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
     notify_finish "$SESSION" "$STYPE" "SUCCESS"
@@ -243,4 +243,5 @@ function export_vars(){
   export WORKDIR
   export LOCK_BACKUP
   export SESSION_TYPE
+  export exit_code=0
 }
