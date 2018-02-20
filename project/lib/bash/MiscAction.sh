@@ -8,7 +8,7 @@
 ################################################################################
 function on_exit(){
   ERRCODE=$?
-  if [[ $ERRCODE == 1 || $ERRCODE > 2  ]]; then
+  if [[ $ERRCODE == 1 || $ERRCODE -gt 2  ]]; then
     notify_finish "$SESSION" "$STYPE" "FAILURE"
   elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
     notify_finish "$SESSION" "$STYPE" "SUCCESS"

@@ -119,21 +119,21 @@ function backup_main()
       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupFullInc {} $1'
       ERRCODE=$?
-      if [ $ERRCODE > 0 ]; then
+      if [ $ERRCODE -gt 0 ]; then
         exit_code=$ERRCODE
       fi
     elif [[ "$SESSION" == "mbox"* ]]; then
       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupMailbox {} $1'
       ERRCODE=$?
-      if [ $ERRCODE > 0 ]; then
+      if [ $ERRCODE -gt 0 ]; then
         exit_code=$ERRCODE
       fi
     else
       cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
                          '__backupLdap {} $1'
       ERRCODE=$?
-      if [ $ERRCODE > 0 ]; then
+      if [ $ERRCODE -gt 0 ]; then
         exit_code=$ERRCODE
       fi
     fi
