@@ -48,7 +48,11 @@ function notify_finish()
   fi
 
   # The message
-  printf "Subject: Zmbackup - Backup routine for $1 complete at $(date) - $3" > $MESSAGE
+  if [ $exit_code == 0 ]; then
+    printf "Subject: Zmbackup - $3 - Backup routine for $1 completed successfully at $(date)" > $MESSAGE
+  else
+    printf "Subject: Zmbackup - $3 - Backup routine for $1 completed with errors at $(date)" > $MESSAGE
+  fi
   printf "\nGreetings Administrator," >> $MESSAGE
   printf "\n\nThis is an automatic message to inform you that the process for $2 BACKUP that you scheduled ended right now." >> $MESSAGE
   printf "\nHere some information about this session:" >> $MESSAGE

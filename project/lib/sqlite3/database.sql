@@ -8,7 +8,7 @@
   );
 
   create table backup_account(
-    id integer primary key autoincrement,
+    id integer primary key,
     sessionID varchar not null,
     account_size varchar not null,
     email varchar not null,

@@ -8,10 +8,10 @@
 ################################################################################
 function on_exit(){
   ERRCODE=$?
-  if [[ $ERRCODE -eq 1 ]]; then
-    notify_finish $SESSION $STYPE "FAILURE"
+  if [[ $ERRCODE == 1 || $ERRCODE -gt 2  ]]; then
+    notify_finish "$SESSION" "$STYPE" "FAILURE"
   elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
-    notify_finish $SESSION $STYPE "SUCCESS"
+    notify_finish "$SESSION" "$STYPE" "SUCCESS"
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $MESSAGE $TEMPSQL $FAILURE
   logger -i -p local7.info "Zmbackup: Excluding the temporary files before close."
@@ -243,4 +243,5 @@ function export_vars(){
   export WORKDIR
   export LOCK_BACKUP
   export SESSION_TYPE
+  export exit_code=0
 }
