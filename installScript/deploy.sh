@@ -94,8 +94,14 @@ function deploy_new() {
   echo -ne '###################   (95%)\r'
 
   # Creating Zmbackup backup user
-  sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" > /dev/null 2>&1
-  echo -ne '####################  (100%)\r'
+  STATUS=$((sudo -H -u $OSE_USER bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1") 2>&1)
+  if [[ $? -eq 0 ]]; then
+      echo -ne '####################  (100%)\r'
+  else
+    echo "ERROR - Can't create the user. Executing rollback process"
+    echo "Error description: $STATUS"
+    uninstall
+  fi
 }
 
 ################################################################################
@@ -136,6 +142,7 @@ function uninstall() {
   rm -rf $OSE_INSTALL_DIR/.parallel
   rm -rf $OSE_INSTALL_DIR/.httpie
   echo -ne '#####                 (25%)\r'
+  rm -rf /etc/yum.repos.d/tange.repo
   rm -rf /etc/cron.d/zmbackup.cron
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '##########            (50%)\r'
