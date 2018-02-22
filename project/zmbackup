@@ -205,4 +205,4 @@ case "$1" in
     printf "\n\nError! Incorrect options\n\n"
   ;;
 esac
-exit $ERRCODE
+exit 0
