@@ -26,7 +26,6 @@ function __backupFullInc(){
       fi
     fi
   fi
-  exit $ERRCODE
 }
 
 ################################################################################
@@ -51,7 +50,6 @@ function __backupLdap(){
             conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
   fi
-  exit $ERRCODE
 }
 
 ################################################################################
@@ -74,7 +72,6 @@ function __backupMailbox(){
             conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
   fi
-  exit $ERRCODE
 }
 
 ################################################################################
