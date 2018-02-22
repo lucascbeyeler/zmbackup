@@ -52,7 +52,7 @@ function mailbox_backup()
     else
       logger -i -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished, but the file is empty. Removing..."
       rm -rf $TEMPDIR/$1.tgz
-    fi 
+    fi
     export ERRCODE=0
   else
     logger -i -p local7.err "Zmbackup: Mailbox - Backup for account $1 failed. Error message below:"
