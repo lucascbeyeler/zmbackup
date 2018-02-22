@@ -8,11 +8,10 @@ Zmbackup - Backup Script for Zimbra OSE
 
 Zmbackup is a reliable Bash shell script developed to help you in your daily task to backup and restore mails and accounts from Zimbra Open Source Email Platform. This script is based on another project called [Zmbkpose](https://github.com/bggo/Zmbkpose), and completely compatible with the structure if you have plans on migrate from one to another.
 
-[![Build Status](https://travis-ci.org/lucascbeyeler/zmbackup.svg?branch=master)](https://travis-ci.org/lucascbeyeler/zmbackup)
 [![Zimbra Version](https://img.shields.io/badge/Zimbra%20OSE-8.8.6-orange.svg)](https://www.zimbra.com/downloads/zimbra-collaboration-open-source/)
 ![Linux Distro](https://img.shields.io/badge/platform-CentOS%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
 ![Branch](https://img.shields.io/badge/Branch-Release%20Candidate-yellow.svg)
-![Release](https://img.shields.io/badge/Release-1.2.0%20Release%20Candidate%202-green.svg)
+![Release](https://img.shields.io/badge/Release-1.2.0-green.svg)
 
 Features
 ------------
@@ -70,7 +69,7 @@ Inside the project folder, execute the script **install.sh** and follow all the 
 # ./install.sh
 # su - zimbra
 $ zmbackup -v
-  zmbackup version: 1.2.0 Release Candidate 2
+  zmbackup version: 1.2.0
 ```
 
 Usage
@@ -189,7 +188,7 @@ Want to contribute to the project?
 ------------------
 * **We are looking for Beta Testers to use the latest release of Zmbackup at this moment.** Want to help? Install a Zimbra server in your note, create some accounts and keep using Zmbackup. Any problem you find can be reported in Issues and our Google Group, and will be fixed in the next release.
 
-  * **Valid version:** 1.2.0 Release Candidate 2
+  * **Valid version:** 1.2.0
 
 
 * **We are looking for peoples to correct and keep up to date the documentation:** At this moment the documentation is only this README.md file, but I have plans to expand to a real documentation using Read the Docs. Do you have time and want to write? You can fork this project and start right now! Remember to document only 1.2.0 content there!
