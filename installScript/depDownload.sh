@@ -25,6 +25,11 @@ function install_ubuntu() {
 ################################################################################
 function install_redhat() {
   echo "Installing dependencies. Please wait..."
+  yum install wget -y > /dev/null 2>&1
+  if [[ $? -ne 0 ]]; then
+    echo "Failure - Can't install Wget"
+    exit $ERR_NO_CONNECTION
+  fi
   cat /etc/redhat-release | grep 6 > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
     wget -O "/etc/yum.repos.d/tange.repo" $OLE_TANGE > /dev/null 2>&1
@@ -32,9 +37,19 @@ function install_redhat() {
       echo "Failure - Can't install Tange's repository for Parallel"
       exit $ERR_NO_CONNECTION
     fi
+    yum install -y python-pip -y  > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+      echo "Failure - Can't install python-pip to download and install httpie"
+      exit $ERR_NO_CONNECTION
+    fi
+    pip install httpie  > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+      echo "Failure - Can't install httpie"
+      exit $ERR_NO_CONNECTION
+    fi
   fi
   yum install -y epel-release  > /dev/null 2>&1
-  yum install -y parallel wget httpie  > /dev/null 2>&1
+  yum install -y parallel httpie  > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
     echo "Dependencies installed with success!"
   else
@@ -69,7 +84,11 @@ function remove_ubuntu() {
 ################################################################################
 function remove_redhat() {
   echo "Removing dependencies. Please wait..."
-  yum remove -y parallel wget httpie  > /dev/null 2>&1
+  cat /etc/redhat-release | grep 6 > /dev/null 2>&1
+  if [[ $? -eq 0 ]]; then
+    pip uninstall -y httpie > /dev/null 2>&1
+  fi
+  yum remove -y parallel wget httpie python-pip > /dev/null 2>&1
   if [[ $? -eq 0 ]]; then
     echo "Dependencies removed with success!"
   else
