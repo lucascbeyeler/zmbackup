@@ -112,6 +112,8 @@ function constant(){
 ################################################################################
 function validate_config(){
 
+  ERR="false"
+
   if [ -z "$BACKUPUSER" ]; then
   	BACKUPUSER="zimbra"
     logger -i -p local7.warn "Zmbackup: BACKUPUSER not informed - setting as user zimbra instead."
@@ -126,12 +128,6 @@ function validate_config(){
   if [ -z "$WORKDIR" ]; then
     WORKDIR="/opt/zimbra/backup"
     logger -i -p local7.warn "Zmbackup: WORKDIR not informed - setting as /opt/zimbra/backup/ instead."
-  fi
-
-  if ! [ -d "$WORKDIR" ]; then
-    echo "The directory $WORKDIR doesn't exist."
-    logger -i -p local7.err "Zmbackup: The directory $WORKDIR does not found."
-    exit 2
   fi
 
   if [ -z "$MAILHOST" ]; then
@@ -154,46 +150,64 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: LOCK_BACKUP not informed - enabling."
   fi
 
+  if ! [ -d "$WORKDIR" ]; then
+    echo "The directory $WORKDIR doesn't exist."
+    logger -i -p local7.err "Zmbackup: The directory $WORKDIR does not found."
+    ERR="true"
+  fi
+
   if [ -z "$ADMINUSER" ]; then
     echo "You need to define the variable ADMINUSER."
     logger -i -p local7.err "Zmbackup: You need to define the variable ADMINUSER."
-    exit 2
+    ERR="true"
   fi
 
   if [ -z "$ADMINPASS" ]; then
     echo "You need to define the variable ADMINPASS."
     logger -i -p local7.err "Zmbackup: You need to define the variable ADMINPASS."
-    exit 2
+    ERR="true"
   fi
 
   if [ -z "$LDAPSERVER" ]; then
     echo "You need to define the variable LDAPSERVER."
     logger -i -p local7.err "Zmbackup: You need to define the variable LDAPSERVER."
-    exit 2
+    ERR="true"
   fi
 
   if [ -z "$LDAPADMIN" ]; then
     echo "You need to define the variable LDAPADMIN."
     logger -i -p local7.err "Zmbackup: You need to define the variable LDAPADMIN."
-    exit 2
+    ERR="true"
   fi
 
   if [ -z "$LDAPPASS" ]; then
     echo "You need to define the variable LDAPPASS."
     logger -i -p local7.err "Zmbackup: You need to define the variable LDAPPASS."
-    exit 2
+    ERR="true"
   fi
 
   if [ -z "$ROTATE_TIME" ]; then
     echo "You need to define the variable ROTATE_TIME."
     logger -i -p local7.err "Zmbackup: You need to define the variable ROTATE_TIME."
-    exit 2
+    ERR="true"
   fi
 
   if [ -z "$SESSION_TYPE" ]; then
     echo "You need to define the variable SESSION_TYPE."
     logger -i -p local7.err "Zmbackup: You need to define the variable SESSION_TYPE."
-    exit 2
+    ERR="true"
+  fi
+
+  if [ -z "$BACKUP_INACTIVE_ACCOUNTS" ]; then
+    echo "You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
+    logger -i -p local7.err "Zmbackup: You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
+    ERR="true"
+  fi
+
+  if [ "$ERR" == "true" ]; then
+    echo "Some errors are found inside the config file. Please fix then and try again later."
+    logger -i -p local7.err "Zmbackup: You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
+    exit 3
   fi
 }
 
@@ -208,7 +222,7 @@ function checkpid(){
       echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
       echo "This file exist as a secure measurement to protect your system to run two zmbackup"
       echo "instances at the same time."
-      exit 3
+      exit 4
     else
       echo 'Found stale PID file. Proceeding'
       echo $$ > $PID
