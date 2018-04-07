@@ -63,8 +63,12 @@ function load_config(){
 ################################################################################
 function constant(){
   # LDAP OBJECT
+  if [ "$BACKUP_INACTIVE_ACCOUNTS" == "true" ]; then
+    export readonly ACOBJECT="(objectclass=zimbraAccount)"
+  else
+    export readonly ACOBJECT="(&(objectclass=zimbraAccount)(zimbraAccountStatus=active))"
+  fi
   export readonly DLOBJECT="(objectclass=zimbraDistributionList)"
-  export readonly ACOBJECT="(objectclass=zimbraAccount)"
   export readonly ALOBJECT="(objectclass=zimbraAlias)"
 
   # LDAP FILTER
