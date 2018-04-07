@@ -21,7 +21,6 @@ function delete_one(){
     echo "Session $1 not found in database - ignoring."
   fi
   rm -rf $PID
-  exit 2
 }
 
 ################################################################################

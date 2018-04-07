@@ -38,7 +38,6 @@ function restore_main_mailbox()
   else
     echo "Nothing to do. Closing..."
     rm -rf $PID
-    exit 2
   fi
 }
 
@@ -64,6 +63,5 @@ function restore_main_ldap()
     echo "Restore LDAP process with session $1 completed at $(date)"
   else
     echo "Nothing to do. Closing..."
-    exit 2
   fi
 }

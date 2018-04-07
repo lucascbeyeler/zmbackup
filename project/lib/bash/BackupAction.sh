@@ -138,6 +138,5 @@ function backup_main()
   else
     echo "Nothing to do. Closing..."
     rm -rf $PID
-    exit 2
   fi
 }
