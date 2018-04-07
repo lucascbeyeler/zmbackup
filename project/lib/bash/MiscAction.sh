@@ -8,7 +8,7 @@
 ################################################################################
 function on_exit(){
   ERRCODE=$?
-  if [[ -z $STYPE ]]; then
+  if [[ ! -z $STYPE ]]; then
     if [[ $ERRCODE -eq 1 ]]; then
       notify_finish $SESSION $STYPE "FAILURE"
     elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
@@ -137,6 +137,11 @@ function validate_config(){
   if [ -z "$MAILHOST" ]; then
     MAILHOST="127.0.0.1"
     logger -i -p local7.warn "Zmbackup: MAILHOST not informed - setting as 127.0.0.1 instead."
+  fi
+
+  if [ -z "$ENABLE_EMAIL_NOTIFY" ]; then
+    ENABLE_EMAIL_NOTIFY="all"
+    logger -i -p local7.warn "Zmbackup: ENABLE_EMAIL_NOTIFY not informed - setting as 'all' instead."
   fi
 
   if [ -z "$EMAIL_NOTIFY" ]; then
