@@ -12,7 +12,7 @@ function on_exit(){
     if [[ $ERRCODE -eq 1 ]]; then
       notify_finish $SESSION $STYPE "FAILURE"
     elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
-      notify_finish $SESSION $STYPE "SUCCESS"
+      notify_finish $SESSION "$STYPE" "SUCCESS"
     fi
   fi
   rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $MESSAGE $TEMPSQL $FAILURE
