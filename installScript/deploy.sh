@@ -57,7 +57,7 @@ function deploy_new() {
   # Creating httpie config directory
   mkdir $OSE_INSTALL_DIR/.httpie > /dev/null 2>&1 && chown zimbra. $OSE_INSTALL_DIR/.httpie
 
-  install --backup=numbered -o root -m 600 $MYDIR/project/config/zmbackup.cron /etc/cron.d
+  install --backup=numbered -o root -m 600 $MYDIR/project/config/zmbackup.cron /etc/cron.d/zmbackup
   echo -ne '#######               (35%)\r'
   install --backup=numbered -o $OSE_USER -m 600 $MYDIR/project/config/zmbackup.conf $ZMBKP_CONF
   echo -ne '########              (40%)\r'
@@ -143,7 +143,7 @@ function uninstall() {
   rm -rf $OSE_INSTALL_DIR/.httpie
   echo -ne '#####                 (25%)\r'
   rm -rf /etc/yum.repos.d/tange.repo
-  rm -rf /etc/cron.d/zmbackup.cron
+  rm -rf /etc/cron.d/zmbackup
   rm -rf $ZMBKP_LIB $ZMBKP_CONF $ZMBKP_SRC/zmbackup
   echo -ne '##########            (50%)\r'
   if [[ -f $ZMBKP_CONF/blacklist.conf ]]; then
