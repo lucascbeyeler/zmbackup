@@ -111,6 +111,11 @@ function set_values() {
   done
   SESSION_TYPE=${TMP:-$SESSION_TYPE}
 
+  # Change Zmbackup password
+  printf "\nInform a password for zmbackup user - DEFAULT [$ZMBKP_PASSWORD]:"
+  read TMP
+  TMP=${TMP:-$ZMBKP_PASSWORD}
+
   echo -e "\n\n"
   echo "##################################################################################"
   echo "#                                                                                #"
