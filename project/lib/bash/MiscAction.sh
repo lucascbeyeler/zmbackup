@@ -144,6 +144,11 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: ENABLE_EMAIL_NOTIFY not informed - setting as 'all' instead."
   fi
 
+  if [ -z "$EMAIL_SENDER" ]; then
+    EMAIL_SENDER="root@"$(hostname -d)
+    logger -i -p local7.warn "Zmbackup: EMAIL_SENDER not informed - setting as $EMAIL_SENDER instead."
+  fi
+
   if [ -z "$EMAIL_NOTIFY" ]; then
     EMAIL_NOTIFY="root@localdomain.com"
     logger -i -p local7.warn "Zmbackup: EMAIL_NOTIFY not informed - setting as root@localdomain.com instead."

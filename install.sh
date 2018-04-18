@@ -8,6 +8,7 @@
 ################################################################################
 # LOADING INSTALL LIBRARIES
 ################################################################################
+echo "Loading installer - PLEASE WAIT"
 source installScript/check.sh
 source installScript/depDownload.sh
 source installScript/deploy.sh
