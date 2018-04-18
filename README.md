@@ -11,7 +11,7 @@ Zmbackup is a reliable Bash shell script developed to help you in your daily tas
 [![Zimbra Version](https://img.shields.io/badge/Zimbra%20OSE-8.8.8-orange.svg)](https://www.zimbra.com/downloads/zimbra-collaboration-open-source/)
 ![Linux Distro](https://img.shields.io/badge/platform-CentOS%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
 ![Branch](https://img.shields.io/badge/Branch-Stable-green.svg)
-![Release](https://img.shields.io/badge/Release-1.2.1-green.svg)
+![Release](https://img.shields.io/badge/Release-1.2.2-green.svg)
 
 Features
 ------------
@@ -141,11 +141,13 @@ To restore a backup, you use the option **-r** or **--restore**, but this time y
 
 ```
 $ zmbackup -l
-+---------------------------+------------+----------+----------------------------+
-|       Session Name        |    Date    |   Size   |        Description         |
-+---------------------------+------------+----------+----------------------------+
-| full-20170621201603       | 06/21/2017 | 32K      | Full Backup                |
-+---------------------------+------------+----------+----------------------------+
++---------------------------+--------------+--------------+----------+----------------------------+
+|       Session Name        |    Start     |    Ending    |   Size   |        Description         |
++---------------------------+--------------+--------------+----------+----------------------------+
+| full-20180408160227       |  04/08/2018  |  04/08/2018  | 76K      | Full Account               |
+| mbox-20180408160808       |  04/08/2018  |  04/08/2018  | 40K      | Mailbox                    |
++---------------------------+--------------+--------------+----------+----------------------------+
+
 
 $ zmbackup -r -m  full-20170621201603
 ```
@@ -188,10 +190,10 @@ Want to contribute to the project?
 ------------------
 * **We are looking for Beta Testers to use the latest release of Zmbackup at this moment.** Want to help? Install a Zimbra server in your note, create some accounts and keep using Zmbackup. Any problem you find can be reported in Issues and our Google Group, and will be fixed in the next release.
 
-  * **Valid version:** 1.2.1
+  * **Valid version:** 1.2.2
 
 
-* **We are looking for peoples to correct and keep up to date the documentation:** At this moment the documentation is only this README.md file, but I have plans to expand to a real documentation using Read the Docs. Do you have time and want to write? You can fork this project and start right now! Remember to document only 1.2.0 content there!
+* **We are looking for peoples to correct and keep up to date the documentation:** At this moment the documentation is only this README.md file, but I have plans to expand to a real documentation using Read the Docs. Do you have time and want to write? You can fork this project and start right now! Remember to document only 1.2.2 content there!
 
 License
 -------
