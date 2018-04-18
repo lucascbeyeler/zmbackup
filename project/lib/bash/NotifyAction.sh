@@ -19,7 +19,7 @@ function notify_begin()
     printf "\nDon't worry, we will inform you when the process finish." >> $MESSAGE
     printf "\n\nRegards," >> $MESSAGE
     printf "\nZmbackup Team" >> $MESSAGE
-    sendmail $EMAIL_NOTIFY < $MESSAGE
+    ERR=$((sendmail -f $EMAIL_SENDER $EMAIL_NOTIFY < $MESSAGE ) 2>&1)
     if [[ $? -eq 0 ]]; then
       logger -i -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine begin."
     else
@@ -63,7 +63,7 @@ function notify_finish()
     printf "\nZmbackup Team" >> $MESSAGE
     printf "\n\nSummary of files:\n" >> $MESSAGE
     cat $TEMPSESSION >> $MESSAGE
-    ERR=$((sendmail $EMAIL_NOTIFY < $MESSAGE ) 2>&1)
+    ERR=$((sendmail -f $EMAIL_SENDER $EMAIL_NOTIFY < $MESSAGE ) 2>&1)
     if [[ $? -eq 0 ]]; then
       logger -i -p local7.info "Zmbackup: Mail sended to $EMAIL_NOTIFY to notify about the backup routine conclusion."
     else
