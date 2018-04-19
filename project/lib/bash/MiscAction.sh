@@ -191,20 +191,6 @@ function validate_config(){
     ERR="true"
   fi
 
-  if [ -z "$LDAPSERVER" ]; then
-    echo "You need to define the variable LDAPSERVER."
-    logger -i -p local7.err "Zmbackup: You need to define the variable LDAPSERVER."
-    ERR="true"
-  else
-    TMP=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -z100)2>&1)
-    if [ $? -ne 0 ]; then
-      echo "LDAP Server is Down or Unavailable - See the logs for more information."
-      logger -i -p local7.err "Zmbackup: LDAP Server is Down or Unavailable."
-      logger -i -p local7.err "Zmbackup: $TMP"
-      ERR="true"
-    fi
-  fi
-
   if [ -z "$LDAPADMIN" ]; then
     echo "You need to define the variable LDAPADMIN."
     logger -i -p local7.err "Zmbackup: You need to define the variable LDAPADMIN."
