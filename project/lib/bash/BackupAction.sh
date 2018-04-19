@@ -93,7 +93,7 @@ function backup_main()
   # Create a list of all accounts to be backed up
   if [[ -z $4 ]] || [[ "$3" == "-d" ]] || [[ "$3" == "--domain" ]]; then
     build_listBKP $1 $2 $3 $4
-  elif  [[ "$3" == "-a" ]] || [[ "$3" == "--account" ]];
+  elif  [[ "$3" == "-a" ]] || [[ "$3" == "--account" ]]; then
     for i in $(echo "$4" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done

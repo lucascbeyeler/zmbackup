@@ -45,11 +45,16 @@ function notify_finish()
 
     # Loading the variables
     if [[ "$3" == "SUCCESS" ]]; then
-      SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
-      if [[ "$1" == "mbox"* ]]; then
-        QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
+      SIZE=$(du -h $WORKDIR/$1 2> /dev/null | awk {'print $1'}; exit ${PIPESTATUS[0]})
+      if [[ $? -eq 0 ]]; then
+        if [[ "$1" == "mbox"* ]]; then
+          QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
+        else
+          QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+        fi
       else
-        QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+        SIZE=0
+        QTDE=0
       fi
     else
       SIZE=0
