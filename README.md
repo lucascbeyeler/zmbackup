@@ -69,7 +69,7 @@ Inside the project folder, execute the script **install.sh** and follow all the 
 # ./install.sh
 # su - zimbra
 $ zmbackup -v
-  zmbackup version: 1.2.1
+  zmbackup version: 1.2.2
 ```
 
 Usage
