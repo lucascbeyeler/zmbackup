@@ -140,6 +140,14 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: MAILHOST not informed - setting as 127.0.0.1 instead."
   fi
 
+  TMP=$((wget --timeout=5 --tries=2 --no-check-certificate -O /dev/null https://$MAILHOST:7071)2>&1)
+  if [ $? -ne 0 ]; then
+    echo "Mailbox Admin Service is Down or Unavailable - See the logs for more information."
+    logger -i -p local7.err "Zmbackup: Mailbox Admin Service is Down or Unavailable."
+    logger -i -p local7.err "Zmbackup: $TMP"
+    ERR="true"
+  fi
+
   if [ -z "$ENABLE_EMAIL_NOTIFY" ]; then
     ENABLE_EMAIL_NOTIFY="all"
     logger -i -p local7.warn "Zmbackup: ENABLE_EMAIL_NOTIFY not informed - setting as 'all' instead."
@@ -187,6 +195,14 @@ function validate_config(){
     echo "You need to define the variable LDAPSERVER."
     logger -i -p local7.err "Zmbackup: You need to define the variable LDAPSERVER."
     ERR="true"
+  else
+    TMP=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -z100)2>&1)
+    if [ $? -ne 0 ]; then
+      echo "LDAP Server is Down or Unavailable - See the logs for more information."
+      logger -i -p local7.err "Zmbackup: LDAP Server is Down or Unavailable."
+      logger -i -p local7.err "Zmbackup: $TMP"
+      ERR="true"
+    fi
   fi
 
   if [ -z "$LDAPADMIN" ]; then
