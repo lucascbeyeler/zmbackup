@@ -167,10 +167,14 @@ case "$1" in
     rm -rf $PID
   ;;
   "-t"|"--truncate")
-    checkpid
-    leeroy_jenkins
-    clean_empty
-    rm -rf $PID
+    if [ ! -z "$2" ] && [ "--force-clean" == "$2" ]; then
+      checkpid
+      leeroy_jenkins
+      clean_empty
+      rm -rf $PID
+    else
+      echo "This action is irreversible - Use the option --force-clean to override this message"
+    fi
   ;;
   "-h"|"--help" )
     show_help
