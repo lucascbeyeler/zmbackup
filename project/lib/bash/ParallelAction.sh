@@ -91,10 +91,10 @@ function mailbox_restore()
   ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$2/?fmt=tgz"\
        -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
   if ! [[ $? -eq 0 ]]; then
-    printf "\nError during the restore process for account $2. Error message below:"
-    printf "\n$2: $ERR"
+    printf "Error during the restore process for account $2. Error message below:"
+    printf "$2: $ERR"
   elif [[ "$ERR"  == *"No such file or directory" ]]; then
-    printf "\nAccount $2 has nothing to restore - skipping..."
+    printf "Account $2 has nothing to restore - skipping..."
   fi
 }
 

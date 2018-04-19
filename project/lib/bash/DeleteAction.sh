@@ -41,8 +41,29 @@ function delete_old(){
     sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session where conclusion_date > datetime('now','-$ROTATE_TIME day')" | while read LINE; do
       __DELETEBACKUP $LINE
     done
+    sqlite3 $WORKDIR/sessions.sqlite3 "VACUUM"
   fi
   logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
+}
+
+################################################################################
+# leeroy_jenkins: Delete all the backup folders
+################################################################################
+function leeroy_jenkins(){
+  echo "LEEROY JENKINS!!!!!"
+  logger -i -p local7.info "Zmbhousekeep: Cleaning $WORKDIR from all the backup sessions."
+  if [[ $SESSION_TYPE == 'TXT' ]]; then
+    grep SESS $WORKDIR/sessions.txt | awk '{print $2}'| while read LINE; do
+      __DELETEBACKUP $LINE
+    done
+  elif [[ $SESSION_TYPE == 'SQLITE3' ]]; then
+    sqlite3 $WORKDIR/sessions.sqlite3 "select sessionID from backup_session" | while read LINE; do
+      __DELETEBACKUP $LINE
+    done
+    sqlite3 $WORKDIR/sessions.sqlite3 "VACUUM"
+  fi
+  logger -i -p local7.info "Zmbhousekeep: Clean old backups activity concluded."
+  echo "All the backups are deleted - Have a nice week :)"
 }
 
 ################################################################################
@@ -85,5 +106,4 @@ function clean_empty(){
     logger -i -p local7.err "Zmbhousekeep: Can't remove the empty files - See the error message below:"
     logger -i -p local7.err "Zmbhousekeep: $ERR"
   fi
-  touch $WORKDIR/sessions.txt
 }

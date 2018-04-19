@@ -57,9 +57,6 @@ function load_config(){
 
 ################################################################################
 # constants: Initialize all the constants used by the Zmbackup.
-# Options:
-#    $1 - The type of session that will be executed
-#    $2 - OPTIONAL: Enable Incremental Backup
 ################################################################################
 function constant(){
   # LDAP OBJECT
@@ -78,10 +75,16 @@ function constant(){
 
   # PID FILE
   export readonly PID='/opt/zimbra/log/zmbackup.pid'
+}
 
+################################################################################
+# sessionvars: Initialize all the constants used by the backup action.
+# Options:
+#    $1 - The type of session that will be executed
+#    $2 - OPTIONAL: Enable Incremental Backup
+################################################################################
+function sessionvars(){
   ls $WORKDIR/full* > /dev/null 2>&1
-
-  # SESSION VARS
   if [[ $? -ne 0 || $1 == '--full' || $1 == '-f' ]]; then
     export readonly STYPE="Full Account"
     export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
@@ -106,8 +109,6 @@ function constant(){
     export readonly STYPE="Account - Only LDAP"
     export readonly SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
     export readonly INC='FALSE'
-  else
-    export readonly STYPE=""
   fi
 }
 

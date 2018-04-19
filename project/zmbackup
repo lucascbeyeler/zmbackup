@@ -67,40 +67,37 @@ load_config
 validate_config
 export_function
 export_vars
+constant
 case "$1" in
   "-f"|"--full" )
+    checkpid
     case "$2" in
       "-dl"|"--distributionlist" )
-        constant $2
-        checkpid
+        sessionvars $2
         create_temp
         backup_main $DLOBJECT $DLFILTER $3 $4
         rm -rf $PID
       ;;
       "-al"|"--alias" )
-        constant $2
-        checkpid
+        sessionvars $2
         create_temp
         backup_main $ALOBJECT $ALFILTER $3 $4
         rm -rf $PID
       ;;
       "-ldp"|"--ldap" )
-        constant $2
-        checkpid
+        sessionvars $2
         create_temp
         backup_main $ACOBJECT $ACFILTER $3 $4
         rm -rf $PID
       ;;
       "-m"|"--mail" )
-        constant $2
-        checkpid
+        sessionvars $2
         create_temp
         backup_main $ACOBJECT $ACFILTER $3 $4
         rm -rf $PID
       ;;
       * )
-        constant $1
-        checkpid
+        sessionvars $1
         create_temp
         backup_main $ACOBJECT $ACFILTER $2 $3
         rm -rf $PID
@@ -108,7 +105,7 @@ case "$1" in
     esac
   ;;
   "-i"|"--incremental" )
-    constant $1 'TRUE'
+    sessionvars $1 'TRUE'
     checkpid
     create_temp
     backup_main $ACOBJECT $ACFILTER $2 $3
@@ -119,23 +116,14 @@ case "$1" in
   ;;
   "-r"|"--restore" )
     create_temp
+    checkpid
     case "$2" in
-      "-dl"|"--distributionlist" )
-        constant $2
-        checkpid
+      "-dl"|"--distributionlist"|"-ldp"|"--ldap"|"-al"|"--alias")
         restore_main_ldap $3 $4 $5
         rm -rf $PID
       ;;
-      "-al"|"--alias" )
-        constant $2
-        checkpid
-        restore_main_ldap $3 $4 $5
-        rm -rf $PID
-      ;;
-      "-ldp"|"--ldap" )
-        constant $2
-        checkpid
-        restore_main_ldap $3 $4 $5
+      "-m"|"--mail" )
+        restore_main_mailbox $3 $4 $5
         rm -rf $PID
       ;;
       "-ro"|"--restoreOnAccount" )
@@ -144,22 +132,14 @@ case "$1" in
           printf "\n\nError! Please inform the account that should be restored, and when the restore should be placed.\n\n"
           exit 2
         else
-          constant $2
-          checkpid
+          constant
           restore_main_mailbox $3 $4 $5
           rm -rf $PID
         fi
       ;;
-      "-m"|"--mail" )
-        constant $2
-        checkpid
-        restore_main_mailbox $3 $4 $5
-        rm -rf $PID
-      ;;
       * )
         if [[ "$2" == "full"* || "$2" == "inc"* ]]; then
           constant
-          checkpid
           restore_main_ldap $2 $3 $4
           restore_main_mailbox $2 $3 $4
           rm -rf $PID
@@ -175,16 +155,20 @@ case "$1" in
       show_help
       printf "\n\nError! Please inform the session that should be deleted\n\n"
     else
-      constant
       checkpid
       delete_one $2
       rm -rf $PID
     fi
   ;;
   "-hp"|"--housekeep")
-    constant
     checkpid
     delete_old
+    clean_empty
+    rm -rf $PID
+  ;;
+  "-t"|"--truncate")
+    checkpid
+    leeroy_jenkins
     clean_empty
     rm -rf $PID
   ;;
@@ -195,7 +179,6 @@ case "$1" in
     echo "zmbackup version: 1.2.2"
   ;;
   "-m"|"--migrate" )
-    constant
     checkpid
     migration
     rm -rf $PID
