@@ -79,37 +79,44 @@ To check all the options available to Zmbackup, just execute **zmbackup -h** or 
 
 ```
 $ zmbackup -h
-usage: zmbackup [-f] [options] <mail>
-       zmbackup [-i] <mail>
-       zmbackup [-r] [options] <session> <mail>
-       zmbackup [-r] [-ro] <session> <mail_origin> <mail_destination>
-       zmbackup [-d] <session>
+usage: zmbackup -f [-m,-dl,-al,-ldp] [-d,-a] <mail/domain>
+       zmbackup -i <mail>
+       zmbackup -r [-m,-dl,-al,-ldp] [-d,-a] <session> <mail>
+       zmbackup -r [-ro] <session> <mail_origin> <mail_destination>
+       zmbackup -d <session>
+       zmbackup -m
 
 Options:
 
- -f,  --full                     : Execute full backup of an account, a list of accounts, or all accounts.
- -i,  --incremental              : Execute incremental backup for an account, a list of accounts, or all accounts.
- -l,  --list                     : List all backup sessions that still exist in your disk.
- -r,  --restore                  : Restore the backup inside the users account.
- -d,  --delete                   : Delete a session of backup.
- -hp, --housekeep                : Execute the Housekeep to remove old sessions - Zmbhousekeep
- -m,  --migrate                  : Migrate the database from TXT to SQLITE3 and vice versa.
- -v,  --version                  : Show the zmbackup version.
+ -f,  --full                      : Execute full backup of an account, a list of accounts, or all accounts.
+ -i,  --incremental               : Execute incremental backup for an account, a list of accounts, or all accounts.
+ -l,  --list                      : List all backup sessions that still exist in your disk.
+ -r,  --restore                   : Restore the backup inside the users account.
+ -d,  --delete                    : Delete a session of backup.
+ -hp, --housekeep                 : Execute the Housekeep to remove old sessions - Zmbhousekeep
+ -m,  --migrate                   : Migrate the database from TXT to SQLITE3 and vice versa.
+ -v,  --version                   : Show the zmbackup version.
+ -h,  --help                      : Show this help
 
 Full Backup Options:
 
- -m,   --mail                    : Execute a backup of an account, but only the mailbox.
- -dl,  --distributionlist        : Execute a backup of a distributionlist instead of an account.
- -al,  --alias                   : Execute a backup of an alias instead of an account.
- -ldp, --ldap                    : Execute a backup of an account, but only the ldap entry.
+ -m,   --mail                     : Execute a backup of an account, but only the mailbox.
+ -dl,  --distributionlist         : Execute a backup of a distributionlist instead of an account.
+ -al,  --alias                    : Execute a backup of an alias instead of an account.
+ -ldp, --ldap                     : Execute a backup of an account, but only the ldap entry.
+ -d,   --domain                   : Execute a backup of only a set of domains, comma separated
+ -a,   --account                  : Execute a backup of only a set of accounts, comma separated
 
 Restore Backup Options:
 
- -dl, --distributionlist         : Execute a restore of a distributionlist instead of an account.
- -al, --alias                    : Execute a restore of an alias instead of an account.
- -m, --mail                      : Execute a restore of an account,  but only the mailbox.
- -ldp, --ldap                    : Execute a restore of an account, but only the ldap entry.
- -ro, --restoreOnAccount         : Execute a restore of an account inside another account.
+ -m,   --mail                     : Execute a restore of an account,  but only the mailbox.
+ -dl,  --distributionlist         : Execute a restore of a distributionlist instead of an account.
+ -al,  --alias                    : Execute a restore of an alias instead of an account.
+ -ldp, --ldap                     : Execute a restore of an account, but only the ldap entry.
+ -ro,  --restoreOnAccount         : Execute a restore of an account inside another account.
+ -d,   --domain                   : Execute a backup of only a set of domains, comma separated
+ -a,   --account                  : Execute a backup of only a set of accounts, comma separated
+
 
 ```
 

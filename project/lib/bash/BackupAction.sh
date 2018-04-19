@@ -91,12 +91,16 @@ function __backupMailbox(){
 function backup_main()
 {
   # Create a list of all accounts to be backed up
-  if [[ -z $4 ]] || [[ "$3" == "-d" ]]; then
+  if [[ -z $4 ]] || [[ "$3" == "-d" ]] || [[ "$3" == "--domain" ]]; then
     build_listBKP $1 $2 $3 $4
-  else
+  elif  [[ "$3" == "-a" ]] || [[ "$3" == "--account" ]];
     for i in $(echo "$4" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
+  else
+    echo "ERROR - Option $3 is not valid"
+    rm -rf $PID
+    exit 5
   fi
 
   # If $TEMPACCOUNT is not empty, do a backup, if is do nothing
