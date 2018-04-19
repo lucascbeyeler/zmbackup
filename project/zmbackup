@@ -74,35 +74,35 @@ case "$1" in
         constant $2
         checkpid
         create_temp
-        backup_main $DLOBJECT $DLFILTER $3
+        backup_main $DLOBJECT $DLFILTER $3 $4
         rm -rf $PID
       ;;
       "-al"|"--alias" )
         constant $2
         checkpid
         create_temp
-        backup_main $ALOBJECT $ALFILTER $3
+        backup_main $ALOBJECT $ALFILTER $3 $4
         rm -rf $PID
       ;;
       "-ldp"|"--ldap" )
         constant $2
         checkpid
         create_temp
-        backup_main $ACOBJECT $ACFILTER $3
+        backup_main $ACOBJECT $ACFILTER $3 $4
         rm -rf $PID
       ;;
       "-m"|"--mail" )
         constant $2
         checkpid
         create_temp
-        backup_main $ACOBJECT $ACFILTER $3
+        backup_main $ACOBJECT $ACFILTER $3 $4
         rm -rf $PID
       ;;
       * )
         constant $1
         checkpid
         create_temp
-        backup_main $ACOBJECT $ACFILTER $2
+        backup_main $ACOBJECT $ACFILTER $2 $3
         rm -rf $PID
       ;;
     esac
@@ -111,7 +111,7 @@ case "$1" in
     constant $1 'TRUE'
     checkpid
     create_temp
-    backup_main $ACOBJECT $ACFILTER $2
+    backup_main $ACOBJECT $ACFILTER $2 $3
     rm -rf $PID
   ;;
   "-l"|"--list" )
@@ -123,19 +123,19 @@ case "$1" in
       "-dl"|"--distributionlist" )
         constant $2
         checkpid
-        restore_main_ldap $3 $4
+        restore_main_ldap $3 $4 $5
         rm -rf $PID
       ;;
       "-al"|"--alias" )
         constant $2
         checkpid
-        restore_main_ldap $3 $4
+        restore_main_ldap $3 $4 $5
         rm -rf $PID
       ;;
       "-ldp"|"--ldap" )
         constant $2
         checkpid
-        restore_main_ldap $3 $4
+        restore_main_ldap $3 $4 $5
         rm -rf $PID
       ;;
       "-ro"|"--restoreOnAccount" )
@@ -153,15 +153,15 @@ case "$1" in
       "-m"|"--mail" )
         constant $2
         checkpid
-        restore_main_mailbox $3 $4
+        restore_main_mailbox $3 $4 $5
         rm -rf $PID
       ;;
       * )
         if [[ "$2" == "full"* || "$2" == "inc"* ]]; then
           constant
           checkpid
-          restore_main_ldap $2 $3
-          restore_main_mailbox $2 $3
+          restore_main_ldap $2 $3 $4
+          restore_main_mailbox $2 $3 $4
           rm -rf $PID
         else
           show_help

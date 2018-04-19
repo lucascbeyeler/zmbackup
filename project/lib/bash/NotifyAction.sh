@@ -44,11 +44,16 @@ function notify_finish()
   if [[ "$ENABLE_EMAIL_NOTIFY" == "all" ]] || [[ "$ENABLE_EMAIL_NOTIFY" == "finish" && "$3" == "SUCCESS" ]] || [[ "$ENABLE_EMAIL_NOTIFY" == "error" && "$3" == "FAILURE" ]] ; then
 
     # Loading the variables
-    SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
-    if [[ "$1" == "mbox"* ]]; then
-      QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
+    if [[ "$3" == "SUCCESS" ]]; then
+      SIZE=$(du -h $WORKDIR/$1 | awk {'print $1'})
+      if [[ "$1" == "mbox"* ]]; then
+        QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
+      else
+        QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+      fi
     else
-      QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+      SIZE=0
+      QTDE=0
     fi
 
     # The message

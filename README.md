@@ -137,7 +137,7 @@ Aside from the full backup action, Zmbackup still have a option to do incrementa
 $ zmbackup -i
 ```
 
-To restore a backup, you use the option **-r** or **--restore**, but this time you should inform what kind of restore you want to do, and the ID session you want to restore. You can check the sessionID with the command zmbackup -l.
+To restore a backup, you use the option **-r** or **--restore**, but this time you should inform the ID session you want to restore. You can check the sessionID with the command zmbackup -l.
 
 ```
 $ zmbackup -l
@@ -149,7 +149,7 @@ $ zmbackup -l
 +---------------------------+--------------+--------------+----------+----------------------------+
 
 
-$ zmbackup -r -m  full-20170621201603
+$ zmbackup -r full-20170621201603
 ```
 
 The restoreOnAccount act different of the rest of the restore actions, as you should inform the account you want to restore, and the destination of that account, aside from the sessionID. This will dump all the content inside that account from that session in the destination account.

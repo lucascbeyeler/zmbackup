@@ -28,7 +28,7 @@ trap on_exit TERM INT EXIT
 function create_temp(){
   export readonly TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
   export readonly TEMPACCOUNT=$(mktemp)
-  export readonly TEMPINCACCOUNT=$(mktemp)
+  export readonly TEMPINACCOUNT=$(mktemp)
   export readonly MESSAGE=$(mktemp)
   export readonly FAILURE=$(mktemp)
   export readonly TEMPSESSION=$(mktemp)

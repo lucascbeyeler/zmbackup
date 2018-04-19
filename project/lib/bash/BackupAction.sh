@@ -85,15 +85,16 @@ function __backupMailbox(){
 #        DLFILTER - Distribution List (Use together with DLOBJECT);
 #        ACFILTER - User Account (Use together with ACOBJECT);
 #        ALFILTER - Alias (Use together with ALOBJECT).
-#    $3 - The list of accounts to be backed up
+#    $3 - Enable backup per account/domain
+#    $4 - The list of accounts/domains to be backed up
 ################################################################################
 function backup_main()
 {
   # Create a list of all accounts to be backed up
-  if [ -z $3 ]; then
-    build_listBKP $1 $2
+  if [[ -z $4 ]] || [[ "$3" == "-d" ]]; then
+    build_listBKP $1 $2 $3 $4
   else
-    for i in $(echo "$3" | sed 's/,/\n/g'); do
+    for i in $(echo "$4" | sed 's/,/\n/g'); do
       echo $i >> $TEMPACCOUNT
     done
   fi
