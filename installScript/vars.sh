@@ -36,3 +36,6 @@ SESSION_TYPE="TXT"                                                              
 
 # REPOSITORIES FOR PACKAGES
 OLE_TANGE="http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo"
+
+# Force a terminal type - Issue #90
+TERM="xterm-256color"
