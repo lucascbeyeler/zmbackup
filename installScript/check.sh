@@ -21,7 +21,7 @@ function check_env() {
   elif [[ $1 == '--remove' ]] || [[ $1 == '-r' ]]; then
     printf "[UNINSTALL] - EXECUTING UNINSTALL ROUTINE\n"
     UPGRADE="N"
-  elif [[ $1 == '--force-upgrade' ]]; ||
+  elif [[ $1 == '--force-upgrade' ]]; then
     VERSION=$(su -s /bin/bash -c "zmbackup -h" $OSE_USER)
     if [[ $VERSION != $ZMBKP_VERSION ]]; then
       printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
