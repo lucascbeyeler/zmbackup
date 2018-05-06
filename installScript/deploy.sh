@@ -102,6 +102,7 @@ function deploy_new() {
     echo "ERROR - Can't create the user. Executing rollback process"
     echo "Error description: $STATUS"
     uninstall
+    exit $ERR_CREATE_USER
   fi
 }
 
