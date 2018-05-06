@@ -48,6 +48,7 @@ if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
     exit 0
   else
     echo "Zmbackup is not installed - nothing to do"
+    exit 0
   fi
 fi
 
