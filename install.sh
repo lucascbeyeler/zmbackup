@@ -25,7 +25,7 @@ source installScript/help.sh
 ################################################################################
 if [[ $1 == "--help" ]] || [[ $1 == "-h" ]]; then
   show_help
-  exit 0
+  exit $ERR_OK
 fi
 
 #
@@ -45,10 +45,10 @@ if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
     fi
     uninstall
     echo "Uninstall completed. Thanks for using Zmbackup. Have a nice day!"
-    exit 0
+    exit $ERR_OK
   else
     echo "Zmbackup is not installed - nothing to do"
-    exit 0
+    exit $ERR_OK
   fi
 fi
 
