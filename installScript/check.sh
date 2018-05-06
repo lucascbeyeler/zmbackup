@@ -14,7 +14,7 @@ function check_env() {
     printf "[ROOT]\n"
   fi
   printf "  Old Zmbackup Install...	  "
-  su -s /bin/bash -c "whereis zmbackup" $OSE_USER 2> /dev/null
+  su -s /bin/bash -c "whereis zmbackup" $OSE_USER > /dev/null 2>&1
   if [ $? != 0 ]; then
     printf "[NEW INSTALL]\n"
     UPGRADE="N"
