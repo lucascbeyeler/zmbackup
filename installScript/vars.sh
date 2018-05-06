@@ -18,21 +18,21 @@ ZMBKP_SHARE="/usr/local/share/zmbackup"  # Keep for upgrade routine
 ZMBKP_LIB="/usr/local/lib/zmbackup"      # The new path for the libs
 
 # ZIMBRA DEFAULT INSTALLATION PATH AND INTERNAL CONFIGURATION
-OSE_USER="zimbra"                                                                                  # Zimbra's unix user
-OSE_INSTALL_DIR="/opt/zimbra"                                                                      # The Zimbra's installation path
-OSE_DEFAULT_BKP_DIR="/opt/zimbra/backup"                                                           # Where you will store your backup
-OSE_INSTALL_DOMAIN=`su - $OSE_USER -c "zmprov gad | head -1"`                                      # Zimbra's Domain
-OSE_INSTALL_ADDRESS=`ping -c1 zimbra.example.com.br | head -1 | cut -d" " -f3`                     # Zimbra's Server Address
-OSE_INSTALL_LDAPPASS=`su - $OSE_USER -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}'`  # Zimbra's LDAP Password
-ZMBKP_MAIL_ALERT="admin@"$OSE_INSTALL_DOMAIN                                                       # Zmbackup's mail alert account
-ZMBKP_MAIL_SENDER="root@"$OSE_INSTALL_DOMAIN                                                       # Zmbackup's default user for mail delivery
-ZMBKP_ACCOUNT="zmbackup@"$OSE_INSTALL_DOMAIN                                                       # Zmbackup's backup account
-ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)                                # Zmbackup's backup password
-MAX_PARALLEL_PROCESS="3"                                                                           # Zmbackup's number of threads
-ROTATE_TIME="30"                                                                                   # Zmbackup's max of days before housekeeper
-LOCK_BACKUP=true                                                                                   # Zmbackup's backup lock
-ZMBKP_VERSION="zmbackup version: 1.2.2"                                                            # Zmbackup's latest version
-SESSION_TYPE="TXT"                                                                                 # Zmbackup's default session type
+OSE_USER="zimbra"                                                                                                         # Zimbra's unix user
+OSE_INSTALL_DIR="/opt/zimbra"                                                                                             # The Zimbra's installation path
+OSE_DEFAULT_BKP_DIR="/opt/zimbra/backup"                                                                                  # Where you will store your backup
+OSE_INSTALL_DOMAIN=`su -s /bin/bash -c "zmprov gad | head -1" $OSE_USER`                                                  # Zimbra's Domain
+OSE_INSTALL_ADDRESS=`ping -c1 zimbra.example.com.br | head -1 | cut -d" " -f3`                                            # Zimbra's Server Address
+OSE_INSTALL_LDAPPASS=`su -s /bin/bash -c "zmlocalconfig -s zimbra_ldap_password"|awk '{print $3}' $OSE_USER `             # Zimbra's LDAP Password
+ZMBKP_MAIL_ALERT="admin@"$OSE_INSTALL_DOMAIN                                                                              # Zmbackup's mail alert account
+ZMBKP_MAIL_SENDER="root@"$OSE_INSTALL_DOMAIN                                                                              # Zmbackup's default user for mail delivery
+ZMBKP_ACCOUNT="zmbackup@"$OSE_INSTALL_DOMAIN                                                                              # Zmbackup's backup account
+ZMBKP_PASSWORD=$(date +%s | sha256sum | base64 | head -c 32 ; echo)                                                       # Zmbackup's backup password
+MAX_PARALLEL_PROCESS="3"                                                                                                  # Zmbackup's number of threads
+ROTATE_TIME="30"                                                                                                          # Zmbackup's max of days before housekeeper
+LOCK_BACKUP=true                                                                                                          # Zmbackup's backup lock
+ZMBKP_VERSION="zmbackup version: 1.2.2"                                                                                   # Zmbackup's latest version
+SESSION_TYPE="TXT"                                                                                                        # Zmbackup's default session type
 
 # REPOSITORIES FOR PACKAGES
 OLE_TANGE="http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo"
