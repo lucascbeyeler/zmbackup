@@ -10,7 +10,7 @@ Zmbackup is a reliable Bash shell script developed to help you in your daily tas
 
 [![Zimbra Version](https://img.shields.io/badge/Zimbra%20OSE-8.8.8-orange.svg)](https://www.zimbra.com/downloads/zimbra-collaboration-open-source/)
 ![Linux Distro](https://img.shields.io/badge/platform-CentOS%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
-![Branch](https://img.shields.io/badge/Branch-Stable-green.svg)
+![Branch](https://img.shields.io/badge/Branch-Unstable-red.svg)
 ![Release](https://img.shields.io/badge/Release-1.2.2-green.svg)
 
 Features
