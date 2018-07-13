@@ -31,11 +31,11 @@ Requirements
 
 * **GNU Wget** - a computer program that retrieves content from web servers;
 * **GNU Parallel** - a shell tool for executing jobs in parallel using one or more CPU;
-* **HTTPie** - a command line HTTP client with an intuitive UI, JSON support, syntax highlighting, wget-like downloads, plugins, and more.
+* **curl** - a tool to transfer data from or to a server, using one of the supported protocols (HTTP, HTTPS, etc.);
 * **GNU grep** - a command-line utility for searching plain-text data sets for lines matching a regular expression;
 * **date** - command used to print out, or change the value of, the system's time and date information;
 * **cron** - a time-based job scheduler in Unix-like computer operating systems;
-* **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download HTTPie and GNU Parallel;
+* **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download GNU Parallel;
 * **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
 * **mktemp** - make a temporary file or directory;
 * **SQLite3** - a relational database management system contained in a C programming library.
@@ -49,11 +49,11 @@ If you use CentOS, first install the package **[epel-release](https://fedoraproj
 # yum install epel-release
 ```
 
-Now, install the packages **parallel**, **wget**, **sqlite3** and **httpie** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
+Now, install the packages **parallel**, **wget**, **sqlite3** and **curl** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
 
 ```
-# apt-get install parallel wget httpie sqlite3
-# yum install parallel wget httpie sqlite3
+# apt-get install parallel wget curl sqlite3
+# yum install parallel wget curl sqlite3
 ```
 
 Download the latest package with the BETA tag in "Release" section, or git clone the development branch:
