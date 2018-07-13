@@ -88,8 +88,8 @@ function ldap_restore()
 ###############################################################################
 function mailbox_restore()
 {
-  ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$2/?fmt=tgz"\
-       -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
+  ERR=$((curl --insecure  "https://$MAILHOST:7071/home/$2/?fmt=tgz"\
+    --user "$ADMINUSER":"$ADMINPASS" --upload-file $WORKDIR/$1/$2.tgz) 2>&1)
   if ! [[ $? -eq 0 ]]; then
     printf "Error during the restore process for account $2. Error message below:"
     printf "$2: $ERR"
