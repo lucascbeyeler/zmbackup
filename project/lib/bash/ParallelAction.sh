@@ -107,7 +107,7 @@ function mailbox_restore()
 ###############################################################################
 function ldap_filter()
 {
-  if [[ "$LOCK_BACKUP" == "TXT" ]]; then
+  if [[ "$SESSION_TYPE" == "TXT" ]]; then
     EXIST=$(grep $1 $WORKDIR/sessions.txt 2> /dev/null | tail -1 | awk -F: '{print $3}')
   else
     TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
@@ -117,7 +117,7 @@ function ldap_filter()
   grep -Fxq $1 /etc/zmbackup/blacklist.conf
   if [[ $? -eq 0 ]]; then
     echo "WARN: $1 found inside blacklist - Nothing to do."
-  elif [[ -z $EXIST || "$EXIST" = "$(date +%m/%d/%y)" ]] && [[ "$LOCK_BACKUP" == "true" ]]; then
+  elif [[ -n $EXIST && "$EXIST" = "$(date +%m/%d/%y)" ]] && [[ "$LOCK_BACKUP" == "true" ]]; then
     echo "WARN: $1 already has backup today. Nothing to do."
   else
     echo $1 >> $TEMPACCOUNT
