@@ -107,17 +107,20 @@ function mailbox_restore()
 ###############################################################################
 function ldap_filter()
 {
-  if [[ "$SESSION_TYPE" == "TXT" ]]; then
-    EXIST=$(grep "$1:$(date +%m/%d/%y)" $WORKDIR/sessions.txt 2> /dev/null | tail -1)
-  else
-    TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
-    YESTERDAY=$(date +%Y-%m-%dT%H:%M:%S.%N -d "yesterday")
-    EXIST=$(sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and email='$1'")
+  EXIST=
+  if [[ "$LOCK_BACKUP" == "true" ]]; then
+    if [[ "$SESSION_TYPE" == "TXT" ]]; then
+      EXIST=$(grep "$1:$(date +%m/%d/%y)" $WORKDIR/sessions.txt 2> /dev/null | tail -1)
+    else
+      TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
+      YESTERDAY=$(date +%Y-%m-%dT%H:%M:%S.%N -d "yesterday")
+      EXIST=$(sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and email='$1'")
+    fi
   fi
   grep -Fxq $1 /etc/zmbackup/blacklist.conf
   if [[ $? -eq 0 ]]; then
     echo "WARN: $1 found inside blacklist - Nothing to do."
-  elif [[ $EXIST ]] && [[ "$LOCK_BACKUP" == "true" ]]; then
+  elif [[ $EXIST ]]; then
     echo "WARN: $1 already has backup today. Nothing to do."
   else
     echo $1 >> $TEMPACCOUNT
