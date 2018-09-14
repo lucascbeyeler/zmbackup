@@ -112,7 +112,7 @@ function migration(){
     echo "Migration completed"
   elif [[ $SESSION_TYPE == "TXT" ]] && ! [[ -f $WORKDIR/sessions.txt ]]; then
     create_session
-    importsessionSQL
+    importsessionTXT
     rm $WORKDIR/sessions.sqlite3
     echo "Migration completed"
   else
