@@ -73,6 +73,8 @@ function deploy_new() {
   echo -ne '############          (60%)\r'
   sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '#############         (65%)\r'
+  sed -i "s|{ZMBKP_MAIL_SENDER}|${ZMBKP_MAIL_SENDER}|g" $ZMBKP_CONF/zmbackup.conf
+  echo -ne '#############         (65%)\r'
   sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
   sed -i "s|{ZMBKP_MAIL_SENDER}|${OSE_INSTALL_ADDRESS}|g" $ZMBKP_CONF/zmbackup.conf
   echo -ne '##############        (70%)\r'
