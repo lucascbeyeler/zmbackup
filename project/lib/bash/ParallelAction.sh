@@ -112,7 +112,13 @@ function ldap_filter()
   else
     TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
     YESTERDAY=$(date +%Y-%m-%dT%H:%M:%S.%N -d "yesterday")
-    EXIST=$(sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and sessionID='$1'")
+    COUNT_ACCOUNTS=$(sqlite3  $WORKDIR/sessions.sqlite3 "select COUNT(*) FROM backup_account")
+    if [[ $COUNT_ACCOUNTS -gt 0 ]]; then 
+     EXIST=$(sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and sessionID='$1'")
+    else
+	EXIST=$1
+    fi
+   
   fi
   grep -Fxq $1 /etc/zmbackup/blacklist.conf
   if [[ $? -eq 0 ]]; then
