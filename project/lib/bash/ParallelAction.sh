@@ -44,7 +44,7 @@ function mailbox_backup()
     fi
     AFTER='&'"start="$(date -d $DATE +%s)"000"
   fi
-  ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \
+  ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --http-user $ADMINUSER --http-passwd $ADMINPASS --auth-no-challenge \
         "https://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
   if [[ $? -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
