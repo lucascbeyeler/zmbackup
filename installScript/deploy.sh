@@ -27,13 +27,13 @@ function deploy_new() {
   echo "Installing... Please wait while we made some changes."
   echo -ne '                      (0%)\r'
   mkdir -p $OSE_DEFAULT_BKP_DIR > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
-        echo "[SUCCESS]  - Path $OSE_DEFAULT_BKP_DIR created!"
-  else
-	clear
-        echo "[FAIL] - Nao foi possivel criar o diretorio"
-	echo "Please, remove zmbackup and reinstall! - YES!!! You need remove it :("
-	echo "To remove zmbackup run: ./install.sh -r"
+  if [[ $? -ne 0 ]]; then
+        echo "[FAIL] - Can't create the directory"
+        echo "For some reason the Zmbackup can't create the folder $OSE_DEFAULT_BKP_DIR."
+	echo "Maybe you are using a NFS and the permissions are wrong?"
+	echo "Please check what happened and try again."
+	uninstall
+	exit $ERR_DEPNOTFOUND
   fi
 
   if [[ $SESSION_TYPE == "TXT" ]]; then
