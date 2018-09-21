@@ -44,7 +44,7 @@ function mailbox_backup()
     fi
     AFTER='&'"start="$(date -d $DATE +%s)"000"
   fi
-  ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --user $ADMINUSER --password $ADMINPASS \
+  ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --http-user $ADMINUSER --http-passwd $ADMINPASS --auth-no-challenge \
         "https://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
   if [[ $? -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
@@ -112,7 +112,13 @@ function ldap_filter()
   else
     TODAY=$(date +%Y-%m-%dT%H:%M:%S.%N)
     YESTERDAY=$(date +%Y-%m-%dT%H:%M:%S.%N -d "yesterday")
-    EXIST=$(sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and sessionID='$1'")
+    COUNT_ACCOUNTS=$(sqlite3  $WORKDIR/sessions.sqlite3 "select COUNT(*) FROM backup_account")
+    if [[ $COUNT_ACCOUNTS -gt 0 ]]; then 
+     EXIST=$(sqlite3 $WORKDIR/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and sessionID='$1'")
+    else
+	EXIST=$1
+    fi
+   
   fi
   grep -Fxq $1 /etc/zmbackup/blacklist.conf
   if [[ $? -eq 0 ]]; then
