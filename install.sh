@@ -39,9 +39,11 @@ check_env $1
 if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
   if [[ $UNINSTALL = "Y" ]]; then
     if [[ $SO = "ubuntu" ]]; then
-      remove_ubuntu
+      echo "Disabled Package Uninstall"
+      # remove_ubuntu
     else
-      remove_redhat
+      echo "Disabled Package Uninstall"
+      # remove_redhat
     fi
     uninstall
     echo "Uninstall completed. Thanks for using Zmbackup. Have a nice day!"
