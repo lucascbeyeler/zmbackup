@@ -20,7 +20,7 @@ function __backupFullInc(){
         echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
       elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
         EDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
-        SIZE=$(du -ch $TEMPSESSION/$1* | grep total | cut -f1)
+        SIZE=$(du -ch $TEMPDIR/$1* | grep total | cut -f1)
         echo "insert into backup_account (email,sessionID,account_size, initial_date, \
               conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
       fi
@@ -45,7 +45,7 @@ function __backupLdap(){
       echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       EDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      SIZE=$(du -ch $TEMPSESSION/$1* | grep total | cut -f1)
+      SIZE=$(du -ch $TEMPDIR/$1* | grep total | cut -f1)
       echo "insert into backup_account (email,sessionID,account_size, initial_date, \
             conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
@@ -67,7 +67,7 @@ function __backupMailbox(){
       echo $SESSION:$1:$(date +%m/%d/%y) >> $TEMPSESSION
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
       EDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
-      SIZE=$(du -ch $TEMPSESSION/$1* | grep total | cut -f1)
+      SIZE=$(du -ch $TEMPDIR/$1* | grep total | cut -f1)
       echo "insert into backup_account (email,sessionID,account_size, initial_date, \
             conclusion_date) values ('$1','$SESSION','$SIZE','$SDATE','$EDATE');"  >> $TEMPSQL
     fi
