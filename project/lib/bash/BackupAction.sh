@@ -131,7 +131,7 @@ function backup_main()
       echo "SESSION: $SESSION completed in $(date)" >> $TEMPSESSION
       cat $TEMPSESSION >> $WORKDIR/sessions.txt
     elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-      chmod 775 $WORKDIR/$SESSION
+      chmod -R 775 $WORKDIR/$SESSION
       DATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
       SIZE=$(du -sh $WORKDIR/$SESSION | awk {'print $1'})
       sqlite3 $WORKDIR/sessions.sqlite3 < $TEMPSQL > /dev/null 2>&1
