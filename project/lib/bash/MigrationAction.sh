@@ -103,19 +103,17 @@ function importsessionTXT(){
 # migration: Execute migration action
 ###############################################################################
 function migration(){
-  if [[ $SESSION_TYPE == "SQLITE3" ]] && ! [[ -f $WORKDIR/sessions.sqlite3 ]]; then
-    echo "Starting the migration - please wait until the conclusion"
-    create_session
+  echo "Starting the migration - please wait until the conclusion"
+  create_session
+  if [[ $SESSION_TYPE == "SQLITE3" ]]; then
     importsessionSQL
     importaccountsSQL
     rm $WORKDIR/sessions.txt
-    echo "Migration completed"
-  elif [[ $SESSION_TYPE == "TXT" ]] && ! [[ -f $WORKDIR/sessions.txt ]]; then
-    create_session
+  elif [[ $SESSION_TYPE == "TXT" ]]; then
     importsessionTXT
     rm $WORKDIR/sessions.sqlite3
-    echo "Migration completed"
   else
     echo "Nothing to do."
   fi
+  echo "Migration completed"
 }
