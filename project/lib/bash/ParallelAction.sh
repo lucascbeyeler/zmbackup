@@ -45,7 +45,7 @@ function mailbox_backup()
     AFTER='&'"start="$(date -d $DATE +%s)"000"
   fi
   ERR=$((wget --timeout=5 --tries=2 -O $TEMPDIR/$1.tgz --http-user $ADMINUSER --http-passwd $ADMINPASS --auth-no-challenge \
-        "https://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
+        "$WEBPROTO://$MAILHOST:7071/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
   if [[ $? -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
       logger -i -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished."
@@ -88,7 +88,7 @@ function ldap_restore()
 ###############################################################################
 function mailbox_restore()
 {
-  ERR=$((http --check-status --verify=no POST "https://$MAILHOST:7071/home/$2/?fmt=tgz"\
+  ERR=$((http --check-status --verify=no POST "$WEBPROTO://$MAILHOST:7071/home/$2/?fmt=tgz"\
        -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
   if ! [[ $? -eq 0 ]]; then
     printf "Error during the restore process for account $2. Error message below:"

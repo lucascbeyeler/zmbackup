@@ -65,6 +65,14 @@ function constant(){
   else
     export readonly ACOBJECT="(&(objectclass=zimbraAccount)(zimbraAccountStatus=active))"
   fi
+
+  # Enabling SSL for ZMBACKUP
+   if [ "$SSL_ENABLE" == "true" ]; then
+     export readonly WEBPROTO="https"
+   else
+     export readonly WEBPROTO="http"
+   fi
+
   export readonly DLOBJECT="(objectclass=zimbraDistributionList)"
   export readonly ALOBJECT="(objectclass=zimbraAlias)"
 
@@ -219,6 +227,11 @@ function validate_config(){
     echo "You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
     logger -i -p local7.err "Zmbackup: You need to define the variable BACKUP_INACTIVE_ACCOUNTS."
     ERR="true"
+  fi
+
+  if [ -z "$SSL_ENABLE" ]; then
+    echo "No value was found for SSL_ENABLE. Setting 'true' for the value."
+    logger -i -p local7.warn "No value was found for SSL_ENABLE. Setting 'true' for the value."
   fi
 
   if [ "$ERR" == "true" ]; then
