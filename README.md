@@ -79,9 +79,9 @@ To check all the options available to Zmbackup, just execute **zmbackup -h** or 
 
 ```
 $ zmbackup -h
-usage: zmbackup -f [-m,-dl,-al,-ldp] [-d,-a] <mail/domain>
+usage: zmbackup -f [-m,-dl,-al,-ldp, -sig] [-d,-a] <mail/domain>
        zmbackup -i <mail>
-       zmbackup -r [-m,-dl,-al,-ldp] [-d,-a] <session> <mail>
+       zmbackup -r [-m,-dl,-al,-ldp, -sig] [-d,-a] <session> <mail>
        zmbackup -r [-ro] <session> <mail_origin> <mail_destination>
        zmbackup -d <session>
        zmbackup -m
@@ -104,6 +104,7 @@ Full Backup Options:
  -dl,  --distributionlist         : Execute a backup of a distributionlist instead of an account.
  -al,  --alias                    : Execute a backup of an alias instead of an account.
  -ldp, --ldap                     : Execute a backup of an account, but only the ldap entry.
+ -sig, --signature                : Execute a backup of a signature.
  -d,   --domain                   : Execute a backup of only a set of domains, comma separated
  -a,   --account                  : Execute a backup of only a set of accounts, comma separated
 
@@ -114,6 +115,7 @@ Restore Backup Options:
  -al,  --alias                    : Execute a restore of an alias instead of an account.
  -ldp, --ldap                     : Execute a restore of an account, but only the ldap entry.
  -ro,  --restoreOnAccount         : Execute a restore of an account inside another account.
+ -sig, --signature                : Execute a restore of a signature.
  -d,   --domain                   : Execute a backup of only a set of domains, comma separated
  -a,   --account                  : Execute a backup of only a set of accounts, comma separated
 ```

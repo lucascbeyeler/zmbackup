@@ -36,6 +36,7 @@ function __backupFullInc(){
 #        DLOBJECT - Distribution List;
 #        ACOBJECT - User Account;
 #        ALOBJECT - Alias;
+#        SIOBJECT - Signature;
 ################################################################################
 function __backupLdap(){
   SDATE=$(date +%Y-%m-%dT%H:%M:%S.%N)
@@ -81,10 +82,12 @@ function __backupMailbox(){
 #        DLOBJECT - Distribution List;
 #        ACOBJECT - User Account;
 #        ALOBJECT - Alias;
+#        SIOBJECT - Signature;
 #    $2 - The filter used by LDAP to search for a type of object. Valid values:
 #        DLFILTER - Distribution List (Use together with DLOBJECT);
 #        ACFILTER - User Account (Use together with ACOBJECT);
 #        ALFILTER - Alias (Use together with ALOBJECT).
+#        SIFILTER - Alias (Use together with SIOBJECT).
 #    $3 - Enable backup per account/domain
 #    $4 - The list of accounts/domains to be backed up
 ################################################################################
