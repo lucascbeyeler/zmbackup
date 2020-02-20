@@ -50,7 +50,7 @@ function notify_finish()
         if [[ "$1" == "mbox"* ]]; then
           QTDE=$(ls $WORKDIR/$1/*.tgz | wc -l)
         else
-          QTDE=$(ls $WORKDIR/$1/*.ldiff | wc -l)
+          QTDE=$(ls $WORKDIR/$1/*.ldif | wc -l)
         fi
       else
         SIZE=0

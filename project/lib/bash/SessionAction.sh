@@ -32,7 +32,7 @@ function list_sessions_txt ()
     if [[ $i == "mbox"* ]]; then
       QTDE=$(ls $WORKDIR/$i/*.tgz | wc -l)
     else
-      QTDE=$(ls $WORKDIR/$i/*.ldiff | wc -l)
+      QTDE=$(ls $WORKDIR/$i/*.ldif | wc -l)
     fi
     OPT=$(echo $i | cut -d"-" -f1 )
     case $OPT in
