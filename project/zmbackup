@@ -95,6 +95,12 @@ case "$1" in
         backup_main $ACOBJECT $ACFILTER $3 $4
         rm -rf $PID
       ;;
+      "-sig"|"--signature" )
+        sessionvars $2
+        create_temp
+        backup_main $SIOBJECT $SIFILTER $3 $4
+        rm -rf $PID
+      ;;
       * )
         sessionvars $1
         create_temp
@@ -117,7 +123,7 @@ case "$1" in
     create_temp
     checkpid
     case "$2" in
-      "-dl"|"--distributionlist"|"-ldp"|"--ldap"|"-al"|"--alias")
+      "-dl"|"--distributionlist"|"-ldp"|"--ldap"|"-al"|"--alias"|"-sig"|"--signature")
         restore_main_ldap $3 $4 $5
         rm -rf $PID
       ;;

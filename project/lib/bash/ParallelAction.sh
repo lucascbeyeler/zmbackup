@@ -10,7 +10,8 @@
 # $2 - The type of object should be backed up. Valid values:
 #     DLOBJECT - Distribution List;
 #     ACOBJECT - User Account;
-#     ALOBJECT - Alias.
+#     ALOBJECT - Alias;
+#     SIOBJECT - Signature.
 ###############################################################################
 function ldap_backup()
 {

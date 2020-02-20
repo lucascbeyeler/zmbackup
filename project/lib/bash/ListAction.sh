@@ -10,10 +10,12 @@
 #        DLOBJECT - Distribution List;
 #        ACOBJECT - User Account;
 #        ALOBJECT - Alias;
+#        SIOBJECT - Signature;
 #    $2 - The filter used by LDAP to search for a type of object. Valid values:
 #        DLFILTER - Distribution List (Use together with DLOBJECT);
 #        ACFILTER - User Account (Use together with ACOBJECT);
 #        ALFILTER - Alias (Use together with ALOBJECT).
+#        SOFILTER - Signature (Use together with SIOBJECT).
 #    $3 - Enable backup per domain
 #    $4 - The list of domains to be backed up
 ################################################################################

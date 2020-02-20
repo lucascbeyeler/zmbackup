@@ -75,11 +75,13 @@ function constant(){
 
   export readonly DLOBJECT="(objectclass=zimbraDistributionList)"
   export readonly ALOBJECT="(objectclass=zimbraAlias)"
+  export readonly SIOBJECT="(objectclass=zimbraSignature)"
 
   # LDAP FILTER
   export readonly DLFILTER="mail"
   export readonly ACFILTER="zimbraMailDeliveryAddress"
   export readonly ALFILTER="uid"
+  export readonly SIFILTER="zimbraSignatureName"
 
   # PID FILE
   export readonly PID='/opt/zimbra/log/zmbackup.pid'
@@ -116,6 +118,10 @@ function sessionvars(){
   elif [[ $1 == '--ldap' || $1 == '-ldp' ]]; then
     export readonly STYPE="Account - Only LDAP"
     export readonly SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
+    export readonly INC='FALSE'
+  elif [[ $1 == '--signature' || $1 == '-sig' ]]; then
+    export readonly STYPE="Signature"
+    export readonly SESSION="signature-"$(date  +%Y%m%d%H%M%S)
     export readonly INC='FALSE'
   fi
 }
