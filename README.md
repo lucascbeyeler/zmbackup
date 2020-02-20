@@ -1,8 +1,3 @@
-<h1 align="center">
-  <img src="https://www.beyeler.com.br/wp-content/uploads/2017/06/zmbackup.png" alt="Markdownify">
-</h1>
-
-
 Zmbackup - Backup Script for Zimbra OSE
 =========
 
