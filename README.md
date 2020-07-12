@@ -190,6 +190,12 @@ Scheduling backups
 
 The installer script automatically creates a cron config file in `/etc/cron.d/zmbackup`. You can customize backup routines editing that file.
 
+Restoring big backup
+------------
+I will recommand to restore big backup via Zmprov CLI. This script do not support mailbox that larger than 2.1 Gb due to HTTP library limit.
+Example:
+`su - zimbra -c 'zmmailbox -z -m test@domain.com postRestURL "/?fmt=tgz&resolve=reset" /home/zimbra-backup/full-20200712233458/xxx@domain.com.tgz'`
+
 Get Involved
 ------------------
 * You can participate in our [Google Group](https://groups.google.com/forum/#!forum/zmbackup) - you are free to post anything there, but please follow the Guidelines! This group will be used to discuss new features planed to be created in the future, answer any question about how to use the software, discuss about the latest release, and so on.
