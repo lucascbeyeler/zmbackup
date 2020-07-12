@@ -15,7 +15,7 @@
 ###############################################################################
 function ldap_backup()
 {
-  ERR=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
+  ERR=$((ldapsearch -Z -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' \
              -LLL "(&(|(mail=$1)(uid=$1))$2)" > $TEMPDIR/$1.ldif)2>&1)
   if [[ $? -eq 0 ]]; then
     logger -i -p local7.info "Zmbackup: LDAP - Backup for account $1 finished."
