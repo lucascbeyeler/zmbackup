@@ -14,7 +14,7 @@
 ###############################################################################
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
-MAILTO=root
+#MAILTO=root
 30 1  * * 0     zimbra    zmbackup -f
 0  1  * * *     zimbra    zmbackup -f -dl
 30 0  * * *     zimbra    zmbackup -f -al

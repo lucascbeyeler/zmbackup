@@ -25,7 +25,7 @@ function build_listBKP()
     for i in $(echo "$4" | sed 's/,/\n/g'); do
       DC=",dc="
       DOMAIN="dc="${i//./$DC}
-      ERR=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b $DOMAIN -LLL "$1" $2 >> $TEMPACCOUNT) 2>&1)
+      ERR=$((ldapsearch -Z -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b $DOMAIN -LLL "$1" $2 >> $TEMPACCOUNT) 2>&1)
       if [[ $? -eq 0 ]]; then
         echo "Domain $i found! - Inserting inside the backup queue."
         logger -i -p local7.info "Domain $i found! - Inserting inside the backup queue."
@@ -37,7 +37,7 @@ function build_listBKP()
       fi
     done
   else
-    ERR=$((ldapsearch -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' -LLL "$1" $2 >> $TEMPACCOUNT) 2>&1)
+    ERR=$((ldapsearch -Z -x -H $LDAPSERVER -D $LDAPADMIN -w $LDAPPASS -b '' -LLL "$1" $2 >> $TEMPACCOUNT) 2>&1)
     if [[ $? -ne 0 ]]; then
       logger -i -p local7.err "Zmbackup: LDAP - Can't extract accounts from LDAP - Error below:"
       logger -i -p local7.err "Zmbackup: $ERR"
