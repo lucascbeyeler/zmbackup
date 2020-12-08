@@ -2,9 +2,9 @@
 ################################################################################
 
 ################################################################################
-# blacklist_gen: Generate a blacklist of all accounts Zmbackup should ignore
+# blocklist_gen: Generate a blocked list of all accounts Zmbackup should ignore
 ################################################################################
-function blacklist_gen(){
+function blocklist_gen(){
   for ACCOUNT in $(sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov -l gaa"); do
     if  [[ "$ACCOUNT" = "galsync"* ]] || \
     [[ "$ACCOUNT" = "virus"* ]] || \
@@ -14,10 +14,10 @@ function blacklist_gen(){
     [[ "$ACCOUNT" = "zmbackup"* ]] || \
     [[ "$ACCOUNT" = "postmaster"* ]] || \
     [[ "$ACCOUNT" = "root"* ]]; then
-      echo "$ACCOUNT" >> "$ZMBKP_CONF"/blacklist.conf
+      echo "$ACCOUNT" >> "$ZMBKP_CONF"/blockedlist.conf
     fi
   done
-  echo "$ZMBKP_ACCOUNT" >> "$ZMBKP_CONF"/blacklist.conf
+  echo "$ZMBKP_ACCOUNT" >> "$ZMBKP_CONF"/blockedlist.conf
 }
 
 ################################################################################
@@ -68,7 +68,7 @@ function deploy_new() {
   echo -ne '#######               (35%)\r'
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup.conf "$ZMBKP_CONF"
   echo -ne '########              (40%)\r'
-  install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blacklist.conf "$ZMBKP_CONF"
+  install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
   echo -ne '#########             (45%)\r'
 
   # Including custom settings
@@ -100,8 +100,8 @@ function deploy_new() {
   chown "$OSE_USER" "$OSE_DEFAULT_BKP_DIR"
   echo -ne '##################    (90%)\r'
 
-  # Generate Zmbackup's blacklist
-  blacklist_gen
+  # Generate Zmbackup's blocked list
+  blocklist_gen
   echo -ne '###################   (95%)\r'
 
   # Creating Zmbackup backup user
@@ -151,9 +151,9 @@ function uninstall() {
   rm -rf /etc/cron.d/zmbackup
   rm -rf "$ZMBKP_LIB" "$ZMBKP_CONF" "$ZMBKP_SRC"/zmbackup
   echo -ne '##########            (50%)\r'
-  if [[ -f $ZMBKP_CONF/blacklist.conf ]]; then
-    install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blacklist.conf "$ZMBKP_CONF"
-    blacklist_gen
+  if [[ -f $ZMBKP_CONF/blockedlist.conf ]]; then
+    install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
+    blocklist_gen
   fi
   echo -ne '###############       (75%)\r'
   sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1

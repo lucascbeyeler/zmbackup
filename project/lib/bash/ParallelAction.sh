@@ -130,10 +130,10 @@ function ldap_filter()
       EXIST=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select email from backup_account where conclusion_date < '$TODAY' and conclusion_date > '$YESTERDAY' and email='$1'")
     fi
   fi
-  grep -Fxq "$1" /etc/zmbackup/blacklist.conf
+  grep -Fxq "$1" /etc/zmbackup/blockedlist.conf
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
-    echo "WARN: $1 found inside blacklist - Nothing to do."
+    echo "WARN: $1 found inside blocked list - Nothing to do."
   elif [[ $EXIST ]]; then
     echo "WARN: $1 already has backup today. Nothing to do."
   else

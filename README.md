@@ -19,7 +19,7 @@ Features
 * Have some insights about eacho backup routine;
 * Receive alert everytime a backup session begins;
 * Better internal garbage manager;
-* Filter the accounts that should not be execute with blacklists;
+* Filter the accounts that should not be execute with blocked lists;
 * Log management compatible with rsyslog;
 * Sessions stored in a relational database - SQLITE3 only - or TXT file;
 

@@ -14,7 +14,7 @@ ERR_CREATE_USER="5"      # Can't create the user for some reason
 # ZMBACKUP INSTALLATION PATH
 MYDIR=`dirname $0`                       # The directory where the install script is
 ZMBKP_SRC="/usr/local/bin"               # The main script stay here
-ZMBKP_CONF="/etc/zmbackup"               # The config/blacklist directory
+ZMBKP_CONF="/etc/zmbackup"               # The config/blocked list directory
 ZMBKP_SHARE="/usr/local/share/zmbackup"  # Keep for upgrade routine
 ZMBKP_LIB="/usr/local/lib/zmbackup"      # The new path for the libs
 
