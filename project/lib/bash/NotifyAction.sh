@@ -46,7 +46,7 @@ function notify_finish()
 
     # Loading the variables
     if [[ "$3" == "SUCCESS" ]]; then
-      SIZE=$(du -h "$WORKDIR"/"$1" 2> /dev/null | awk 'print $1'; exit "${PIPESTATUS[0]}")
+      SIZE=$(du -h "$WORKDIR"/"$1" 2> /dev/null | awk '{print $1}'; exit "${PIPESTATUS[0]}")
       BASHERRCODE=$?
       if [[ $BASHERRCODE -eq 0 ]]; then
         if [[ "$1" == "mbox"* ]]; then

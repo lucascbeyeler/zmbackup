@@ -28,7 +28,7 @@ function list_sessions_txt ()
   for i in $(grep -E 'SESSION:' "$WORKDIR"/sessions.txt | grep 'started' |  awk '{print $2}' | sort | uniq); do
 
     # Load variables
-    SIZE=$(du -h "$WORKDIR"/"$i" | awk 'print $1')
+    SIZE=$(du -h "$WORKDIR"/"$i" | awk '{print $1}')
     OPT=$(echo "$i" | cut -d"-" -f1 )
     case $OPT in
       "full")

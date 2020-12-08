@@ -59,7 +59,7 @@ function importsessionSQL(){
     esac
     INITIAL=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
     CONCLUSION=$YEAR'-'$MONTH'-'$DAY"T00:00:00.000"
-    SIZE=$(du -ch "$WORKDIR"/"$i" | grep total | awk 'print $1')
+    SIZE=$(du -ch "$WORKDIR"/"$i" | grep total | awk '{print $1}')
     STATUS="FINISHED"
     sqlite3 "$WORKDIR"/sessions.sqlite3 "insert into backup_session values ('$SESSIONID',\
                                        '$INITIAL','$CONCLUSION','$SIZE','$OPT','$STATUS')"
@@ -74,7 +74,7 @@ function importaccountsSQL(){
     DATE=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select conclusion_date from backup_session where sessionID='$i'")
     for j in $(grep -E "$i" "$WORKDIR"/sessions.txt | grep -v 'SESSION:' | sort | uniq); do
       EMAIL=$(echo "$j" | cut -d":" -f2)
-      SIZE=$(du -ch "$WORKDIR"/"$i"/"$EMAIL"* | grep total | awk 'print $1')
+      SIZE=$(du -ch "$WORKDIR"/"$i"/"$EMAIL"* | grep total | awk '{print $1}')
       sqlite3 "$WORKDIR"/sessions.sqlite3 "insert into backup_account (email,sessionID,\
                                          account_size,initial_date, conclusion_date) \
                                          values ('$EMAIL','$i','$SIZE','$DATE','$DATE')" > /dev/null
