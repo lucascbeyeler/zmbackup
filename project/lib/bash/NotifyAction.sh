@@ -12,13 +12,12 @@
 function notify_begin()
 {
   if [[ "$ENABLE_EMAIL_NOTIFY" == "all" || "$ENABLE_EMAIL_NOTIFY" == "start" ]]; then
-    printf "Subject: Zmbackup - Backup routine for %s start at $(date)" "$1";
-    printf "\nGreetings Administrator,";
-    printf "\n\nThis is an automatic message to inform you that the process for %s BACKUP that you scheduled started right now." "$2";
-    printf " Depending on the amount of accounts and/or data to be backed up, this process can take some hours before conclude.";
-    printf "\nDon't worry, we will inform you when the process finish.";
-    printf "\n\nRegards,";
-    printf "\nZmbackup Team" > "$MESSAGE"
+    printf "Subject: Zmbackup - Backup routine for %s start at %s\nGreetings Administrator,
+    \n\nThis is an automatic message to inform you that the process for %s BACKUP that you scheduled started right now.
+    Depending on the amount of accounts and/or data to be backed up, this process can take some hours before conclude.
+    \nDon't worry, we will inform you when the process finish.
+    \n\nRegards,
+    \nZmbackup Team" "$1" "$(date)" "$2"> "$MESSAGE"
     ERR=$( (sendmail -f "$EMAIL_SENDER" "$EMAIL_NOTIFY" < "$MESSAGE" ) 2>&1)
     BASHERRCODE=$?
     if [[ $BASHERRCODE -eq 0 ]]; then
@@ -64,16 +63,10 @@ function notify_finish()
     fi
 
     # The message
-    printf "Subject: Zmbackup - Backup routine for %s complete at %s - %s" "$1" "$(date)" "$3";
-    printf "\nGreetings Administrator,";
-    printf "\n\nThis is an automatic message to inform you that the process for %s BACKUP that you scheduled ended right now." "$2";
-    printf "\nHere some information about this session:";
-    printf "\n\nSize: %s" "$SIZE";
-    printf "\nAccounts: %s" "$QTDE";
-    printf "\nStatus: %s" "$3";
-    printf "\n\nRegards,";
-    printf "\nZmbackup Team";
-    printf "\n\nSummary of files:\n" > "$MESSAGE"
+    printf "Subject: Zmbackup - Backup routine for %s complete at %s - %s\nGreetings Administrator,
+    \n\nThis is an automatic message to inform you that the process for %s BACKUP that you scheduled ended right now.
+    \nHere some information about this session:\n\nSize: %s\nAccounts: %s\nStatus: %s\n\nRegards,\nZmbackup Team
+    \n\nSummary of files:\n" "$1" "$(date)" "$3" "$2" "$SIZE" "$QTDE" "$3"> "$MESSAGE"
     cat "$TEMPSESSION" >> "$MESSAGE"
     ERR=$( (sendmail -f "$EMAIL_SENDER" "$EMAIL_NOTIFY" < "$MESSAGE" ) 2>&1)
     BASHERRCODE=$?

@@ -48,7 +48,7 @@ function build_listBKP()
   fi
   grep "^$2" "$TEMPACCOUNT" | awk '{print $2}' > "$TEMPINACCOUNT"
   truncate --size 0 "$TEMPACCOUNT"
-  parallel --jobs "$MAX_PARALLEL_PROCESS" 'ldap_filter {}' < "$TEMPINACCOUNT"
+  parallel --jobs "$MAX_PARALLEL_PROCESS" "ldap_filter '{}'" < "$TEMPINACCOUNT"
 }
 
 
