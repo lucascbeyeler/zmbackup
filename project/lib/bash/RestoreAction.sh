@@ -13,31 +13,30 @@
 function restore_main_mailbox()
 {
   if [[ $SESSION_TYPE == 'TXT' ]]; then
-    SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
+    SESSION=$(grep -E ": $1 started" "$WORKDIR"/sessions.txt | grep 'started' | \
                   awk '{print $2}' | sort | uniq)
   elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-    SESSION=$(sqlite3 $WORKDIR/sessions.sqlite3 "select * from backup_session where sessionID='$1'")
+    SESSION=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select * from backup_session where sessionID='$1'")
   fi
-  if ! [ -z "$SESSION" ]; then
-    printf "Restore mail process with session $1 started at $(date)"
-    if [[ ! -z $3 && $2 == *"@"* ]]; then
-      ERR=$((http --check-status --verify=no POST "$WEBPROTO://$MAILHOST:7071/home/$3/?fmt=tgz"\
-           -a "$ADMINUSER":"$ADMINPASS" < $WORKDIR/$1/$2.tgz) 2>&1)
-      if [[ $? -eq 0 ]]; then
-        printf "Account $2 restored with success"
+  if [ -n "$SESSION" ]; then
+    printf "Restore mail process with session %s started at %s" "$1" "$(date)"
+    if [[ -n $3 && $2 == *"@"* ]]; then
+      ERR=$( (curl --insecure -X PUT --data-binary "$WORKDIR"/"$1"/"$2".tgz --user "$ADMINUSER":"$ADMINPASS" "$WEBPROTO://$MAILHOST:$MAILPORT/home/$3/?fmt=tgz") 2>&1)
+      BASHERRCODE=$?
+      if [[ $BASHERRCODE -eq 0 ]]; then
+        printf "Account %s restored with success" "$2"
       else
-        printf "Error during the restore process for account $2. Error message below:"
-        printf $ERR
+        printf "Error during the restore process for account %s. Error message below:" "$2"
+        printf "%s" "$ERR"
       fi
     else
-      build_listRST $1 $2
-      cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-               "mailbox_restore $1 {}"
+      build_listRST "$1" "$2"
+      parallel --jobs "$MAX_PARALLEL_PROCESS" "mailbox_restore $1 {}" < "$TEMPACCOUNT"
     fi
-    printf "\nRestore mail process with session $1 completed at $(date)\n"
+    printf "\nRestore mail process with session %s completed at %s\n" "$1" "$(date)"
   else
     echo "Nothing to do. Closing..."
-    rm -rf $PID
+    rm -rf "$PID"
   fi
 }
 
@@ -50,16 +49,15 @@ function restore_main_mailbox()
 function restore_main_ldap()
 {
   if [[ $SESSION_TYPE == 'TXT' ]]; then
-    SESSION=$(egrep ": $1 started" $WORKDIR/sessions.txt | egrep 'started' | \
+    SESSION=$(grep -E ": $1 started" "$WORKDIR"/sessions.txt | grep 'started' | \
                   awk '{print $2}' | sort | uniq)
   elif [[ $SESSION_TYPE == "SQLITE3" ]]; then
-    SESSION=$(sqlite3 $WORKDIR/sessions.sqlite3 "select * from backup_session where sessionID='$1'")
+    SESSION=$(sqlite3 "$WORKDIR"/sessions.sqlite3 "select * from backup_session where sessionID='$1'")
   fi
   if ! [ -s "$SESSION" ]; then
     echo "Restore LDAP process with session $1 started at $(date)"
-    build_listRST $1 $2
-    cat $TEMPACCOUNT | parallel --jobs $MAX_PARALLEL_PROCESS \
-                              "ldap_restore $1 {}"
+    build_listRST "$1" "$2"
+    parallel --jobs "$MAX_PARALLEL_PROCESS" "ldap_restore $1 {}" < "$TEMPACCOUNT"
     echo "Restore LDAP process with session $1 completed at $(date)"
   else
     echo "Nothing to do. Closing..."

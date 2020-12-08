@@ -7,16 +7,17 @@
 function install_ubuntu() {
   echo "Installing dependencies. Please wait..."
   apt-get update > /dev/null 2>&1
-  apt-get install -y parallel wget httpie > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
+  apt-get install -y parallel wget curl > /dev/null 2>&1
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies installed with success!"
   else
     echo "Dependencies wasn't installed in your server"
     echo "Please check if you have connection with the internet and apt-get is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "apt-get update && apt-get install -y parallel wget httpie"
-    exit $ERR_DEPNOTFOUND
+    echo "apt-get update && apt-get install -y parallel wget curl"
+    exit "$ERR_DEPNOTFOUND"
   fi
 }
 
@@ -26,39 +27,39 @@ function install_ubuntu() {
 function install_redhat() {
   echo "Installing dependencies. Please wait..."
   yum install wget -y > /dev/null 2>&1
-  if [[ $? -ne 0 ]]; then
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -ne 0 ]]; then
     echo "Failure - Can't install Wget"
-    exit $ERR_NO_CONNECTION
+    exit "$ERR_NO_CONNECTION"
   fi
-  cat /etc/redhat-release | grep 6 > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
-    wget -O "/etc/yum.repos.d/tange.repo" $OLE_TANGE > /dev/null 2>&1
-    if [[ $? -ne 0 ]]; then
+  grep 6 /etc/redhat-release > /dev/null 2>&1
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -eq 0 ]]; then
+    wget -O "/etc/yum.repos.d/tange.repo" "$OLE_TANGE" > /dev/null 2>&1
+    BASHERRCODE=$?
+    if [[ $BASHERRCODE -ne 0 ]]; then
       echo "Failure - Can't install Tange's repository for Parallel"
-      exit $ERR_NO_CONNECTION
+      exit "$ERR_NO_CONNECTION"
     fi
     yum install -y python-pip -y  > /dev/null 2>&1
-    if [[ $? -ne 0 ]]; then
-      echo "Failure - Can't install python-pip to download and install httpie"
-      exit $ERR_NO_CONNECTION
-    fi
-    pip install httpie  > /dev/null 2>&1
-    if [[ $? -ne 0 ]]; then
-      echo "Failure - Can't install httpie"
-      exit $ERR_NO_CONNECTION
+    BASHERRCODE=$?
+    if [[ $BASHERRCODE -ne 0 ]]; then
+      echo "Failure - Can't install python-pip to download and install curl"
+      exit "$ERR_NO_CONNECTION"
     fi
   fi
   yum install -y epel-release  > /dev/null 2>&1
-  yum install -y parallel httpie  > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
+  yum install -y parallel curl  > /dev/null 2>&1
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies installed with success!"
   else
     echo "Dependencies wasn't installed in your server"
     echo "Please check if you have connection with the internet and yum is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "yum install -y epel-release && yum install -y parallel wget httpie"
-    exit $ERR_DEPNOTFOUND
+    echo "yum install -y epel-release && yum install -y parallel wget curl"
+    exit "$ERR_DEPNOTFOUND"
   fi
 }
 
@@ -67,15 +68,16 @@ function install_redhat() {
 ################################################################################
 function remove_ubuntu() {
   echo "Removing dependencies. Please wait..."
-  apt-get --purge remove -y parallel wget httpie > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
+  apt-get --purge remove -y parallel wget curl > /dev/null 2>&1
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies removed with success!"
   else
     echo "Dependencies wasn't removed in your server"
     echo "Please check if you have connection with the internet and apt-get is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "apt-get remove -y parallel wget httpie"
+    echo "apt-get remove -y parallel wget curl"
   fi
 }
 
@@ -84,18 +86,20 @@ function remove_ubuntu() {
 ################################################################################
 function remove_redhat() {
   echo "Removing dependencies. Please wait..."
-  cat /etc/redhat-release | grep 6 > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
-    pip uninstall -y httpie > /dev/null 2>&1
+  grep 6 /etc/redhat-release > /dev/null 2>&1
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -eq 0 ]]; then
+    pip uninstall -y curl > /dev/null 2>&1
   fi
-  yum remove -y parallel wget httpie python-pip > /dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
+  yum remove -y parallel wget curl python-pip > /dev/null 2>&1
+  BASHERRCODE=$?
+  if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies removed with success!"
   else
     echo "Dependencies wasn't removed in your server"
     echo "Please check if you have connection with the internet and yum is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "yum install -y epel-release && yum install -y parallel wget httpie"
+    echo "yum install -y epel-release && yum install -y parallel wget curl"
   fi
 }

@@ -7,15 +7,16 @@
 # clear_temp: Clear all the temporary files.
 ################################################################################
 function on_exit(){
-  ERRCODE=$?
-  if [[ ! -z $STYPE ]]; then
-    if [[ $ERRCODE -eq 1 ]]; then
-      notify_finish $SESSION $STYPE "FAILURE"
-    elif [[ $ERRCODE -eq 0 && ! -z $SESSION ]]; then
-      notify_finish $SESSION "$STYPE" "SUCCESS"
+  BASHERRCODE=$?
+  if [[ -n $STYPE ]]; then
+    if [[ $BASHERRCODE -eq 1 ]]; then
+      notify_finish "$SESSION" "$STYPE" "FAILURE"
+    elif [[ $BASHERRCODE -eq 0 && -n $SESSION ]]; then
+      notify_finish "$SESSION" "$STYPE" "SUCCESS"
     fi
   fi
-  rm -rf $TEMPSESSION $TEMPACCOUNT $TEMPINCACCOUNT $TEMPDIR $MESSAGE $TEMPSQL $FAILURE
+  # shellcheck disable=SC2086
+  rm -rf "$TEMPSESSION" "$TEMPACCOUNT" "$TEMPINACCOUNT" "$TEMPDIR" $MESSAGE $TEMPSQL $FAILURE
   logger -i -p local7.info "Zmbackup: Excluding the temporary files before close."
 }
 
@@ -26,13 +27,21 @@ trap on_exit TERM INT EXIT
 # create_temp: Create the temporary files used by the script.
 ################################################################################
 function create_temp(){
-  export readonly TEMPDIR=$(mktemp -d $WORKDIR/XXXX)
-  export readonly TEMPACCOUNT=$(mktemp)
-  export readonly TEMPINACCOUNT=$(mktemp)
-  export readonly MESSAGE=$(mktemp)
-  export readonly FAILURE=$(mktemp)
-  export readonly TEMPSESSION=$(mktemp)
-  export readonly TEMPSQL=$(mktemp)
+  export readonly TEMPDIR
+  export readonly TEMPACCOUNT
+  export readonly TEMPINACCOUNT
+  export readonly MESSAGE
+  export readonly FAILURE
+  export readonly TEMPSESSION
+  export readonly TEMPSQL
+
+  TEMPDIR=$(mktemp -d "$WORKDIR"/XXXX)
+  TEMPACCOUNT=$(mktemp)
+  TEMPINACCOUNT=$(mktemp)
+  MESSAGE=$(mktemp)
+  FAILURE=$(mktemp)
+  TEMPSESSION=$(mktemp)
+  TEMPSQL=$(mktemp)
 }
 
 ################################################################################
@@ -94,35 +103,34 @@ function constant(){
 #    $2 - OPTIONAL: Enable Incremental Backup
 ################################################################################
 function sessionvars(){
-  ls $WORKDIR/full* > /dev/null 2>&1
-  if [[ $? -ne 0 || $1 == '--full' || $1 == '-f' ]]; then
-    export readonly STYPE="Full Account"
-    export readonly SESSION="full-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='FALSE'
+  export readonly SESSION
+  export readonly STYPE
+  export readonly INC
+  INC='FALSE'
+  ls "$WORKDIR"/full* > /dev/null 2>&1
+  ERRORCODE=$?
+  if [[ $ERRORCODE -ne 0 || $1 == '--full' || $1 == '-f' ]]; then
+    STYPE="Full Account"
+    SESSION="full-"$(date  +%Y%m%d%H%M%S)
   elif [[ $1 == '--incremental' || $1 == '-i' ]]; then
-    export readonly STYPE="Incremental Account"
-    export readonly SESSION="inc-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='TRUE'
+    STYPE="Incremental Account"
+    SESSION="inc-"$(date  +%Y%m%d%H%M%S)
+    INC='TRUE'
   elif [[ $1 == '--alias' || $1 == '-al' ]]; then
-    export readonly STYPE="Alias"
-    export readonly SESSION="alias-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='FALSE'
+    STYPE="Alias"
+    SESSION="alias-"$(date  +%Y%m%d%H%M%S)
   elif [[ $1 == '-dl' || $1 == '--distributionlist' ]]; then
-    export readonly STYPE="Distribution List"
-    export readonly SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='FALSE'
+    STYPE="Distribution List"
+    SESSION="distlist-"$(date  +%Y%m%d%H%M%S)
   elif [[ $1 == '-m' || $1 == '--mail' ]]; then
-    export readonly STYPE="Mailbox"
-    export readonly SESSION="mbox-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='FALSE'
+    STYPE="Mailbox"
+    SESSION="mbox-"$(date  +%Y%m%d%H%M%S)
   elif [[ $1 == '--ldap' || $1 == '-ldp' ]]; then
-    export readonly STYPE="Account - Only LDAP"
-    export readonly SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='FALSE'
+    STYPE="Account - Only LDAP"
+    SESSION="ldap-"$(date  +%Y%m%d%H%M%S)
   elif [[ $1 == '--signature' || $1 == '-sig' ]]; then
-    export readonly STYPE="Signature"
-    export readonly SESSION="signature-"$(date  +%Y%m%d%H%M%S)
-    export readonly INC='FALSE'
+    STYPE="Signature"
+    SESSION="signature-"$(date  +%Y%m%d%H%M%S)
   fi
 }
 
@@ -138,7 +146,7 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: BACKUPUSER not informed - setting as user zimbra instead."
   fi
 
-  if [ $(whoami) != "$BACKUPUSER" ]; then
+  if [ "$(whoami)" != "$BACKUPUSER" ]; then
     echo "You need to be $BACKUPUSER to run this software."
     logger -i -p local7.err "Zmbackup: You need to be $BACKUPUSER to run this software."
     exit 2
@@ -154,8 +162,14 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: MAILHOST not informed - setting as 127.0.0.1 instead."
   fi
 
-  TMP=$((wget --timeout=5 --tries=2 --no-check-certificate -O /dev/null https://$MAILHOST:7071)2>&1)
-  if [ $? -ne 0 ]; then
+    if [ -z "$MAILPORT" ]; then
+    MAILPORT="7071"
+    logger -i -p local7.warn "Zmbackup: MAILPORT not informed - setting as 7071 instead."
+  fi
+
+  TMP=$( (wget --timeout="$WGET_TIMEOUT" --tries="$WGET_RETRIES" --no-check-certificate -O /dev/null https://$MAILHOST:$MAILPORT) 2>&1 )
+  ERRORCODE=$?
+  if [ "$ERRORCODE" -ne 0 ]; then
     echo "Mailbox Admin Service is Down or Unavailable - See the logs for more information."
     logger -i -p local7.err "Zmbackup: Mailbox Admin Service is Down or Unavailable."
     logger -i -p local7.err "Zmbackup: $TMP"
@@ -252,9 +266,9 @@ function validate_config(){
 ################################################################################
 function checkpid(){
   if [[ -f "$PID" ]]; then
-    PIDP=`cat $PID`
-    PIDR=`ps -efa | awk '{print $2}' | grep -c "^$PIDP$"`
-    if [ $PIDR -gt 0 ]; then
+    PIDP=$(cat $PID)
+    PIDR=$(ps -efa | awk '{print $2}' | grep -c "^$PIDP$")
+    if [ "$PIDR" -gt 0 ]; then
       echo "FATAL: could not write lock file '/opt/zimbra/log/zmbackup.pid': File already exist"
       echo "This file exist as a secure measurement to protect your system to run two zmbackup"
       echo "instances at the same time."

@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 28/09/2018 - Version 1.2.3  - By The Zimbra Community & Lucas Costa Beyeler
+# 28/09/2018 - Version 1.2.5  - By The Zimbra Community & Lucas Costa Beyeler
 #                               <lucas.costab@outlook.com>
 #                               <zmbackup@protonmail.com>
 ################################################################################
@@ -185,7 +185,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.2.3"
+    echo "zmbackup version: 1.2.5"
   ;;
   "-m"|"--migrate" )
     checkpid

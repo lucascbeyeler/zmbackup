@@ -33,7 +33,7 @@ EOF
   echo -e "\n"
   echo "##################################################################################"
   echo "#                                                                                #"
-  echo "# PLEASE, READ THIS AGREEMENT CAREFULLY BEFORE USING THE SOFTWARE. THIS PROGRAM  #"
+  echo "# PLEASE, read -r THIS AGREEMENT CAREFULLY BEFORE USING THE SOFTWARE. THIS PROGRAM  #"
   echo "# IS FREE SOFTWARE; YOU CAN REDISTRIBUTE IT AND/OR MODIFY IT UNDER THE TERMS OF  #"
   echo "# VERSION 3 OF THE GNU GENERAL PUBLIC LICENCE AS PUBLISHED BY THE FREE SOFTWARE  #"
   echo "# FOUNDATION.                                                                    #"
@@ -48,7 +48,7 @@ EOF
   echo "##################################################################################"
   echo -e "\n"
   printf "Do you agree with the terms of the software license agreements? [N/y]: "
-  read OPT
+  read -r -r OPT
   if [[ $OPT != 'Y' && $OPT != 'y' ]]; then
   	echo "Stoping the installation process..."
   	exit 0
@@ -69,51 +69,51 @@ function set_values() {
   echo -e "\n"
 
   # Inform Zimbra's default user
-  printf "Inform Zimbra's defaut user - DEFAULT [$OSE_USER]:"
-  read TMP
+  printf "Inform Zimbra's defaut user - DEFAULT [%s]:" "$OSE_USER"
+  read -r TMP
   OSE_USER=${TMP:-$OSE_USER}
 
   # Inform Zimbra's default install path
-  printf "\nInform Zimbra's defaut install path - DEFAULT [$OSE_INSTALL_DIR]:"
-  read TMP
+  printf "\nInform Zimbra's defaut install path - DEFAULT [%s]:" "$OSE_INSTALL_DIR"
+  read -r TMP
   OSE_INSTALL_DIR=${TMP:-$OSE_INSTALL_DIR}
 
   # Inform Zmbackup's backup store
-  printf "\nInform the path Zmbackup will use to store - DEFAULT [$OSE_DEFAULT_BKP_DIR]:"
-  read TMP
+  printf "\nInform the path Zmbackup will use to store - DEFAULT [%s]:" "$OSE_DEFAULT_BKP_DIR"
+  read -r TMP
   OSE_DEFAULT_BKP_DIR=${TMP:-$OSE_DEFAULT_BKP_DIR}
 
   # Configure mail alert
-  printf "\nInform the account to receive all Zmbackup's alerts - DEFAULT [$ZMBKP_MAIL_ALERT]:"
-  read TMP
+  printf "\nInform the account to receive all Zmbackup's alerts - DEFAULT [%s]:" "$ZMBKP_MAIL_ALERT"
+  read -r TMP
   ZMBKP_MAIL_ALERT=${TMP:-$ZMBKP_MAIL_ALERT}
 
   # Configure mail alert
-  printf "\nInform Zmbackup's number of threads - DEFAULT [$MAX_PARALLEL_PROCESS]:"
-  read TMP
+  printf "\nInform Zmbackup's number of thread -rs - DEFAULT [%s]:" "$MAX_PARALLEL_PROCESS"
+  read -r TMP
   MAX_PARALLEL_PROCESS=${TMP:-$MAX_PARALLEL_PROCESS}
 
   # Configure mail alert
-  printf "\nInform the number of days Zmbackup should store the backups - DEFAULT [$ROTATE_TIME]:"
-  read TMP
+  printf "\nInform the number of days Zmbackup should store the backups - DEFAULT [%s]:" "$ROTATE_TIME"
+  read -r TMP
   ROTATE_TIME=${TMP:-$ROTATE_TIME}
 
   # Configure mail alert
-  printf "\nZmbackup should limit backups for one per day? - DEFAULT [$LOCK_BACKUP]:"
-  read TMP
+  printf "\nZmbackup should limit backups for one per day? - DEFAULT [%s]:" "$LOCK_BACKUP"
+  read -r TMP
   LOCK_BACKUP=${TMP:-$LOCK_BACKUP}
 
   # Configure mail alert
   while ! [[ "$TMP" == 'SQLITE3' || "$TMP" == 'TXT' ]]; do
-      printf "\nWhere you want to store Zmbackup's sessions? TXT or SQLITE3 - DEFAULT [$SESSION_TYPE]:"
-      read TMP
+      printf "\nWhere you want to store Zmbackup's sessions? TXT or SQLITE3 - DEFAULT [%s]:" "$SESSION_TYPE"
+      read -r TMP
       TMP=${TMP:-$SESSION_TYPE}
   done
   SESSION_TYPE=${TMP:-$SESSION_TYPE}
 
   # Change Zmbackup password
-  printf "\nInform a password for zmbackup user - DEFAULT [$ZMBKP_PASSWORD]:"
-  read TMP
+  printf "\nInform a password for zmbackup user - DEFAULT [%s]:" "$ZMBKP_PASSWORD"
+  read -r TMP
   TMP=${TMP:-$ZMBKP_PASSWORD}
 
   echo -e "\n\n"
