@@ -105,16 +105,12 @@ function deploy_new() {
   echo -ne '###################   (95%)\r'
 
   # Creating Zmbackup backup user
-  STATUS=$( (sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1") 2>&1)
+  sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" 2>&1
   BASHERRCODE=$?
-  if [[ $BASHERRCODE -eq 0 ]]; then
-      echo -ne '####################  (100%)\r'
-  else
-    echo "ERROR - Can't create the user. Executing rollback process"
-    echo "Error description: $STATUS"
-    uninstall
-    exit "$ERR_CREATE_USER"
+  if [[ $BASHERRCODE -ne 0 ]]; then
+    echo "ERROR - Can't create the user. User already exist - ignoring"
   fi
+  echo -ne '####################  (100%)\r'
 }
 
 ################################################################################
