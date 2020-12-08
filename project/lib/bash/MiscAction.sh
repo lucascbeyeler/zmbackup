@@ -309,4 +309,7 @@ function export_vars(){
   export WORKDIR
   export LOCK_BACKUP
   export SESSION_TYPE
+  export WGET_TIMEOUT
+  export WGET_RETRIES
+  export MAILPORT
 }
