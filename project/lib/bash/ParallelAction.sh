@@ -17,7 +17,7 @@ function ldap_backup()
 {
   TEMP_CLI_OUTPUT=$(mktemp)
   ldapsearch -Z -x -H "$LDAPSERVER" -D "$LDAPADMIN" -w "$LDAPPASS" -b '' \
-             -LLL "(&(|(mail=$1)(uid=$1))$2)" > "$TEMPDIR"/"$1".ldif 2> "$TEMP_CLI_OUTPUT"
+             -LLL "(&(|(mail=$1)(uid=$1))$2)" > "$TEMPDIR"/"$1".ldiff 2> "$TEMP_CLI_OUTPUT"
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     logger -i -p local7.info "Zmbackup: LDAP - Backup for account $1 finished."
@@ -80,9 +80,9 @@ function mailbox_backup()
 function ldap_restore()
 {
   ldapdelete -r -x -H "$LDAPSERVER" -D "$LDAPADMIN" -c -w "$LDAPPASS" \
-    "$(grep ^dn: "$WORKDIR"/"$1"/"$2".ldif | awk 'print $2')" > /dev/null 2>&1
+    "$(grep ^dn: "$WORKDIR"/"$1"/"$2".ldiff | awk 'print $2')" > /dev/null 2>&1
   ERR=$( (ldapadd -x -H "$LDAPSERVER" -D "$LDAPADMIN" \
-           -c -w "$LDAPPASS" -f "$WORKDIR"/"$1"/"$2".ldif) 2>&1)
+           -c -w "$LDAPPASS" -f "$WORKDIR"/"$1"/"$2".ldiff) 2>&1)
   BASHERRCODE=$?
   if ! [[ $BASHERRCODE -eq 0 ]]; then
     printf "\nError during the restore process for account %s. Error message below:" "$2"

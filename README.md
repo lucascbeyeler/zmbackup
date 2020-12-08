@@ -117,7 +117,7 @@ Restore Backup Options:
  -a,   --account                  : Execute a backup of only a set of accounts, comma separated
 ```
 
-To execute a full backup routine, which include by default the mailbox and the ldif, just run the script with the option **-f** or **--full**. Depending of the ammount of accounts or the number of proccess you set in the option **MAX_PARALLEL_PROCESS**, this will take sometime before conclude.
+To execute a full backup routine, which include by default the mailbox and the ldiff, just run the script with the option **-f** or **--full**. Depending of the ammount of accounts or the number of proccess you set in the option **MAX_PARALLEL_PROCESS**, this will take sometime before conclude.
 
 ```
 $ zmbackup -f
