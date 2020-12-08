@@ -15,17 +15,20 @@
 ###############################################################################
 function ldap_backup()
 {
-  ERR=$( (ldapsearch -Z -x -H "$LDAPSERVER" -D "$LDAPADMIN" -w "$LDAPPASS" -b '' \
-             -LLL "(&(|(mail=$1)(uid=$1))$2)" > "$TEMPDIR"/"$1".ldif)2>&1)
+  TEMP_CLI_OUTPUT=$(mktemp)
+  ldapsearch -Z -x -H "$LDAPSERVER" -D "$LDAPADMIN" -w "$LDAPPASS" -b '' \
+             -LLL "(&(|(mail=$1)(uid=$1))$2)" > "$TEMPDIR"/"$1".ldif 2> "$TEMP_CLI_OUTPUT"
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     logger -i -p local7.info "Zmbackup: LDAP - Backup for account $1 finished."
     export ERRCODE=0
   else
     logger -i -p local7.err "Zmbackup: LDAP - Backup for account $1 failed. Error message below:"
-    echo "Zmbackup: $1 - $ERR" | xargs logger -i -p local7.err
+    echo "Zmbackup: $1 " | logger -i -p local7.err
+    logger -i -p local7.err  < "$TEMP_CLI_OUTPUT"
     export ERRCODE=1
   fi
+  rm -rf "${TEMP_CLI_OUTPUT:?}"
 }
 
 
@@ -36,6 +39,7 @@ function ldap_backup()
 ###############################################################################
 function mailbox_backup()
 {
+  TEMP_CLI_OUTPUT=$(mktemp)
   if [[ "$INC" == "TRUE" ]]; then
     if [[ $SESSION_TYPE == 'TXT' ]]; then
       DATE=$(grep "$1" "$WORKDIR"/sessions.txt | tail -1 | awk -F: '{print $3}' | cut -d'-' -f2)
@@ -46,8 +50,8 @@ function mailbox_backup()
     fi
     AFTER='&'"start=$(date -d "$DATE" +%s)000"
   fi
-  ERR=$( (wget --timeout="$WGET_TIMEOUT" --tries="$WGET_RETRIES" -O "$TEMPDIR"/"$1".tgz --http-user "$ADMINUSER" --http-passwd "$ADMINPASS" --auth-no-challenge \
-        "$WEBPROTO://$MAILHOST:$MAILPORT/home/$1/?fmt=tgz$AFTER" --no-check-certificate) 2>&1)
+  wget --timeout="$WGET_TIMEOUT" --tries="$WGET_RETRIES" -O "$TEMPDIR"/"$1".tgz --http-user "$ADMINUSER" --http-passwd "$ADMINPASS" --auth-no-challenge \
+        "$WEBPROTO://$MAILHOST:$MAILPORT/home/$1/?fmt=tgz$AFTER" --no-check-certificate > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
@@ -59,9 +63,11 @@ function mailbox_backup()
     export ERRCODE=0
   else
     logger -i -p local7.err "Zmbackup: Mailbox - Backup for account $1 failed. Error message below:"
-    echo "Zmbackup: $1 - $ERR" | xargs logger -i -p local7.err
+    echo "Zmbackup: $1 " | logger -i -p local7.err
+    logger -i -p local7.err < "$TEMP_CLI_OUTPUT"
     export ERRCODE=1
   fi
+  rm -rf "${TEMP_CLI_OUTPUT:?}"
 }
 
 
@@ -92,14 +98,17 @@ function ldap_restore()
 ###############################################################################
 function mailbox_restore()
 {
-  ERR=$( (curl --insecure -X PUT --data-binary "$WORKDIR"/"$1"/"$2".tgz --user "$ADMINUSER":"$ADMINPASS" "$WEBPROTO://$MAILHOST:$MAILPORT/home/$2/?fmt=tgz") 2>&1)
+  TEMP_CLI_OUTPUT=$(mktemp)
+  curl --insecure -X PUT --data-binary "$WORKDIR"/"$1"/"$2".tgz --user "$ADMINUSER":"$ADMINPASS" "$WEBPROTO://$MAILHOST:$MAILPORT/home/$2/?fmt=tgz" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if ! [[ $BASHERRCODE -eq 0 ]]; then
     printf "Error during the restore process for account %s. Error message below:" "$2"
-    printf "\n%s: %s" "$2" "$ERR"
+    printf "\n%s: " "$2"
+    cat "$TEMP_CLI_OUTPUT"
   elif [[ "$ERR"  == *"No such file or directory" ]]; then
     printf "Account %s has nothing to restore - skipping..." "$2"
   fi
+  rm -rf "${TEMP_CLI_OUTPUT:?}"
 }
 
 
