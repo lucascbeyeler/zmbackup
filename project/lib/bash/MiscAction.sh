@@ -172,6 +172,11 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: EMAIL_NOTIFY not informed - setting as root@localdomain.com instead."
   fi
 
+  if [ -z "$ZMMAILBOX" ]; then
+    ZMMAILBOX=$(whereis zmmailbox | cut -d" " -f2)
+    logger -i -p local7.warn "Zmbackup: ZMMAILBOX not defined informed - setting as $ZMMAILBOX instead"
+  fi
+
   if [ -z "$MAX_PARALLEL_PROCESS" ]; then
     MAX_PARALLEL_PROCESS="1"
     logger -i -p local7.warn "Zmbackup: MAX_PARALLEL_PROCESS not informed - disabling."

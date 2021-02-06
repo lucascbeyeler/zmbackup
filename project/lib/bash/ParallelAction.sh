@@ -52,7 +52,7 @@ function mailbox_backup()
   fi
   $ZMMAILBOX -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
-  if [[ $BASHERRCODE -eq 0 || "$ERR" == *"204 No data found"* ]]; then
+  if [[ $BASHERRCODE -eq 0 ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
       logger -i -p local7.info "Zmbackup: Mailbox - Backup for account $1 finished."
     else
