@@ -17,7 +17,6 @@ function blocklist_gen(){
       echo "$ACCOUNT" >> "$ZMBKP_CONF"/blockedlist.conf
     fi
   done
-  echo "$ZMBKP_ACCOUNT" >> "$ZMBKP_CONF"/blockedlist.conf
 }
 
 ################################################################################
@@ -73,18 +72,12 @@ function deploy_new() {
 
   # Including custom settings
   sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" "$ZMBKP_CONF"/zmbackup.conf
-  echo -ne '##########            (50%)\r'
-  sed -i "s|{ZMBKP_ACCOUNT}|${ZMBKP_ACCOUNT}|g" "$ZMBKP_CONF"/zmbackup.conf
-  echo -ne '###########           (55%)\r'
-  sed -i "s|{ZMBKP_PASSWORD}|${ZMBKP_PASSWORD}|g" "$ZMBKP_CONF"/zmbackup.conf
   echo -ne '############          (60%)\r'
   sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" "$ZMBKP_CONF"/zmbackup.conf
   echo -ne '#############         (65%)\r'
   sed -i "s|{ZMBKP_MAIL_SENDER}|${ZMBKP_MAIL_SENDER}|g" "$ZMBKP_CONF"/zmbackup.conf
   echo -ne '#############         (65%)\r'
   sed -i "s|{OSE_INSTALL_ADDRESS}|${OSE_INSTALL_ADDRESS}|g" "$ZMBKP_CONF"/zmbackup.conf
-  sed -i "s|{OSE_INSTALL_PORT}|${OSE_INSTALL_PORT}|g" "$ZMBKP_CONF"/zmbackup.conf
-  sed -i "s|{ZMBKP_MAIL_SENDER}|${OSE_INSTALL_ADDRESS}|g" "$ZMBKP_CONF"/zmbackup.conf
   echo -ne '##############        (70%)\r'
   sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" "$ZMBKP_CONF"/zmbackup.conf
   sed -i "s|{SESSION_TYPE}|${SESSION_TYPE}|g" "$ZMBKP_CONF"/zmbackup.conf
@@ -102,14 +95,7 @@ function deploy_new() {
 
   # Generate Zmbackup's blocked list
   blocklist_gen
-  echo -ne '###################   (95%)\r'
 
-  # Creating Zmbackup backup user
-  sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov ca '$ZMBKP_ACCOUNT' '$ZMBKP_PASSWORD' zimbraIsAdminAccount TRUE zimbraAdminAuthTokenLifetime 1" 2>&1
-  BASHERRCODE=$?
-  if [[ $BASHERRCODE -ne 0 ]]; then
-    echo "ERROR - Can't create the user. User already exist - ignoring"
-  fi
   echo -ne '####################  (100%)\r'
 }
 
@@ -155,8 +141,6 @@ function uninstall() {
     install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
     blocklist_gen
   fi
-  echo -ne '###############       (75%)\r'
-  sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov da $ZMBKP_ACCOUNT" > /dev/null 2>&1
   echo -ne '####################  (100%)\r'
   printf "Preserve Backup Storage?[n/Y]"
   read -r OPT

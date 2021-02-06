@@ -26,9 +26,7 @@ Features
 Requirements
 ------------
 
-* **GNU Wget** - a computer program that retrieves content from web servers;
 * **GNU Parallel** - a shell tool for executing jobs in parallel using one or more CPU;
-* **cURL** - a command line HTTP client;
 * **GNU grep** - a command-line utility for searching plain-text data sets for lines matching a regular expression;
 * **date** - command used to print out, or change the value of, the system's time and date information;
 * **cron** - a time-based job scheduler in Unix-like computer operating systems;
