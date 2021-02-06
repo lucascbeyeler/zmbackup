@@ -50,7 +50,7 @@ function mailbox_backup()
     fi
     AFTER='&'"start=$(date -d "$DATE" +%s)000"
   fi
-  $ZMMAILBOX -z -m "$1" getRestURL "//?fmt=tgz&resolve=skip$AFTER" "$TEMPDIR"/"$1".tgz > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
