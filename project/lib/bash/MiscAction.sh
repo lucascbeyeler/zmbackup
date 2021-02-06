@@ -276,4 +276,5 @@ function export_vars(){
   export LOCK_BACKUP
   export SESSION_TYPE
   export MAILPORT
+  export ZMMAILBOX
 }
