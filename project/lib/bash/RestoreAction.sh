@@ -21,14 +21,17 @@ function restore_main_mailbox()
   if [ -n "$SESSION" ]; then
     printf "Restore mail process with session %s started at %s" "$1" "$(date)"
     if [[ -n $3 && $2 == *"@"* ]]; then
-      ERR=$( (curl --insecure -X PUT --data-binary "$WORKDIR"/"$1"/"$2".tgz --user "$ADMINUSER":"$ADMINPASS" "$WEBPROTO://$MAILHOST:$MAILPORT/home/$3/?fmt=tgz") 2>&1)
+      TEMP_CLI_OUTPUT=$(mktemp)
+      $ZMMAILBOX -z -m "$3" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
       BASHERRCODE=$?
-      if [[ $BASHERRCODE -eq 0 ]]; then
-        printf "Account %s restored with success" "$2"
-      else
+      if ! [[ $BASHERRCODE -eq 0 ]]; then
         printf "Error during the restore process for account %s. Error message below:" "$2"
-        printf "%s" "$ERR"
+        printf "\n%s: " "$2"
+        cat "$TEMP_CLI_OUTPUT"
+      elif [[ "$ERR"  == *"No such file or directory" ]]; then
+        printf "Account %s has nothing to restore - skipping..." "$2"
       fi
+      rm -rf "${TEMP_CLI_OUTPUT:?}"
     else
       build_listRST "$1" "$2"
       parallel --jobs "$MAX_PARALLEL_PROCESS" "mailbox_restore '$1' '{}'" < "$TEMPACCOUNT"

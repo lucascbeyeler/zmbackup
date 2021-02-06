@@ -157,25 +157,6 @@ function validate_config(){
     logger -i -p local7.warn "Zmbackup: WORKDIR not informed - setting as /opt/zimbra/backup/ instead."
   fi
 
-  if [ -z "$MAILHOST" ]; then
-    MAILHOST="127.0.0.1"
-    logger -i -p local7.warn "Zmbackup: MAILHOST not informed - setting as 127.0.0.1 instead."
-  fi
-
-    if [ -z "$MAILPORT" ]; then
-    MAILPORT="7071"
-    logger -i -p local7.warn "Zmbackup: MAILPORT not informed - setting as 7071 instead."
-  fi
-
-  TMP=$( (wget --timeout="$WGET_TIMEOUT" --tries="$WGET_RETRIES" --no-check-certificate -O /dev/null https://$MAILHOST:$MAILPORT) 2>&1 )
-  ERRORCODE=$?
-  if [ "$ERRORCODE" -ne 0 ]; then
-    echo "Mailbox Admin Service is Down or Unavailable - See the logs for more information."
-    logger -i -p local7.err "Zmbackup: Mailbox Admin Service is Down or Unavailable."
-    logger -i -p local7.err "Zmbackup: $TMP"
-    ERR="true"
-  fi
-
   if [ -z "$ENABLE_EMAIL_NOTIFY" ]; then
     ENABLE_EMAIL_NOTIFY="all"
     logger -i -p local7.warn "Zmbackup: ENABLE_EMAIL_NOTIFY not informed - setting as 'all' instead."
@@ -204,18 +185,6 @@ function validate_config(){
   if ! [ -d "$WORKDIR" ]; then
     echo "The directory $WORKDIR doesn't exist."
     logger -i -p local7.err "Zmbackup: The directory $WORKDIR does not found."
-    ERR="true"
-  fi
-
-  if [ -z "$ADMINUSER" ]; then
-    echo "You need to define the variable ADMINUSER."
-    logger -i -p local7.err "Zmbackup: You need to define the variable ADMINUSER."
-    ERR="true"
-  fi
-
-  if [ -z "$ADMINPASS" ]; then
-    echo "You need to define the variable ADMINPASS."
-    logger -i -p local7.err "Zmbackup: You need to define the variable ADMINPASS."
     ERR="true"
   fi
 
@@ -300,16 +269,11 @@ function export_function(){
 # export_vars: Export all the variables used by ParallelAction
 ################################################################################
 function export_vars(){
-  export ADMINUSER
-  export ADMINPASS
   export LDAPSERVER
   export LDAPADMIN
   export LDAPPASS
-  export MAILHOST
   export WORKDIR
   export LOCK_BACKUP
   export SESSION_TYPE
-  export WGET_TIMEOUT
-  export WGET_RETRIES
   export MAILPORT
 }

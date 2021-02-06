@@ -7,7 +7,7 @@
 function install_ubuntu() {
   echo "Installing dependencies. Please wait..."
   apt-get update > /dev/null 2>&1
-  apt-get install -y parallel wget curl > /dev/null 2>&1
+  apt-get install -y parallel > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies installed with success!"
@@ -16,7 +16,7 @@ function install_ubuntu() {
     echo "Please check if you have connection with the internet and apt-get is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "apt-get update && apt-get install -y parallel wget curl"
+    echo "apt-get update && apt-get install -y parallel"
     exit "$ERR_DEPNOTFOUND"
   fi
 }
@@ -26,12 +26,6 @@ function install_ubuntu() {
 ################################################################################
 function install_redhat() {
   echo "Installing dependencies. Please wait..."
-  yum install wget -y > /dev/null 2>&1
-  BASHERRCODE=$?
-  if [[ $BASHERRCODE -ne 0 ]]; then
-    echo "Failure - Can't install Wget"
-    exit "$ERR_NO_CONNECTION"
-  fi
   grep 6 /etc/redhat-release > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
@@ -41,15 +35,9 @@ function install_redhat() {
       echo "Failure - Can't install Tange's repository for Parallel"
       exit "$ERR_NO_CONNECTION"
     fi
-    yum install -y python-pip -y  > /dev/null 2>&1
-    BASHERRCODE=$?
-    if [[ $BASHERRCODE -ne 0 ]]; then
-      echo "Failure - Can't install python-pip to download and install curl"
-      exit "$ERR_NO_CONNECTION"
-    fi
   fi
   yum install -y epel-release  > /dev/null 2>&1
-  yum install -y parallel curl  > /dev/null 2>&1
+  yum install -y parallel  > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies installed with success!"
@@ -58,7 +46,7 @@ function install_redhat() {
     echo "Please check if you have connection with the internet and yum is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "yum install -y epel-release && yum install -y parallel wget curl"
+    echo "yum install -y epel-release && yum install -y parallel"
     exit "$ERR_DEPNOTFOUND"
   fi
 }
@@ -68,7 +56,7 @@ function install_redhat() {
 ################################################################################
 function remove_ubuntu() {
   echo "Removing dependencies. Please wait..."
-  apt-get --purge remove -y parallel wget curl > /dev/null 2>&1
+  apt-get --purge remove -y parallel > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies removed with success!"
@@ -77,7 +65,7 @@ function remove_ubuntu() {
     echo "Please check if you have connection with the internet and apt-get is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "apt-get remove -y parallel wget curl"
+    echo "apt-get remove -y parallel"
   fi
 }
 
@@ -91,7 +79,7 @@ function remove_redhat() {
   if [[ $BASHERRCODE -eq 0 ]]; then
     pip uninstall -y curl > /dev/null 2>&1
   fi
-  yum remove -y parallel wget curl python-pip > /dev/null 2>&1
+  yum remove -y parallel > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies removed with success!"
@@ -100,6 +88,6 @@ function remove_redhat() {
     echo "Please check if you have connection with the internet and yum is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "yum install -y epel-release && yum install -y parallel wget curl"
+    echo "yum install -y epel-release && yum install -y parallel"
   fi
 }

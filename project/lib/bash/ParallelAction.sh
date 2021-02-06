@@ -50,8 +50,7 @@ function mailbox_backup()
     fi
     AFTER='&'"start=$(date -d "$DATE" +%s)000"
   fi
-  wget --timeout="$WGET_TIMEOUT" --tries="$WGET_RETRIES" -O "$TEMPDIR"/"$1".tgz --http-user "$ADMINUSER" --http-passwd "$ADMINPASS" --auth-no-challenge \
-        "$WEBPROTO://$MAILHOST:$MAILPORT/home/$1/?fmt=tgz$AFTER" --no-check-certificate > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -z -m "$1" getRestURL "//?fmt=tgz&resolve=skip$AFTER" "$TEMPDIR"/"$1".tgz > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 || "$ERR" == *"204 No data found"* ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
@@ -99,7 +98,7 @@ function ldap_restore()
 function mailbox_restore()
 {
   TEMP_CLI_OUTPUT=$(mktemp)
-  curl --insecure -X PUT --data-binary "$WORKDIR"/"$1"/"$2".tgz --user "$ADMINUSER":"$ADMINPASS" "$WEBPROTO://$MAILHOST:$MAILPORT/home/$2/?fmt=tgz" > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if ! [[ $BASHERRCODE -eq 0 ]]; then
     printf "Error during the restore process for account %s. Error message below:" "$2"
