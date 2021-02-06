@@ -3,7 +3,7 @@
 # zmbackup - Bash script to hot backup and hot restore Zimbra Collaboration
 #            Suite Opensource
 #
-# Copyright (C) 2017 Lucas Costa Beyeler <lucas.costab@outlook.com>
+# Copyright (C) 2021 Lucas Costa Beyeler <lucas.costab@outlook.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of version 2 of the GNU General Public
@@ -36,7 +36,7 @@
 ################################################################################
 # zmbackup:
 #
-# 28/09/2018 - Version 1.2.5  - By The Zimbra Community & Lucas Costa Beyeler
+# 06/02/2021 - Version 1.2.6  - By The Zimbra Community & Lucas Costa Beyeler
 #                               <lucas.costab@outlook.com>
 ################################################################################
 # parallel:
@@ -184,7 +184,7 @@ case "$1" in
     show_help
   ;;
   "-v"|"--version" )
-    echo "zmbackup version: 1.2.5"
+    echo "zmbackup version: 1.2.6"
   ;;
   "-m"|"--migrate" )
     checkpid
