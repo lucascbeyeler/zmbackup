@@ -123,7 +123,14 @@ case "$1" in
     checkpid
     case "$2" in
       "-dl"|"--distributionlist"|"-ldp"|"--ldap"|"-al"|"--alias"|"-sig"|"--signature")
-        restore_main_ldap "$3" "$4" "$5"
+        case "$3" in
+          "-a"|"--account"|"-d"|"--domain")
+            restore_main_ldap "$4" "$5"
+          ;;
+          * )
+            restore_main_ldap "$3" "$4"
+          ;;
+        esac
         rm -rf "$PID"
       ;;
       "-m"|"--mail" )
