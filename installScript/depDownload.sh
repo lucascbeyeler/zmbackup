@@ -6,17 +6,17 @@
 ################################################################################
 function install_ubuntu() {
   echo "Installing dependencies. Please wait..."
-  apt-get update > /dev/null 2>&1
-  apt-get install -y parallel > /dev/null 2>&1
+  apt update > /dev/null 2>&1
+  apt install -y parallel > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies installed with success!"
   else
     echo "Dependencies wasn't installed in your server"
-    echo "Please check if you have connection with the internet and apt-get is"
+    echo "Please check if you have connection with the internet and apt is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "apt-get update && apt-get install -y parallel"
+    echo "apt update && apt install -y parallel"
     exit "$ERR_DEPNOTFOUND"
   fi
 }
@@ -56,16 +56,16 @@ function install_redhat() {
 ################################################################################
 function remove_ubuntu() {
   echo "Removing dependencies. Please wait..."
-  apt-get --purge remove -y parallel > /dev/null 2>&1
+  apt --purge remove -y parallel > /dev/null 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     echo "Dependencies removed with success!"
   else
     echo "Dependencies wasn't removed in your server"
-    echo "Please check if you have connection with the internet and apt-get is"
+    echo "Please check if you have connection with the internet and apt is"
     echo "working and try again."
     echo "Or you can try manual execute the command:"
-    echo "apt-get remove -y parallel"
+    echo "apt remove -y parallel"
   fi
 }
 
