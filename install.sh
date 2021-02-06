@@ -6,17 +6,6 @@
 #           for you easy.
 #
 ################################################################################
-# LOADING INSTALL LIBRARIES
-################################################################################
-echo "Loading installer - PLEASE WAIT"
-source installScript/check.sh
-source installScript/depDownload.sh
-source installScript/deploy.sh
-source installScript/menu.sh
-source installScript/vars.sh
-source installScript/help.sh
-
-################################################################################
 # INSTALL MAIN CODE
 ################################################################################
 
@@ -27,6 +16,17 @@ if [[ $1 == "--help" ]] || [[ $1 == "-h" ]]; then
   show_help
   exit "$ERR_OK"
 fi
+
+################################################################################
+# LOADING INSTALL LIBRARIES
+################################################################################
+echo "Loading installer - PLEASE WAIT"
+source installScript/check.sh
+source installScript/depDownload.sh
+source installScript/deploy.sh
+source installScript/menu.sh
+source installScript/vars.sh
+source installScript/help.sh
 
 #
 #  Checking your environment
