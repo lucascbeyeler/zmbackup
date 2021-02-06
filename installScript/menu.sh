@@ -69,12 +69,12 @@ function set_values() {
   echo -e "\n"
 
   # Inform Zimbra's default user
-  printf "Inform Zimbra's defaut user - DEFAULT [%s]:" "$OSE_USER"
+  printf "Inform Zimbra's default user - DEFAULT [%s]:" "$OSE_USER"
   read -r TMP
   OSE_USER=${TMP:-$OSE_USER}
 
   # Inform Zimbra's default install path
-  printf "\nInform Zimbra's defaut install path - DEFAULT [%s]:" "$OSE_INSTALL_DIR"
+  printf "\nInform Zimbra's default install path - DEFAULT [%s]:" "$OSE_INSTALL_DIR"
   read -r TMP
   OSE_INSTALL_DIR=${TMP:-$OSE_INSTALL_DIR}
 
@@ -110,11 +110,6 @@ function set_values() {
       TMP=${TMP:-$SESSION_TYPE}
   done
   SESSION_TYPE=${TMP:-$SESSION_TYPE}
-
-  # Change Zmbackup password
-  printf "\nInform a password for zmbackup user - DEFAULT [%s]:" "$ZMBKP_PASSWORD"
-  read -r TMP
-  TMP=${TMP:-$ZMBKP_PASSWORD}
 
   echo -e "\n\n"
   echo "##################################################################################"
