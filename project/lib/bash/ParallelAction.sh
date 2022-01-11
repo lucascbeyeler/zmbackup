@@ -79,7 +79,7 @@ function mailbox_backup()
 function ldap_restore()
 {
   ldapdelete -r -x -H "$LDAPSERVER" -D "$LDAPADMIN" -c -w "$LDAPPASS" \
-    "$(grep ^dn: "$WORKDIR"/"$1"/"$2".ldiff | awk 'print $2')" > /dev/null 2>&1
+    "$(grep ^dn: "$WORKDIR"/"$1"/"$2".ldiff | awk '{print $2}')" > /dev/null 2>&1
   ERR=$( (ldapadd -x -H "$LDAPSERVER" -D "$LDAPADMIN" \
            -c -w "$LDAPPASS" -f "$WORKDIR"/"$1"/"$2".ldiff) 2>&1)
   BASHERRCODE=$?
