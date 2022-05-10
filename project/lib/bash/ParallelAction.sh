@@ -48,9 +48,9 @@ function mailbox_backup()
              from backup_account where email='$1' and \
              (sessionID like 'full%' or sessionID like 'inc%' or sessionID like 'mbox%')")
     fi
-    AFTER='&'"start=$(date -d "$DATE" +%s)000"
+    AFTER='&'"query=after:\"$(date -d "$DATE" --date='-1 day' +%m/%d/%Y)\""
   fi
-  $ZMMAILBOX -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -t0 -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if [[ $BASHERRCODE -eq 0 ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
@@ -98,7 +98,7 @@ function ldap_restore()
 function mailbox_restore()
 {
   TEMP_CLI_OUTPUT=$(mktemp)
-  $ZMMAILBOX -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
+  $ZMMAILBOX -t0 -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
   BASHERRCODE=$?
   if ! [[ $BASHERRCODE -eq 0 ]]; then
     printf "Error during the restore process for account %s. Error message below:" "$2"
