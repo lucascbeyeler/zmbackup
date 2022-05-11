@@ -22,7 +22,7 @@ function restore_main_mailbox()
     printf "Restore mail process with session %s started at %s" "$1" "$(date)"
     if [[ -n $3 && $2 == *"@"* ]]; then
       TEMP_CLI_OUTPUT=$(mktemp)
-      $ZMMAILBOX -z -m "$3" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
+      $ZMMAILBOX -t0 -z -m "$3" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1
       BASHERRCODE=$?
       if ! [[ $BASHERRCODE -eq 0 ]]; then
         printf "Error during the restore process for account %s. Error message below:" "$2"
