@@ -1,5 +1,6 @@
 Zmbackup - Backup Script for Zimbra OSE
 =========
+*** The Project is Dead - if you want to own zmbackup from now own send me a message ***
 
 Zmbackup is a reliable Bash shell script developed to help you in your daily task to backup and restore mails and accounts from Zimbra Open Source Email Platform. This script is based on another project called [Zmbkpose](https://github.com/bggo/Zmbkpose), and completely compatible with the structure if you have plans on migrate from one to another.
 
