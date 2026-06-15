@@ -54,6 +54,48 @@ EOF
   [[ "$output" == *"started"* ]]
 }
 
+@test "restore_main_mailbox: shows account count in completion message on success" {
+  SESSION_TYPE="TXT"
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  cat >> "${WORKDIR}/sessions.txt" << EOF
+SESSION: ${session} started on Mon Jan 01
+${session}:user@example.com:01/01/24
+EOF
+  MOCK_ZMMAILBOX_FAIL=0
+  run restore_main_mailbox "$session" "" ""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"1/1 accounts restored"* ]]
+}
+
+@test "restore_main_mailbox: returns non-zero when all accounts fail" {
+  SESSION_TYPE="TXT"
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  cat >> "${WORKDIR}/sessions.txt" << EOF
+SESSION: ${session} started on Mon Jan 01
+${session}:user@example.com:01/01/24
+EOF
+  MOCK_ZMMAILBOX_FAIL=1
+  run restore_main_mailbox "$session" "" ""
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"completed with errors"* ]]
+}
+
+@test "restore_main_mailbox: shows failure count in output when accounts fail" {
+  SESSION_TYPE="TXT"
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  cat >> "${WORKDIR}/sessions.txt" << EOF
+SESSION: ${session} started on Mon Jan 01
+${session}:user@example.com:01/01/24
+EOF
+  MOCK_ZMMAILBOX_FAIL=1
+  run restore_main_mailbox "$session" "" ""
+  [[ "$output" == *"0/1 accounts restored"* ]]
+  [[ "$output" == *"1 failed"* ]]
+}
+
 @test "restore_main_mailbox: restores when session exists in SQLITE3" {
   SESSION_TYPE="SQLITE3"
   local session="full-20240101120000"
@@ -134,6 +176,55 @@ EOF
   MOCK_LDAPADD_FAIL=0
   run restore_main_ldap "$session" ""
   [[ "$output" == *"started"* ]]
+}
+
+@test "restore_main_ldap: shows account count in completion message on success" {
+  SESSION_TYPE="TXT"
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  printf "dn: uid=user@example.com,ou=people,dc=example,dc=com\nobjectClass: top\n" \
+    > "${WORKDIR}/${session}/user@example.com.ldiff"
+  cat >> "${WORKDIR}/sessions.txt" << EOF
+SESSION: ${session} started on Mon Jan 01
+${session}:user@example.com:01/01/24
+EOF
+  MOCK_LDAPDELETE_FAIL=0
+  MOCK_LDAPADD_FAIL=0
+  run restore_main_ldap "$session" ""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"1/1 accounts restored"* ]]
+}
+
+@test "restore_main_ldap: returns non-zero when all ldap accounts fail" {
+  SESSION_TYPE="TXT"
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  printf "dn: uid=user@example.com,ou=people,dc=example,dc=com\nobjectClass: top\n" \
+    > "${WORKDIR}/${session}/user@example.com.ldiff"
+  cat >> "${WORKDIR}/sessions.txt" << EOF
+SESSION: ${session} started on Mon Jan 01
+${session}:user@example.com:01/01/24
+EOF
+  MOCK_LDAPADD_FAIL=1
+  run restore_main_ldap "$session" ""
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"completed with errors"* ]]
+}
+
+@test "restore_main_ldap: shows failure count in output when ldap accounts fail" {
+  SESSION_TYPE="TXT"
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  printf "dn: uid=user@example.com,ou=people,dc=example,dc=com\nobjectClass: top\n" \
+    > "${WORKDIR}/${session}/user@example.com.ldiff"
+  cat >> "${WORKDIR}/sessions.txt" << EOF
+SESSION: ${session} started on Mon Jan 01
+${session}:user@example.com:01/01/24
+EOF
+  MOCK_LDAPADD_FAIL=1
+  run restore_main_ldap "$session" ""
+  [[ "$output" == *"0/1 accounts restored"* ]]
+  [[ "$output" == *"1 failed"* ]]
 }
 
 @test "restore_main_ldap: prints nothing-to-do when session not found in TXT" {

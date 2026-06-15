@@ -88,6 +88,7 @@ function ldap_restore()
   if [[ -z "$LDAP_DN" ]]; then
     printf "\nError: Could not extract DN from %s/%s/%s.ldiff - skipping LDAP restore for account %s" \
       "$WORKDIR" "$1" "$2" "$2"
+    [[ -d "${LDAP_FAILDIR:-}" ]] && touch "$LDAP_FAILDIR/$2"
     return 1
   fi
   ldapdelete -Z -r -x -H "$LDAPSERVER" -D "$LDAPADMIN" -c -w "$LDAPPASS" \
@@ -98,6 +99,7 @@ function ldap_restore()
   if ! [[ $BASHERRCODE -eq 0 ]]; then
     printf "\nError during the restore process for account %s. Error message below:" "$2"
     printf "\n%s: %s" "$2" "$ERR"
+    [[ -d "${LDAP_FAILDIR:-}" ]] && touch "$LDAP_FAILDIR/$2"
   fi
   return $BASHERRCODE
 }
@@ -121,6 +123,7 @@ function mailbox_restore()
     printf "Error during the restore process for account %s. Error message below:" "$2"
     printf "\n%s: " "$2"
     cat "$TEMP_CLI_OUTPUT"
+    [[ -d "${MAIL_FAILDIR:-}" ]] && touch "$MAIL_FAILDIR/$2"
   fi
   rm -rf "${TEMP_CLI_OUTPUT:?}"
   return $BASHERRCODE

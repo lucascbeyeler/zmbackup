@@ -194,6 +194,68 @@ teardown() {
   [[ "$output" == *"skipping"* ]]
 }
 
+@test "mailbox_restore: writes to MAIL_FAILDIR on failure" {
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  touch "${WORKDIR}/${session}/user@example.com.tgz"
+  MAIL_FAILDIR=$(mktemp -d)
+  export MAIL_FAILDIR
+  MOCK_ZMMAILBOX_FAIL=1
+  run mailbox_restore "$session" "user@example.com"
+  [ -f "$MAIL_FAILDIR/user@example.com" ]
+  rm -rf "$MAIL_FAILDIR"
+}
+
+@test "mailbox_restore: does not write to MAIL_FAILDIR on success" {
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  touch "${WORKDIR}/${session}/user@example.com.tgz"
+  MAIL_FAILDIR=$(mktemp -d)
+  export MAIL_FAILDIR
+  MOCK_ZMMAILBOX_FAIL=0
+  mailbox_restore "$session" "user@example.com"
+  [ ! -f "$MAIL_FAILDIR/user@example.com" ]
+  rm -rf "$MAIL_FAILDIR"
+}
+
+@test "ldap_restore: writes to LDAP_FAILDIR when ldapadd fails" {
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  printf "dn: uid=user@example.com,ou=people,dc=example,dc=com\nobjectClass: top\n" \
+    > "${WORKDIR}/${session}/user@example.com.ldiff"
+  LDAP_FAILDIR=$(mktemp -d)
+  export LDAP_FAILDIR
+  MOCK_LDAPADD_FAIL=1
+  run ldap_restore "$session" "user@example.com"
+  [ -f "$LDAP_FAILDIR/user@example.com" ]
+  rm -rf "$LDAP_FAILDIR"
+}
+
+@test "ldap_restore: writes to LDAP_FAILDIR when ldiff has no DN" {
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  echo "objectClass: top" > "${WORKDIR}/${session}/user@example.com.ldiff"
+  LDAP_FAILDIR=$(mktemp -d)
+  export LDAP_FAILDIR
+  run ldap_restore "$session" "user@example.com"
+  [ -f "$LDAP_FAILDIR/user@example.com" ]
+  rm -rf "$LDAP_FAILDIR"
+}
+
+@test "ldap_restore: does not write to LDAP_FAILDIR on success" {
+  local session="full-20240101120000"
+  mkdir -p "${WORKDIR}/${session}"
+  printf "dn: uid=user@example.com,ou=people,dc=example,dc=com\nobjectClass: top\n" \
+    > "${WORKDIR}/${session}/user@example.com.ldiff"
+  LDAP_FAILDIR=$(mktemp -d)
+  export LDAP_FAILDIR
+  MOCK_LDAPDELETE_FAIL=0
+  MOCK_LDAPADD_FAIL=0
+  ldap_restore "$session" "user@example.com"
+  [ ! -f "$LDAP_FAILDIR/user@example.com" ]
+  rm -rf "$LDAP_FAILDIR"
+}
+
 # ---------------------------------------------------------------------------
 # ldap_filter
 # ---------------------------------------------------------------------------
