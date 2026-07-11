@@ -26,18 +26,36 @@ function restore_main_mailbox()
     if [[ -n $3 && $2 == *"@"* ]]; then
       TOTAL_COUNT=1
       TEMP_CLI_OUTPUT=$(mktemp)
-      if $ZMMAILBOX -t0 -z -m "$3" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1; then
-        BASHERRCODE=0
-        SUCCESS_COUNT=1
-        if grep -q "No such file or directory" "$TEMP_CLI_OUTPUT"; then
-          printf "Account %s has nothing to restore - skipping..." "$2"
+      local MAILBOX_URL
+      MAILBOX_URL=$(get_mailbox_url "$3")
+      if [[ -n "$MAILBOX_URL" ]]; then
+        if $ZMMAILBOX -t0 -z -m "$3" postRestURL -u "$MAILBOX_URL" '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1; then
+          BASHERRCODE=0
+          SUCCESS_COUNT=1
+          if grep -q "No such file or directory" "$TEMP_CLI_OUTPUT"; then
+            printf "Account %s has nothing to restore - skipping..." "$2"
+          fi
+        else
+          BASHERRCODE=$?
+          FAIL_COUNT=1
+          printf "Error during the restore process for account %s. Error message below:" "$2"
+          printf "\n%s: " "$2"
+          cat "$TEMP_CLI_OUTPUT"
         fi
       else
-        BASHERRCODE=$?
-        FAIL_COUNT=1
-        printf "Error during the restore process for account %s. Error message below:" "$2"
-        printf "\n%s: " "$2"
-        cat "$TEMP_CLI_OUTPUT"
+        if $ZMMAILBOX -t0 -z -m "$3" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1; then
+          BASHERRCODE=0
+          SUCCESS_COUNT=1
+          if grep -q "No such file or directory" "$TEMP_CLI_OUTPUT"; then
+            printf "Account %s has nothing to restore - skipping..." "$2"
+          fi
+        else
+          BASHERRCODE=$?
+          FAIL_COUNT=1
+          printf "Error during the restore process for account %s. Error message below:" "$2"
+          printf "\n%s: " "$2"
+          cat "$TEMP_CLI_OUTPUT"
+        fi
       fi
       rm -rf "${TEMP_CLI_OUTPUT:?}"
     else

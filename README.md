@@ -1,46 +1,45 @@
-Zmbackup - Backup Script for Zimbra OSE
-=========
+# Zmbackup - Backup Script for Zimbra OSE
 
 Zmbackup is a reliable Bash shell script developed to help you in your daily task to backup and restore mails and accounts from Zimbra Open Source Email Platform. This script is based on another project called [Zmbkpose](https://github.com/bggo/Zmbkpose), and completely compatible with the structure if you have plans on migrate from one to another.
 
 ![Linux Distro](https://img.shields.io/badge/platform-Rocky%20Linux%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
 ![Branch](https://img.shields.io/badge/Branch-Stable-green.svg)
-![Release](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Flucascbeyeler%2Fzmbackup%2F1.2-version%2FVERSION&search=%5E(.%2B)&replace=%241&label=Release&color=green)
+![Release](<https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Flucascbeyeler%2Fzmbackup%2F1.2-version%2FVERSION&search=%5E(.%2B)&replace=%241&label=Release&color=green>)
 [![Build Status](https://circleci.com/gh/lucascbeyeler/zmbackup.svg?style=shield)](https://circleci.com/gh/lucascbeyeler/zmbackup)
 
-Features
-------------
-* Online Backup and Restore - no need to stop the server to do;
-* Backup routines for one, many, or all mailbox, accounts, alias and distribution lists;
-* Restore the routines in your respective places, or inside another account using Restore on Account;
-* Multithreading - Execute each rotine quickly as possible;
-* Have some insights about eacho backup routine;
-* Receive alert everytime a backup session begins;
-* Better internal garbage manager;
-* Filter the accounts that should not be execute with blocked lists;
-* Log management compatible with rsyslog;
-* Sessions stored in a relational database - SQLITE3 only - or TXT file;
+## Features
 
-Backup & Restore Scope
-------------
+- Online Backup and Restore - no need to stop the server to do;
+- Backup routines for one, many, or all mailbox, accounts, alias and distribution lists;
+- Restore the routines in your respective places, or inside another account using Restore on Account;
+- Multithreading - Execute each rotine quickly as possible;
+- Have some insights about eacho backup routine;
+- Receive alert everytime a backup session begins;
+- Better internal garbage manager;
+- Filter the accounts that should not be execute with blocked lists;
+- Log management compatible with rsyslog;
+- Sessions stored in a relational database - SQLITE3 only - or TXT file;
+
+## Backup & Restore Scope
 
 The table below documents what zmbackup covers and what falls outside its scope. Items marked **No** are not touched by zmbackup at all — you will need separate tooling (e.g. etckeeper, manual cert exports) to protect them.
 
-| Object | Scope | Backup | Restore | Command |
-|--------|-------|--------|---------|---------|
-| Mailbox | Per user | Yes | Yes | `zmbackup -f -m user@domain` / `zmbackup -r -m <session> user@domain` |
-| Mailbox | All accounts | Yes | Yes | `zmbackup -f -m` / `zmbackup -r -m <session>` |
-| LDAP account entry | Per user | Yes | Yes | `zmbackup -f -ldp user@domain` / `zmbackup -r -ldp <session> user@domain` |
-| LDAP account entry | All accounts | Yes | Yes | `zmbackup -f -ldp` / `zmbackup -r -ldp <session>` |
-| Alias | Per alias | Yes | Yes | `zmbackup -f -al alias@domain` / `zmbackup -r -al <session> alias@domain` |
-| Distribution list | Per list | Yes | Yes | `zmbackup -f -dl list@domain` / `zmbackup -r -dl <session> list@domain` |
-| Signature | Per user | Yes | Yes | `zmbackup -f -sig user@domain` / `zmbackup -r -sig <session> user@domain` |
-| Zimbra component passwords | Internal services | No | No | — |
-| SSL/TLS certificates | Services | No | No | — |
-| Java Keystores (JKS) | Services | No | No | — |
-| Zimbra server config | `/opt/zimbra/conf`, `/etc/zimbra` | No | No | — |
+| Object                     | Scope                             | Backup | Restore | Command                                                                   |
+| -------------------------- | --------------------------------- | ------ | ------- | ------------------------------------------------------------------------- |
+| Mailbox                    | Per user                          | Yes    | Yes     | `zmbackup -f -m user@domain` / `zmbackup -r -m <session> user@domain`     |
+| Mailbox                    | All accounts                      | Yes    | Yes     | `zmbackup -f -m` / `zmbackup -r -m <session>`                             |
+| LDAP account entry         | Per user                          | Yes    | Yes     | `zmbackup -f -ldp user@domain` / `zmbackup -r -ldp <session> user@domain` |
+| LDAP account entry         | All accounts                      | Yes    | Yes     | `zmbackup -f -ldp` / `zmbackup -r -ldp <session>`                         |
+| Alias                      | Per alias                         | Yes    | Yes     | `zmbackup -f -al alias@domain` / `zmbackup -r -al <session> alias@domain` |
+| Distribution list          | Per list                          | Yes    | Yes     | `zmbackup -f -dl list@domain` / `zmbackup -r -dl <session> list@domain`   |
+| Signature                  | Per user                          | Yes    | Yes     | `zmbackup -f -sig user@domain` / `zmbackup -r -sig <session> user@domain` |
+| Zimbra component passwords | Internal services                 | No     | No      | —                                                                         |
+| SSL/TLS certificates       | Services                          | No     | No      | —                                                                         |
+| Java Keystores (JKS)       | Services                          | No     | No      | —                                                                         |
+| Zimbra server config       | `/opt/zimbra/conf`, `/etc/zimbra` | No     | No      | —                                                                         |
 
 **Notes:**
+
 - A full backup (`zmbackup -f`) includes both the mailbox and the LDAP entry for each account by default.
 - An incremental backup (`zmbackup -i`) also covers the mailbox and LDAP entry, but only captures changes since the last backup session.
 - Restore-on-account (`zmbackup -r -ro <session> origin@domain dest@domain`) dumps one account's backup into a different destination account.
@@ -48,20 +47,18 @@ The table below documents what zmbackup covers and what falls outside its scope.
 - **LDAP restores include password hashes.** The LDAP backup dumps the full LDAP entry via `ldapsearch` as the LDAP admin, which includes the `userPassword` attribute (the hashed password). Restoring an LDAP entry with `zmbackup -r -ldp` (or `zmbackup -r full-*`) will therefore overwrite the account's current password with whatever hash was stored at backup time. Be aware of this before running a restore in production.
 - Server-level configuration, certificates, and Zimbra component passwords are **never read or written** by zmbackup. Back these up independently (e.g. etckeeper for `/etc` directories).
 
-Requirements
-------------
+## Requirements
 
-* **GNU Parallel** - a shell tool for executing jobs in parallel using one or more CPU;
-* **GNU grep** - a command-line utility for searching plain-text data sets for lines matching a regular expression;
-* **date** - command used to print out, or change the value of, the system's time and date information;
-* **cron** - a time-based job scheduler in Unix-like computer operating systems;
-* **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download GNU Parallel;
-* **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
-* **mktemp** - make a temporary file or directory;
-* **SQLite3** - a relational database management system contained in a C programming library.
+- **GNU Parallel** - a shell tool for executing jobs in parallel using one or more CPU;
+- **GNU grep** - a command-line utility for searching plain-text data sets for lines matching a regular expression;
+- **date** - command used to print out, or change the value of, the system's time and date information;
+- **cron** - a time-based job scheduler in Unix-like computer operating systems;
+- **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download GNU Parallel;
+- **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
+- **mktemp** - make a temporary file or directory;
+- **SQLite3** - a relational database management system contained in a C programming library.
 
-Installation
-------------
+## Installation
 
 If you use CentOS, first install the package **[epel-release](https://fedoraproject.org/wiki/EPEL)**, as we will need this repository to download part of the dependencies.
 
@@ -79,7 +76,7 @@ Now, install the packages **parallel**, **wget**, **sqlite3** and **curl** in yo
 Download the latest package with the BETA tag in "Release" section, or git clone the development branch:
 
 ```
-git clone -b 1.2-version https://github.com/lucascbeyeler/zmbackup.git
+git clone -b master https://github.com/lucascbeyeler/zmbackup.git
 ```
 
 Inside the project folder, execute the script **install.sh** and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
@@ -92,8 +89,7 @@ $ zmbackup -v
   zmbackup version: 1.2.9
 ```
 
-Usage
-------------
+## Usage
 
 To check all the options available to Zmbackup, just execute **zmbackup -h** or **zmbackup --help**. This will return for you a list with all the options, what each one of them does, and the syntax.
 
@@ -149,16 +145,19 @@ $ zmbackup -f
 You can filter for what you want using the options **-m** for Mailbox, **-ldp** for LDAP account entry only, **-al** for Alias, and **-dl** for Distribution List. REMEMBER - These options don't stack with each other, so don't try -dl and -al at the same time (the script will break if you do this).
 
 To back up **only the mailbox** (no LDAP entry):
+
 ```
 $ zmbackup -f -m
 ```
 
 To back up **only the LDAP account entry** (no mailbox — useful when you want account metadata without email data):
+
 ```
 $ zmbackup -f -ldp
 ```
 
 **INCORRECT** — options cannot be combined:
+
 ```
 $ zmbackup -f -m -ldp
 ```
@@ -213,24 +212,20 @@ $ zmbackup -m
 
 **REMEMBER:** at this moment, this migration activity is a only one way road. There is no rollback, and, if you try to do a rollback, you will lost your sessions file.
 
-Scheduling backups
-------------
+## Scheduling backups
 
 The installer script automatically creates a cron config file in `/etc/cron.d/zmbackup`. You can customize backup routines editing that file.
 
+## Want to contribute to the project?
 
-Want to contribute to the project?
-------------------
-* Please help us contributing the Waddles project instead - Zmbackup will be deprecated and the only thing we will do here will be bugfixes.
+- Please help us contributing the Waddles project instead - Zmbackup will be deprecated and the only thing we will do here will be bugfixes.
 
-License
--------
+## License
 
 [![GNU GPL v3.0](http://www.gnu.org/graphics/gplv3-127x51.png)](http://www.gnu.org/licenses/gpl.html)
 
 View official GNU site <http://www.gnu.org/licenses/gpl.html>.
 
-Author Information
-------------------
+## Author Information
 
-* [Lucas Costa Beyeler](https://github.com/lucascbeyeler)
+- [Lucas Costa Beyeler](https://github.com/lucascbeyeler)

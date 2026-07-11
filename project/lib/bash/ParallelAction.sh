@@ -4,6 +4,38 @@
 ################################################################################
 
 ###############################################################################
+# get_mailbox_host: Query LDAP to get the mailbox server hostname for an account.
+# Options:
+# $1 - The email account to query.
+# Returns: zimbraMailHost value or empty string if none.
+###############################################################################
+function get_mailbox_host()
+{
+  local SAFE_ACCOUNT HOST
+  SAFE_ACCOUNT=$(ldap_escape_filter "$1")
+  HOST=$(ldapsearch -Z -x -H "$LDAPSERVER" -D "$LDAPADMIN" -w "$LDAPPASS" -b '' \
+    -LLL "(&(|(mail=${SAFE_ACCOUNT})(uid=${SAFE_ACCOUNT})))" zimbraMailHost 2>/dev/null | \
+    grep '^zimbraMailHost:' | awk '{print $2}' | head -1)
+  printf '%s' "$HOST"
+}
+
+###############################################################################
+# get_mailbox_url: Build the mailbox server URL for a mailbox account.
+# Uses WEBPROTO and zimbraMailHost from LDAP when available.
+# Options:
+# $1 - The email account to query.
+# Returns: e.g. https://mail.example.com or empty if unavailable.
+###############################################################################
+function get_mailbox_url()
+{
+  local HOST
+  HOST=$(get_mailbox_host "$1")
+  if [[ -n "$HOST" ]]; then
+    printf '%s://%s' "$WEBPROTO" "$HOST"
+  fi
+}
+
+###############################################################################
 # ldap_backup: Backup a LDAP object inside a file.
 # Options:
 # $1 - The object's mail account that should be backed up;
@@ -53,7 +85,22 @@ function mailbox_backup()
       AFTER=''
     fi
   fi
-  if $ZMMAILBOX -t0 -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1; then
+  local MAILBOX_URL
+  MAILBOX_URL=$(get_mailbox_url "$1")
+  if [[ -n "$MAILBOX_URL" ]]; then
+    if $ZMMAILBOX -t0 -z -m "$1" getRestURL -u "$MAILBOX_URL" --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1; then
+      local RESULT_OK=0
+    else
+      local RESULT_OK=1
+    fi
+  else
+    if $ZMMAILBOX -t0 -z -m "$1" getRestURL --output "$TEMPDIR"/"$1".tgz "/?fmt=tgz&resolve=skip$AFTER" > "$TEMP_CLI_OUTPUT" 2>&1; then
+      local RESULT_OK=0
+    else
+      local RESULT_OK=1
+    fi
+  fi
+  if [[ $RESULT_OK -eq 0 ]]; then
     if [[ -s $TEMPDIR/$1.tgz ]]; then
       zmlog local7.info "Zmbackup: Mailbox - Backup for account $1 finished."
       export ERRCODE=0
@@ -117,13 +164,26 @@ function ldap_restore()
 function mailbox_restore()
 {
   TEMP_CLI_OUTPUT=$(mktemp)
-  if $ZMMAILBOX -t0 -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1; then
-    BASHERRCODE=0
+  local MAILBOX_URL
+  MAILBOX_URL=$(get_mailbox_url "$2")
+  if [[ -n "$MAILBOX_URL" ]]; then
+    if $ZMMAILBOX -t0 -z -m "$2" postRestURL -u "$MAILBOX_URL" '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1; then
+      BASHERRCODE=0
+    else
+      BASHERRCODE=$?
+    fi
+  else
+    if $ZMMAILBOX -t0 -z -m "$2" postRestURL '//?fmt=tgz&resolve=skip' "$WORKDIR"/"$1"/"$2".tgz > "$TEMP_CLI_OUTPUT" 2>&1; then
+      BASHERRCODE=0
+    else
+      BASHERRCODE=$?
+    fi
+  fi
+  if [[ $BASHERRCODE -eq 0 ]]; then
     if grep -q "No such file or directory" "$TEMP_CLI_OUTPUT"; then
       printf "Account %s has nothing to restore - skipping..." "$2"
     fi
   else
-    BASHERRCODE=$?
     printf "Error during the restore process for account %s. Error message below:" "$2"
     printf "\n%s: " "$2"
     cat "$TEMP_CLI_OUTPUT"

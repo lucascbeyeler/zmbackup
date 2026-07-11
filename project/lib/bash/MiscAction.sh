@@ -406,6 +406,8 @@ function export_function(){
   export -f safe_sql_value
   export -f ldap_escape_filter
   export -f session_query
+  export -f get_mailbox_host
+  export -f get_mailbox_url
   export -f __backupMailbox
   export -f __backupFullInc
   export -f __backupLdap
