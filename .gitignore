@@ -3,4 +3,8 @@ OLD/
 .idea/
 node_modules/
 .claude
-MULTI_SERVER_SUPPORT.md 
+MULTI_SERVER_SUPPORT.md
+
+# Gradle
+.gradle/
+build/ 
