@@ -15,6 +15,7 @@ import picocli.CommandLine.Spec;
  */
 @Command(
         name = "zmbackup",
+        versionProvider = VersionProvider.class,
         subcommands = {
             BackupCommand.class,
             RestoreCommand.class,
@@ -26,6 +27,9 @@ public final class Main implements Callable<Integer> {
 
     @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
     boolean helpRequested;
+
+    @Option(names = {"-v", "--version"}, versionHelp = true, description = "Show the zmbackup version.")
+    boolean versionRequested;
 
     @Option(names = "--config", description = "Path to zmbackup.yaml (default: ${DEFAULT-VALUE})")
     private Path configFile = YamlConfigLoader.DEFAULT_CONFIG_PATH;
