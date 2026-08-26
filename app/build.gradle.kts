@@ -28,3 +28,9 @@ tasks.shadowJar {
 tasks.build {
     dependsOn(tasks.shadowJar)
 }
+
+// Packaging smoke tests run the shaded jar as a subprocess, so it must exist first.
+tasks.test {
+    dependsOn(tasks.shadowJar)
+    systemProperty("zmbackup.shadowJar", tasks.shadowJar.get().archiveFile.get().asFile.absolutePath)
+}
