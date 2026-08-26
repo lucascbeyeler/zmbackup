@@ -19,7 +19,17 @@ jobs:
           name: Run unit tests
           command: npx bats --verbose-run tests/unit/
 
+  test-java:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - run:
+          name: Run Java tests
+          command: ./gradlew test
+
 workflows:
   test-workflow:
     jobs:
       - test
+      - test-java
