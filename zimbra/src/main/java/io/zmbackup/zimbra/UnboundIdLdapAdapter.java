@@ -22,8 +22,7 @@ import javax.net.ssl.SSLContext;
 
 /**
  * Connects to Zimbra's LDAP directory via the UnboundID LDAP SDK, mirroring the {@code
- * ldapsearch} invocations in the bash tool's {@code MiscAction.sh}. Domain-scoped enumeration is
- * built on top of {@link #connect()} in follow-up work.
+ * ldapsearch} invocations in the bash tool's {@code MiscAction.sh}.
  */
 public class UnboundIdLdapAdapter implements AccountDiscovery {
 
@@ -67,12 +66,24 @@ public class UnboundIdLdapAdapter implements AccountDiscovery {
     /**
      * {@inheritDoc}
      *
-     * @throws UnsupportedOperationException domain-scoped discovery is implemented in a
-     *     follow-up task
+     * <p>Mirrors {@code build_listBKP}'s per-domain search in the bash tool: {@code ldapsearch -b
+     * "dc=<label>,dc=<label>,..." <objectFilter> <attributeName>}, with the base DN built from the
+     * domain's dot-separated labels.
      */
     @Override
     public List<String> discoverForDomain(LdapObjectType type, String domain) throws IOException {
-        throw new UnsupportedOperationException("discoverForDomain is not yet implemented");
+        return search(domainBaseDn(domain), type);
+    }
+
+    private static String domainBaseDn(String domain) {
+        StringBuilder baseDn = new StringBuilder();
+        for (String label : domain.split("\\.")) {
+            if (baseDn.length() > 0) {
+                baseDn.append(',');
+            }
+            baseDn.append("dc=").append(label);
+        }
+        return baseDn.toString();
     }
 
     private List<String> search(String baseDn, LdapObjectType type) throws IOException {

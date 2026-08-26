@@ -130,18 +130,49 @@ class UnboundIdLdapAdapterTest {
     }
 
     @Test
-    void discoverForDomainIsNotYetImplemented() throws Exception {
+    void discoverForDomainReturnsOnlyEntriesUnderThatDomain() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "dc=other,dc=com", new Attribute("objectClass", "domain"), new Attribute("dc", "other"));
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"));
+        directoryServer.add(
+                "uid=carol,dc=other,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "carol"),
+                new Attribute("zimbraMailDeliveryAddress", "carol@other.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        List<String> accounts = adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com");
+
+        assertEquals(List.of("alice@example.com"), accounts);
+    }
+
+    @Test
+    void discoverForDomainReturnsEmptyListWhenDomainHasNoMatches() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
                 "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
 
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com"));
+        assertEquals(List.of(), adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com"));
+    }
+
+    @Test
+    void discoverForDomainWrapsUnknownBaseDnInIOException() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(IOException.class, () -> adapter.discoverForDomain(LdapObjectType.ACCOUNT, "nowhere.invalid"));
     }
 
     private InMemoryDirectoryServer startDirectoryServer(SSLSocketFactory startTlsSocketFactory) throws Exception {
-        InMemoryDirectoryServerConfig config = new InMemoryDirectoryServerConfig("dc=example,dc=com");
+        InMemoryDirectoryServerConfig config =
+                new InMemoryDirectoryServerConfig("dc=example,dc=com", "dc=other,dc=com");
         config.addAdditionalBindCredentials(BIND_DN, BIND_PASSWORD);
         config.setSchema(null);
         config.setListenerConfigs(
