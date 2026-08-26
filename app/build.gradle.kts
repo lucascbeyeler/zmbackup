@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":local"))
     implementation("org.yaml:snakeyaml:2.6")
     implementation("info.picocli:picocli:4.7.6")
+    testImplementation("com.unboundid:unboundid-ldapsdk:7.0.5")
 }
 
 // Bundle the repo-root VERSION file into the jar so VersionProvider can read it at runtime,
