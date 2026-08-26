@@ -12,6 +12,7 @@ import io.zmbackup.app.config.ZimbraLdapConfig;
 import io.zmbackup.app.config.ZimbraMailboxConfig;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
+import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +33,7 @@ class AppContextTest {
         assertEquals(config, context.config());
         assertInstanceOf(LocalStorageProvider.class, context.storageProvider());
         assertInstanceOf(SqliteMetadataStore.class, context.metadataStore());
+        assertInstanceOf(UnboundIdLdapAdapter.class, context.accountDiscovery());
         assertTrue(Files.exists(tempDir.resolve("sessions.sqlite3")));
     }
 

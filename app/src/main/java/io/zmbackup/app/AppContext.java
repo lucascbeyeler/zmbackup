@@ -2,10 +2,12 @@ package io.zmbackup.app;
 
 import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.YamlConfigLoader;
+import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
+import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -21,11 +23,17 @@ public final class AppContext {
     private final AppConfig config;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
+    private final AccountDiscovery accountDiscovery;
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
+        this.accountDiscovery = new UnboundIdLdapAdapter(
+                config.zimbraLdap().url(),
+                config.zimbraLdap().bindDn(),
+                config.zimbraLdap().bindPassword(),
+                config.zimbraLdap().sslEnabled());
     }
 
     /** Reads {@code configFile} and wires the components it describes. */
@@ -43,5 +51,9 @@ public final class AppContext {
 
     public MetadataStore metadataStore() {
         return metadataStore;
+    }
+
+    public AccountDiscovery accountDiscovery() {
+        return accountDiscovery;
     }
 }
