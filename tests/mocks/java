@@ -1,0 +1,4 @@
+#!/bin/bash
+# java mock
+echo "$@"
+exit "${MOCK_JAVA_EXIT:-0}"
