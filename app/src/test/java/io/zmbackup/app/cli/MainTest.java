@@ -34,6 +34,20 @@ class MainTest {
     }
 
     @Test
+    void versionPrintsVersionFromBundledFile() throws IOException {
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--version");
+
+        assertEquals(0, exitCode);
+        try (var in = Main.class.getResourceAsStream("/VERSION")) {
+            String version = new String(in.readAllBytes()).trim();
+            assertTrue(out.toString().contains("zmbackup version: " + version));
+        }
+    }
+
+    @Test
     void listPrintsEmptyTableWhenNoSessionsStored() throws IOException {
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
