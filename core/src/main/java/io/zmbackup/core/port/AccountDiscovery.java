@@ -21,4 +21,12 @@ public interface AccountDiscovery {
      * {@code "example.com"}).
      */
     List<String> discoverForDomain(LdapObjectType type, String domain) throws IOException;
+
+    /**
+     * The name of every Zimbra domain in the directory, i.e. {@link #discover(LdapObjectType)}
+     * for {@link LdapObjectType#DOMAIN}.
+     */
+    default List<String> listDomains() throws IOException {
+        return discover(LdapObjectType.DOMAIN);
+    }
 }

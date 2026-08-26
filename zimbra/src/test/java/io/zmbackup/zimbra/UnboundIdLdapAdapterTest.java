@@ -170,6 +170,36 @@ class UnboundIdLdapAdapterTest {
         assertThrows(IOException.class, () -> adapter.discoverForDomain(LdapObjectType.ACCOUNT, "nowhere.invalid"));
     }
 
+    @Test
+    void listDomainsReturnsEveryDomainInTheDirectory() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDomain"),
+                new Attribute("dc", "other"),
+                new Attribute("zimbraDomainName", "other.com"));
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        List<String> domains = adapter.listDomains();
+
+        assertEquals(List.of("other.com"), domains);
+    }
+
+    @Test
+    void listDomainsReturnsEmptyListWhenNoDomainsMatch() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertEquals(List.of(), adapter.listDomains());
+    }
+
     private InMemoryDirectoryServer startDirectoryServer(SSLSocketFactory startTlsSocketFactory) throws Exception {
         InMemoryDirectoryServerConfig config =
                 new InMemoryDirectoryServerConfig("dc=example,dc=com", "dc=other,dc=com");
