@@ -38,4 +38,14 @@ public enum BackupType {
     public boolean includesMailbox() {
         return includesMailbox;
     }
+
+    /** Resolves the type matching a value previously produced by {@link #sessionPrefix()}. */
+    public static BackupType fromSessionPrefix(String sessionPrefix) {
+        for (BackupType type : values()) {
+            if (type.sessionPrefix.equals(sessionPrefix)) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Unknown backup type session prefix: " + sessionPrefix);
+    }
 }
