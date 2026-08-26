@@ -57,6 +57,7 @@ The table below documents what zmbackup covers and what falls outside its scope.
 - **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
 - **mktemp** - make a temporary file or directory;
 - **SQLite3** - a relational database management system contained in a C programming library.
+- **Java 21 (JDK)** - required to build and run zmbackup 2.0, the Java rewrite currently under development; the Gradle toolchain will download it automatically if it isn't already installed.
 
 ## Installation
 
