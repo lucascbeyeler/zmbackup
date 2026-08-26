@@ -1,23 +1,31 @@
 package io.zmbackup.zimbra;
 
+import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.ExtendedResult;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.LDAPURL;
 import com.unboundid.ldap.sdk.ResultCode;
+import com.unboundid.ldap.sdk.SearchRequest;
+import com.unboundid.ldap.sdk.SearchResult;
+import com.unboundid.ldap.sdk.SearchScope;
 import com.unboundid.ldap.sdk.extensions.StartTLSExtendedRequest;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
+import io.zmbackup.core.domain.LdapObjectType;
+import io.zmbackup.core.port.AccountDiscovery;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.List;
 import javax.net.ssl.SSLContext;
 
 /**
  * Connects to Zimbra's LDAP directory via the UnboundID LDAP SDK, mirroring the {@code
- * ldapsearch} invocations in the bash tool's {@code MiscAction.sh}. Account and domain
- * enumeration is built on top of {@link #connect()} in follow-up work.
+ * ldapsearch} invocations in the bash tool's {@code MiscAction.sh}. Domain-scoped enumeration is
+ * built on top of {@link #connect()} in follow-up work.
  */
-public class UnboundIdLdapAdapter {
+public class UnboundIdLdapAdapter implements AccountDiscovery {
 
     private final String host;
     private final int port;
@@ -43,6 +51,46 @@ public class UnboundIdLdapAdapter {
         this.bindDn = bindDn;
         this.bindPassword = bindPassword;
         this.startTls = startTls;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Mirrors {@code build_listBKP}'s whole-directory search in the bash tool: {@code
+     * ldapsearch -b '' <objectFilter> <attributeName>}.
+     */
+    @Override
+    public List<String> discover(LdapObjectType type) throws IOException {
+        return search("", type);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @throws UnsupportedOperationException domain-scoped discovery is implemented in a
+     *     follow-up task
+     */
+    @Override
+    public List<String> discoverForDomain(LdapObjectType type, String domain) throws IOException {
+        throw new UnsupportedOperationException("discoverForDomain is not yet implemented");
+    }
+
+    private List<String> search(String baseDn, LdapObjectType type) throws IOException {
+        try (LDAPConnection connection = connect()) {
+            SearchRequest searchRequest = new SearchRequest(
+                    baseDn, SearchScope.SUB, type.objectFilter(), type.attributeName());
+            SearchResult searchResult = connection.search(searchRequest);
+            List<String> values = new ArrayList<>();
+            for (Entry entry : searchResult.getSearchEntries()) {
+                String value = entry.getAttributeValue(type.attributeName());
+                if (value != null) {
+                    values.add(value);
+                }
+            }
+            return values;
+        } catch (LDAPException e) {
+            throw new IOException("Failed to search Zimbra LDAP at " + host + ":" + port, e);
+        }
     }
 
     /**

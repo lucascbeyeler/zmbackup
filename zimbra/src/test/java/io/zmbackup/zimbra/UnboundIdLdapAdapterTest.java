@@ -1,11 +1,13 @@
 package io.zmbackup.zimbra;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.listener.InMemoryListenerConfig;
+import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.DN;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.util.ObjectPair;
@@ -15,6 +17,7 @@ import com.unboundid.util.ssl.TrustAllTrustManager;
 import com.unboundid.util.ssl.cert.PublicKeyAlgorithmIdentifier;
 import com.unboundid.util.ssl.cert.SignatureAlgorithmIdentifier;
 import com.unboundid.util.ssl.cert.X509Certificate;
+import io.zmbackup.core.domain.LdapObjectType;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -23,6 +26,7 @@ import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.time.Duration;
+import java.util.List;
 import javax.net.ssl.SSLSocketFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -90,13 +94,61 @@ class UnboundIdLdapAdapterTest {
                 () -> new UnboundIdLdapAdapter("not-a-url", BIND_DN, BIND_PASSWORD, false));
     }
 
+    @Test
+    void discoverReturnsIdentifyingAttributeForMatchingEntries() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"));
+        directoryServer.add(
+                "uid=bob,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "bob"),
+                new Attribute("zimbraMailDeliveryAddress", "bob@example.com"));
+        directoryServer.add(
+                "cn=engineering,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraDistributionList"),
+                new Attribute("cn", "engineering"),
+                new Attribute("mail", "engineering@example.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        List<String> accounts = adapter.discover(LdapObjectType.ACCOUNT);
+
+        assertEquals(List.of("alice@example.com", "bob@example.com"), accounts);
+    }
+
+    @Test
+    void discoverReturnsEmptyListWhenNoEntriesMatch() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertEquals(List.of(), adapter.discover(LdapObjectType.ACCOUNT));
+    }
+
+    @Test
+    void discoverForDomainIsNotYetImplemented() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com"));
+    }
+
     private InMemoryDirectoryServer startDirectoryServer(SSLSocketFactory startTlsSocketFactory) throws Exception {
         InMemoryDirectoryServerConfig config = new InMemoryDirectoryServerConfig("dc=example,dc=com");
         config.addAdditionalBindCredentials(BIND_DN, BIND_PASSWORD);
+        config.setSchema(null);
         config.setListenerConfigs(
                 InMemoryListenerConfig.createLDAPConfig("default", null, 0, startTlsSocketFactory));
         InMemoryDirectoryServer server = new InMemoryDirectoryServer(config);
         server.startListening();
+        server.add("dc=example,dc=com", new Attribute("objectClass", "domain"), new Attribute("dc", "example"));
         return server;
     }
 
