@@ -9,6 +9,7 @@ import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
+import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Instant;
@@ -20,29 +21,33 @@ import java.util.Optional;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
- * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}), mirroring {@code backup_main} and its
- * {@code __backupLdap}/{@code __backupDomain} helpers in the bash tool's {@code BackupAction.sh}.
- * Mailbox-inclusive types ({@code FULL}, {@code INCREMENTAL}, {@code MAILBOX}) are handled by a
- * separate service.
+ * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}) as well as {@code MAILBOX}, mirroring
+ * {@code backup_main} and its {@code __backupLdap}/{@code __backupDomain}/{@code __backupMailbox}
+ * helpers in the bash tool's {@code BackupAction.sh}. The combined LDAP+mailbox types ({@code
+ * FULL}, {@code INCREMENTAL}) are handled by a separate service.
  */
 public class BackupService {
 
     private static final DateTimeFormatter SESSION_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
     private static final String LDIFF_SUFFIX = "ldiff";
+    private static final String TGZ_SUFFIX = "tgz";
 
     private final AccountDiscovery accountDiscovery;
     private final ZimbraLdapExporter ldapExporter;
+    private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
 
     public BackupService(
             AccountDiscovery accountDiscovery,
             ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
             StorageProvider storageProvider,
             MetadataStore metadataStore) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
+        this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
     }
@@ -62,8 +67,9 @@ public class BackupService {
      * objects to back up, records an {@code IN PROGRESS} session, exports and stores each object,
      * then updates the session to its final status.
      *
-     * @param type        an LDAP-only backup type: {@code LDAP}, {@code ALIAS}, {@code
-     *                    DISTRIBUTION_LIST}, {@code SIGNATURE}, or {@code DOMAIN}
+     * @param type        an LDAP-only backup type ({@code LDAP}, {@code ALIAS}, {@code
+     *                    DISTRIBUTION_LIST}, {@code SIGNATURE}, or {@code DOMAIN}), or {@code
+     *                    MAILBOX}
      * @param identifiers explicit accounts (or domains, for {@code DOMAIN}) to back up, bypassing
      *                    discovery; empty to discover automatically
      * @param domain      when {@code identifiers} is empty and {@code type != DOMAIN}, restricts
@@ -73,8 +79,9 @@ public class BackupService {
      */
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain)
             throws IOException {
-        if (!type.includesLdap() || type.includesMailbox()) {
-            throw new IllegalArgumentException("BackupService only supports LDAP-only backup types, got " + type);
+        if (type.includesLdap() && type.includesMailbox()) {
+            throw new IllegalArgumentException(
+                    "BackupService does not support combined LDAP+mailbox backup types, got " + type);
         }
 
         List<String> resolved = resolveIdentifiers(type, identifiers, domain);
@@ -105,11 +112,17 @@ public class BackupService {
     private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
         Instant startedAt = Instant.now();
         try {
-            try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
-                if (type == BackupType.DOMAIN) {
-                    ldapExporter.exportDomain(identifier, destination);
-                } else {
-                    ldapExporter.export(identifier, objectTypeFor(type), destination);
+            if (type == BackupType.MAILBOX) {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
+                    mailboxExporter.export(identifier, destination);
+                }
+            } else {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
+                    if (type == BackupType.DOMAIN) {
+                        ldapExporter.exportDomain(identifier, destination);
+                    } else {
+                        ldapExporter.export(identifier, objectTypeFor(type), destination);
+                    }
                 }
             }
         } catch (IOException e) {
@@ -138,7 +151,7 @@ public class BackupService {
 
     private static LdapObjectType objectTypeFor(BackupType type) {
         return switch (type) {
-            case LDAP -> LdapObjectType.ACCOUNT;
+            case LDAP, MAILBOX -> LdapObjectType.ACCOUNT;
             case ALIAS -> LdapObjectType.ALIAS;
             case DISTRIBUTION_LIST -> LdapObjectType.DISTRIBUTION_LIST;
             case SIGNATURE -> LdapObjectType.SIGNATURE;
