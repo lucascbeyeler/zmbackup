@@ -143,6 +143,49 @@ class BackupCommandTest {
     }
 
     @Test
+    void mailboxBacksUpEveryDiscoveredAccountsMailbox() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "mailbox");
+
+        assertEquals(0, exitCode);
+        String output = out.toString();
+        assertTrue(output.contains("mbox-"));
+        assertTrue(output.contains("FINISHED"));
+    }
+
+    @Test
+    void mailboxWithAccountOptionBacksUpOnlyThatAccountsMailbox() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute(
+                "--config", configFile.toString(), "backup", "mailbox", "--account", "alice@example.com");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString().contains("FINISHED"));
+    }
+
+    @Test
     void aliasBacksUpExplicitAlias() throws Exception {
         directoryServer = startDirectoryServer();
         directoryServer.add(
