@@ -3,12 +3,15 @@ package io.zmbackup.app.cli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.sdk.Attribute;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
@@ -25,11 +28,16 @@ class BackupCommandTest {
     Path tempDir;
 
     private InMemoryDirectoryServer directoryServer;
+    private HttpServer mailboxServer;
+    private String mailboxRestBaseUrl = "https://127.0.0.1:7071";
 
     @AfterEach
     void tearDown() {
         if (directoryServer != null) {
             directoryServer.shutDown(true);
+        }
+        if (mailboxServer != null) {
+            mailboxServer.stop(0);
         }
     }
 
@@ -89,6 +97,49 @@ class BackupCommandTest {
 
         assertEquals(0, exitCode);
         assertTrue(Files.exists(tempDir.resolve("ldap-" + sessionSuffixOf(out) + "/alice@example.com.ldiff")));
+    }
+
+    @Test
+    void fullBacksUpEveryDiscoveredAccountIncludingMailbox() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "full");
+
+        assertEquals(0, exitCode);
+        String output = out.toString();
+        assertTrue(output.contains("full-"));
+        assertTrue(output.contains("FINISHED"));
+    }
+
+    @Test
+    void fullWithAccountOptionBacksUpOnlyThatAccountsMailbox() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode =
+                cmd.execute("--config", configFile.toString(), "backup", "full", "--account", "alice@example.com");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString().contains("FINISHED"));
     }
 
     @Test
@@ -195,6 +246,19 @@ class BackupCommandTest {
         return server;
     }
 
+    private void startMailboxServer(String path, int statusCode, byte[] responseBody) throws IOException {
+        mailboxServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        mailboxServer.createContext(path, (HttpExchange exchange) -> {
+            exchange.sendResponseHeaders(statusCode, responseBody.length == 0 ? -1 : responseBody.length);
+            if (responseBody.length > 0) {
+                exchange.getResponseBody().write(responseBody);
+            }
+            exchange.close();
+        });
+        mailboxServer.start();
+        mailboxRestBaseUrl = "http://127.0.0.1:" + mailboxServer.getAddress().getPort();
+    }
+
     private Path writeConfig() throws IOException {
         Path configFile = tempDir.resolve("zmbackup.yaml");
         Files.writeString(
@@ -208,7 +272,7 @@ class BackupCommandTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
-                  restBaseUrl: https://127.0.0.1:7071
+                  restBaseUrl: %s
                   adminUser: zimbra
                   adminPassword: secret
                 backup:
@@ -221,6 +285,7 @@ class BackupCommandTest {
                 """
                         .formatted(
                                 directoryServer.getListenPort(),
+                                mailboxRestBaseUrl,
                                 tempDir,
                                 tempDir.resolve("zmbackup.log"),
                                 tempDir.resolve("blockedlist.conf")));

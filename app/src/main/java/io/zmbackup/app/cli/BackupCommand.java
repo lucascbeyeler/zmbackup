@@ -8,12 +8,13 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * Groups the LDAP-only backup subcommands: {@code ldap}, {@code alias}, {@code distlist}, {@code
- * signature}, {@code domain}.
+ * Groups the backup subcommands: {@code full}, {@code ldap}, {@code alias}, {@code distlist},
+ * {@code signature}, {@code domain}.
  */
 @Command(
         name = "backup",
         subcommands = {
+            BackupFullCommand.class,
             BackupLdapCommand.class,
             BackupAliasCommand.class,
             BackupDistlistCommand.class,
