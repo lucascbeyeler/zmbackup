@@ -7,6 +7,7 @@ import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.service.BackupService;
+import io.zmbackup.core.service.HousekeepService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
@@ -30,6 +31,7 @@ public final class AppContext {
     private final ZimbraLdapExporter ldapExporter;
     private final SessionService sessionService;
     private final BackupService backupService;
+    private final HousekeepService housekeepService;
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
@@ -44,6 +46,7 @@ public final class AppContext {
         this.ldapExporter = ldapAdapter;
         this.sessionService = new SessionService(storageProvider, metadataStore);
         this.backupService = new BackupService(accountDiscovery, ldapExporter, storageProvider, metadataStore);
+        this.housekeepService = new HousekeepService(storageProvider, metadataStore);
     }
 
     /** Reads {@code configFile} and wires the components it describes. */
@@ -73,5 +76,9 @@ public final class AppContext {
 
     public BackupService backupService() {
         return backupService;
+    }
+
+    public HousekeepService housekeepService() {
+        return housekeepService;
     }
 }

@@ -88,8 +88,28 @@ class MainTest {
     }
 
     @Test
-    void housekeepIsStubbed() {
-        assertStubbed("housekeep");
+    void housekeepRemovesOldSessions() throws IOException {
+        Path configFile = writeConfig();
+        new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
+                .save(
+                        new BackupSession(
+                                "full-20200101120000",
+                                BackupType.FULL,
+                                SessionStatus.FINISHED,
+                                Instant.parse("2020-01-01T12:00:00Z"),
+                                Instant.parse("2020-01-01T12:05:00Z"),
+                                "10M"));
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "housekeep");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString().contains("Backup session full-20200101120000 removed."));
+        assertTrue(
+                new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
+                        .findSession("full-20200101120000")
+                        .isEmpty());
     }
 
     @Test
