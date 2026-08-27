@@ -19,6 +19,12 @@ public interface ZimbraLdapExporter {
     void export(String identifier, LdapObjectType type, OutputStream destination) throws IOException;
 
     /**
+     * Writes the {@code .ldiff} entry for the domain identified by {@code domain} (e.g. {@code
+     * "example.com"}) to {@code destination}.
+     */
+    void exportDomain(String domain, OutputStream destination) throws IOException;
+
+    /**
      * Restores an object of the given {@code type} from a previously exported {@code .ldiff}
      * entry, replacing any existing entry with the same distinguished name.
      */

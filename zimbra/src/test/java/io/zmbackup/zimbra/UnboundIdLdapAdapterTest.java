@@ -271,6 +271,42 @@ class UnboundIdLdapAdapterTest {
     }
 
     @Test
+    void exportDomainWritesMatchingEntryAsLdif() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDomain"),
+                new Attribute("dc", "other"),
+                new Attribute("zimbraDomainName", "other.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        ByteArrayOutputStream destination = new ByteArrayOutputStream();
+        adapter.exportDomain("other.com", destination);
+
+        String ldif = destination.toString();
+        assertTrue(ldif.contains("dn: dc=other,dc=com"));
+        assertTrue(ldif.contains("zimbraDomainName: other.com"));
+    }
+
+    @Test
+    void exportDomainWrapsUnknownDomainInIOException() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(IOException.class, () -> adapter.exportDomain("nowhere.invalid", new ByteArrayOutputStream()));
+    }
+
+    @Test
+    void exportDomainWrapsUnreachableServerInIOException() {
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(
+                IOException.class, () -> adapter.exportDomain("example.com", new ByteArrayOutputStream()));
+    }
+
+    @Test
     void restoreIsNotYetImplemented() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
