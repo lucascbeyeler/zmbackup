@@ -42,7 +42,7 @@ public final class AppContext {
                 config.zimbraLdap().sslEnabled());
         this.accountDiscovery = ldapAdapter;
         this.ldapExporter = ldapAdapter;
-        this.sessionService = new SessionService(metadataStore);
+        this.sessionService = new SessionService(storageProvider, metadataStore);
         this.backupService = new BackupService(accountDiscovery, ldapExporter, storageProvider, metadataStore);
     }
 
