@@ -18,6 +18,7 @@ import com.unboundid.util.ssl.cert.PublicKeyAlgorithmIdentifier;
 import com.unboundid.util.ssl.cert.SignatureAlgorithmIdentifier;
 import com.unboundid.util.ssl.cert.X509Certificate;
 import io.zmbackup.core.domain.LdapObjectType;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -198,6 +199,86 @@ class UnboundIdLdapAdapterTest {
                 "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
 
         assertEquals(List.of(), adapter.listDomains());
+    }
+
+    @Test
+    void exportWritesMatchingEntryAsLdif() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        ByteArrayOutputStream destination = new ByteArrayOutputStream();
+        adapter.export("alice@example.com", LdapObjectType.ACCOUNT, destination);
+
+        String ldif = destination.toString();
+        assertTrue(ldif.contains("dn: uid=alice,dc=example,dc=com"));
+        assertTrue(ldif.contains("mail: alice@example.com"));
+    }
+
+    @Test
+    void exportMatchesByUidWhenMailAttributeIsAbsent() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "cn=engineering,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraDistributionList"),
+                new Attribute("cn", "engineering"),
+                new Attribute("uid", "engineering@example.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        ByteArrayOutputStream destination = new ByteArrayOutputStream();
+        adapter.export("engineering@example.com", LdapObjectType.DISTRIBUTION_LIST, destination);
+
+        assertTrue(destination.toString().contains("dn: cn=engineering,dc=example,dc=com"));
+    }
+
+    @Test
+    void exportWritesNothingWhenNoEntryMatches() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        ByteArrayOutputStream destination = new ByteArrayOutputStream();
+        adapter.export("nobody@example.com", LdapObjectType.ACCOUNT, destination);
+
+        assertEquals("", destination.toString());
+    }
+
+    @Test
+    void exportRejectsDomainObjectType() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> adapter.export("example.com", LdapObjectType.DOMAIN, new ByteArrayOutputStream()));
+    }
+
+    @Test
+    void exportWrapsUnreachableServerInIOException() {
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(
+                IOException.class,
+                () -> adapter.export("alice@example.com", LdapObjectType.ACCOUNT, new ByteArrayOutputStream()));
+    }
+
+    @Test
+    void restoreIsNotYetImplemented() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> adapter.restore(LdapObjectType.ACCOUNT, java.io.InputStream.nullInputStream()));
     }
 
     private InMemoryDirectoryServer startDirectoryServer(SSLSocketFactory startTlsSocketFactory) throws Exception {
