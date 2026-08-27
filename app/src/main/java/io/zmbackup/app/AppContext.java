@@ -5,6 +5,8 @@ import io.zmbackup.app.config.YamlConfigLoader;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
+import io.zmbackup.core.port.ZimbraLdapExporter;
+import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
@@ -25,18 +27,23 @@ public final class AppContext {
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
     private final AccountDiscovery accountDiscovery;
+    private final ZimbraLdapExporter ldapExporter;
     private final SessionService sessionService;
+    private final BackupService backupService;
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
-        this.accountDiscovery = new UnboundIdLdapAdapter(
+        UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
                 config.zimbraLdap().url(),
                 config.zimbraLdap().bindDn(),
                 config.zimbraLdap().bindPassword(),
                 config.zimbraLdap().sslEnabled());
+        this.accountDiscovery = ldapAdapter;
+        this.ldapExporter = ldapAdapter;
         this.sessionService = new SessionService(metadataStore);
+        this.backupService = new BackupService(accountDiscovery, ldapExporter, storageProvider, metadataStore);
     }
 
     /** Reads {@code configFile} and wires the components it describes. */
@@ -62,5 +69,9 @@ public final class AppContext {
 
     public SessionService sessionService() {
         return sessionService;
+    }
+
+    public BackupService backupService() {
+        return backupService;
     }
 }

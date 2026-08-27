@@ -83,11 +83,6 @@ class MainTest {
     }
 
     @Test
-    void backupIsStubbed() {
-        assertStubbed("backup");
-    }
-
-    @Test
     void restoreIsStubbed() {
         assertStubbed("restore");
     }
