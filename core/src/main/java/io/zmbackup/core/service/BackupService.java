@@ -21,10 +21,10 @@ import java.util.Optional;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
- * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}) as well as {@code MAILBOX}, mirroring
- * {@code backup_main} and its {@code __backupLdap}/{@code __backupDomain}/{@code __backupMailbox}
- * helpers in the bash tool's {@code BackupAction.sh}. The combined LDAP+mailbox types ({@code
- * FULL}, {@code INCREMENTAL}) are handled by a separate service.
+ * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}), {@code MAILBOX}, and {@code FULL},
+ * mirroring {@code backup_main} and its {@code __backupLdap}/{@code __backupDomain}/{@code
+ * __backupMailbox}/{@code __backupFullInc} helpers in the bash tool's {@code BackupAction.sh}.
+ * {@code INCREMENTAL} is handled by a separate service.
  */
 public class BackupService {
 
@@ -68,8 +68,8 @@ public class BackupService {
      * then updates the session to its final status.
      *
      * @param type        an LDAP-only backup type ({@code LDAP}, {@code ALIAS}, {@code
-     *                    DISTRIBUTION_LIST}, {@code SIGNATURE}, or {@code DOMAIN}), or {@code
-     *                    MAILBOX}
+     *                    DISTRIBUTION_LIST}, {@code SIGNATURE}, or {@code DOMAIN}), {@code
+     *                    MAILBOX}, or {@code FULL}
      * @param identifiers explicit accounts (or domains, for {@code DOMAIN}) to back up, bypassing
      *                    discovery; empty to discover automatically
      * @param domain      when {@code identifiers} is empty and {@code type != DOMAIN}, restricts
@@ -79,9 +79,9 @@ public class BackupService {
      */
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain)
             throws IOException {
-        if (type.includesLdap() && type.includesMailbox()) {
+        if (type == BackupType.INCREMENTAL) {
             throw new IllegalArgumentException(
-                    "BackupService does not support combined LDAP+mailbox backup types, got " + type);
+                    "BackupService does not support the INCREMENTAL backup type, got " + type);
         }
 
         List<String> resolved = resolveIdentifiers(type, identifiers, domain);
@@ -108,11 +108,22 @@ public class BackupService {
         return Optional.of(completed);
     }
 
-    /** Exports and stores a single object, recording its result. Returns {@code false} on failure. */
+    /**
+     * Exports and stores a single object, recording its result. Returns {@code false} on failure.
+     * For {@code FULL}, mirrors {@code __backupFullInc}: exports LDAP first, then skips the
+     * mailbox export (and the account record) entirely if the LDAP export failed.
+     */
     private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
         Instant startedAt = Instant.now();
         try {
             if (type == BackupType.MAILBOX) {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
+                    mailboxExporter.export(identifier, destination);
+                }
+            } else if (type == BackupType.FULL) {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
+                    ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
+                }
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
                     mailboxExporter.export(identifier, destination);
                 }
@@ -151,7 +162,7 @@ public class BackupService {
 
     private static LdapObjectType objectTypeFor(BackupType type) {
         return switch (type) {
-            case LDAP, MAILBOX -> LdapObjectType.ACCOUNT;
+            case LDAP, MAILBOX, FULL -> LdapObjectType.ACCOUNT;
             case ALIAS -> LdapObjectType.ALIAS;
             case DISTRIBUTION_LIST -> LdapObjectType.DISTRIBUTION_LIST;
             case SIGNATURE -> LdapObjectType.SIGNATURE;
