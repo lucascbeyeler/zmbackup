@@ -123,6 +123,30 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     /**
      * {@inheritDoc}
      *
+     * <p>Mirrors {@code domain_backup} in the bash tool's {@code ParallelAction.sh}: {@code
+     * ldapsearch -b "dc=<label>,dc=<label>,..." -s base <objectFilter>}, with the matching entry
+     * serialised to LDIF.
+     */
+    @Override
+    public void exportDomain(String domain, OutputStream destination) throws IOException {
+        try (LDAPConnection connection = connect()) {
+            SearchRequest searchRequest = new SearchRequest(
+                    domainBaseDn(domain), SearchScope.BASE, LdapObjectType.DOMAIN.objectFilter());
+            SearchResult searchResult = connection.search(searchRequest);
+            LDIFWriter ldifWriter = new LDIFWriter(destination);
+            for (Entry entry : searchResult.getSearchEntries()) {
+                ldifWriter.writeEntry(entry);
+            }
+            ldifWriter.flush();
+        } catch (LDAPException e) {
+            throw new IOException(
+                    "Failed to export domain " + domain + " from Zimbra LDAP at " + host + ":" + port, e);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
      * <p>Not yet implemented.
      */
     @Override
