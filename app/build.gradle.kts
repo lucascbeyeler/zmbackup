@@ -9,6 +9,9 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.6")
     implementation("info.picocli:picocli:4.7.6")
     testImplementation("com.unboundid:unboundid-ldapsdk:7.0.5")
+    testImplementation("io.cucumber:cucumber-java:7.34.7")
+    testImplementation("io.cucumber:cucumber-junit-platform-engine:7.34.7")
+    testImplementation("org.junit.platform:junit-platform-suite:1.11.4")
 }
 
 // Bundle the repo-root VERSION file into the jar so VersionProvider can read it at runtime,
