@@ -2,6 +2,7 @@ package io.zmbackup.zimbra;
 
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.ExtendedResult;
+import com.unboundid.ldap.sdk.Filter;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.LDAPURL;
@@ -10,11 +11,15 @@ import com.unboundid.ldap.sdk.SearchRequest;
 import com.unboundid.ldap.sdk.SearchResult;
 import com.unboundid.ldap.sdk.SearchScope;
 import com.unboundid.ldap.sdk.extensions.StartTLSExtendedRequest;
+import com.unboundid.ldif.LDIFWriter;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.port.AccountDiscovery;
+import io.zmbackup.core.port.ZimbraLdapExporter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,9 +27,9 @@ import javax.net.ssl.SSLContext;
 
 /**
  * Connects to Zimbra's LDAP directory via the UnboundID LDAP SDK, mirroring the {@code
- * ldapsearch} invocations in the bash tool's {@code MiscAction.sh}.
+ * ldapsearch} invocations in the bash tool's {@code MiscAction.sh} and {@code ParallelAction.sh}.
  */
-public class UnboundIdLdapAdapter implements AccountDiscovery {
+public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporter {
 
     private final String host;
     private final int port;
@@ -73,6 +78,56 @@ public class UnboundIdLdapAdapter implements AccountDiscovery {
     @Override
     public List<String> discoverForDomain(LdapObjectType type, String domain) throws IOException {
         return search(domainBaseDn(domain), type);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Mirrors {@code ldap_backup} in the bash tool's {@code ParallelAction.sh}: {@code
+     * ldapsearch -b '' -LLL "(&(|(mail=<identifier>)(uid=<identifier>))<objectFilter>)"}, with the
+     * matching entries serialised to LDIF.
+     *
+     * <p>Domain entries have no {@code mail}/{@code uid} attribute to match against, so {@link
+     * LdapObjectType#DOMAIN} is not supported here; domain export has its own base-scoped search.
+     */
+    @Override
+    public void export(String identifier, LdapObjectType type, OutputStream destination) throws IOException {
+        if (type == LdapObjectType.DOMAIN) {
+            throw new UnsupportedOperationException(
+                    "UnboundIdLdapAdapter.export() does not support LdapObjectType.DOMAIN");
+        }
+        Filter filter;
+        try {
+            filter = Filter.createANDFilter(
+                    Filter.createORFilter(
+                            Filter.createEqualityFilter("mail", identifier),
+                            Filter.createEqualityFilter("uid", identifier)),
+                    Filter.create(type.objectFilter()));
+        } catch (LDAPException e) {
+            throw new IOException("Invalid LDAP filter for object type " + type, e);
+        }
+        try (LDAPConnection connection = connect()) {
+            SearchRequest searchRequest = new SearchRequest("", SearchScope.SUB, filter);
+            SearchResult searchResult = connection.search(searchRequest);
+            LDIFWriter ldifWriter = new LDIFWriter(destination);
+            for (Entry entry : searchResult.getSearchEntries()) {
+                ldifWriter.writeEntry(entry);
+            }
+            ldifWriter.flush();
+        } catch (LDAPException e) {
+            throw new IOException(
+                    "Failed to export " + identifier + " from Zimbra LDAP at " + host + ":" + port, e);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Not yet implemented.
+     */
+    @Override
+    public void restore(LdapObjectType type, InputStream source) throws IOException {
+        throw new UnsupportedOperationException("UnboundIdLdapAdapter.restore() is not yet implemented");
     }
 
     private static String domainBaseDn(String domain) {
