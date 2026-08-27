@@ -27,6 +27,17 @@ jobs:
       - run:
           name: Run Java tests
           command: ./gradlew test
+      - run:
+          name: Collect JUnit test results
+          command: |
+            mkdir -p ~/test-results/junit
+            find . -path '*/build/test-results/test' -type d \
+              -exec sh -c 'cp -R "$1"/*.xml ~/test-results/junit/ 2>/dev/null' _ {} \;
+          when: always
+      - store_test_results:
+          path: ~/test-results/junit
+      - store_artifacts:
+          path: ~/test-results/junit
 
 workflows:
   test-workflow:
