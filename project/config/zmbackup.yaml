@@ -19,6 +19,12 @@ zimbraMailbox:
   zmmailboxPath: /opt/zimbra/bin/zmmailbox
   # Whether to include disabled accounts. Optional, defaults to true.
   backupInactiveAccounts: true
+  # Zimbra server's REST base URL, used to export mailbox content.
+  restBaseUrl: https://127.0.0.1:7071
+  # Zimbra admin account used for REST HTTP Basic authentication.
+  adminUser: zimbra
+  # The admin account's password.
+  adminPassword: changeme
 
 backup:
   # Directory backups and session metadata are stored under.

@@ -77,6 +77,9 @@ class ShadowJarSmokeTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
                 backup:
                   workDir: %s
                   logFile: %s

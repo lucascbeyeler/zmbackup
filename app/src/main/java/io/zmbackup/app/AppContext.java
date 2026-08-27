@@ -6,12 +6,14 @@ import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
+import io.zmbackup.core.port.ZimbraMailboxExporter;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
+import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -29,6 +31,7 @@ public final class AppContext {
     private final MetadataStore metadataStore;
     private final AccountDiscovery accountDiscovery;
     private final ZimbraLdapExporter ldapExporter;
+    private final ZimbraMailboxExporter mailboxExporter;
     private final SessionService sessionService;
     private final BackupService backupService;
     private final HousekeepService housekeepService;
@@ -44,6 +47,10 @@ public final class AppContext {
                 config.zimbraLdap().sslEnabled());
         this.accountDiscovery = ldapAdapter;
         this.ldapExporter = ldapAdapter;
+        this.mailboxExporter = new ZimbraRestMailboxExporter(
+                config.zimbraMailbox().restBaseUrl(),
+                config.zimbraMailbox().adminUser(),
+                config.zimbraMailbox().adminPassword());
         this.sessionService = new SessionService(storageProvider, metadataStore);
         this.backupService = new BackupService(accountDiscovery, ldapExporter, storageProvider, metadataStore);
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
@@ -68,6 +75,10 @@ public final class AppContext {
 
     public AccountDiscovery accountDiscovery() {
         return accountDiscovery;
+    }
+
+    public ZimbraMailboxExporter mailboxExporter() {
+        return mailboxExporter;
     }
 
     public SessionService sessionService() {

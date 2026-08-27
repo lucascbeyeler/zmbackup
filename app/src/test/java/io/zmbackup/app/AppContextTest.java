@@ -13,6 +13,7 @@ import io.zmbackup.app.config.ZimbraMailboxConfig;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
+import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,7 @@ class AppContextTest {
         assertInstanceOf(LocalStorageProvider.class, context.storageProvider());
         assertInstanceOf(SqliteMetadataStore.class, context.metadataStore());
         assertInstanceOf(UnboundIdLdapAdapter.class, context.accountDiscovery());
+        assertInstanceOf(ZimbraRestMailboxExporter.class, context.mailboxExporter());
         assertTrue(Files.exists(tempDir.resolve("sessions.sqlite3")));
     }
 
@@ -50,6 +52,9 @@ class AppContextTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
                 backup:
                   workDir: %s
                   logFile: %s
@@ -70,7 +75,13 @@ class AppContextTest {
     private static AppConfig configWithWorkDir(Path workDir) {
         return new AppConfig(
                 new ZimbraLdapConfig("ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true),
-                new ZimbraMailboxConfig("zimbra", Path.of("/opt/zimbra/bin/zmmailbox"), true),
+                new ZimbraMailboxConfig(
+                        "zimbra",
+                        Path.of("/opt/zimbra/bin/zmmailbox"),
+                        true,
+                        "https://127.0.0.1:7071",
+                        "zimbra",
+                        "secret"),
                 new BackupConfig(
                         workDir,
                         workDir.resolve("zmbackup.log"),
