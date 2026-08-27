@@ -26,6 +26,9 @@ class YamlConfigLoaderTest {
             zimbraMailbox:
               backupUser: zimbra
               zmmailboxPath: /opt/zimbra/bin/zmmailbox
+              restBaseUrl: https://127.0.0.1:7071
+              adminUser: zimbra
+              adminPassword: secret
               backupInactiveAccounts: false
             backup:
               workDir: /opt/zimbra/backup
@@ -49,6 +52,9 @@ class YamlConfigLoaderTest {
             zimbraMailbox:
               backupUser: zimbra
               zmmailboxPath: /opt/zimbra/bin/zmmailbox
+              restBaseUrl: https://127.0.0.1:7071
+              adminUser: zimbra
+              adminPassword: secret
             backup:
               workDir: /opt/zimbra/backup
               logFile: /opt/zimbra/log/zmbackup.log
@@ -70,6 +76,9 @@ class YamlConfigLoaderTest {
         assertEquals("zimbra", config.zimbraMailbox().backupUser());
         assertEquals(Path.of("/opt/zimbra/bin/zmmailbox"), config.zimbraMailbox().zmmailboxPath());
         assertEquals(false, config.zimbraMailbox().backupInactiveAccounts());
+        assertEquals("https://127.0.0.1:7071", config.zimbraMailbox().restBaseUrl());
+        assertEquals("zimbra", config.zimbraMailbox().adminUser());
+        assertEquals("secret", config.zimbraMailbox().adminPassword());
 
         assertEquals(Path.of("/opt/zimbra/backup"), config.backup().workDir());
         assertEquals(Path.of("/opt/zimbra/log/zmbackup.log"), config.backup().logFile());
@@ -130,6 +139,9 @@ class YamlConfigLoaderTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
                 backup:
                   workDir: /opt/zimbra/backup
                   logFile: /opt/zimbra/log/zmbackup.log
@@ -152,6 +164,9 @@ class YamlConfigLoaderTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
                 backup:
                   workDir: /opt/zimbra/backup
                   logFile: /opt/zimbra/log/zmbackup.log
@@ -178,6 +193,9 @@ class YamlConfigLoaderTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
                 backup:
                   workDir: /opt/zimbra/backup
                   logFile: /opt/zimbra/log/zmbackup.log
@@ -203,6 +221,9 @@ class YamlConfigLoaderTest {
                 zimbraMailbox:
                   backupUser: zimbra
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
                 backup:
                   workDir: /opt/zimbra/backup
                   logFile: /opt/zimbra/log/zmbackup.log

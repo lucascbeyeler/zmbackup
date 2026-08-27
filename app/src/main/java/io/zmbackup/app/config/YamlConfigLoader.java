@@ -59,7 +59,10 @@ public final class YamlConfigLoader {
         return new ZimbraMailboxConfig(
                 requireString(root, "zimbraMailbox.backupUser"),
                 requirePath(root, "zimbraMailbox.zmmailboxPath"),
-                optionalBoolean(root, "zimbraMailbox.backupInactiveAccounts", true));
+                optionalBoolean(root, "zimbraMailbox.backupInactiveAccounts", true),
+                requireString(root, "zimbraMailbox.restBaseUrl"),
+                requireString(root, "zimbraMailbox.adminUser"),
+                requireString(root, "zimbraMailbox.adminPassword"));
     }
 
     private static BackupConfig parseBackup(Map<String, Object> root) {
