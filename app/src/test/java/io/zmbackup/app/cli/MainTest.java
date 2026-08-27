@@ -88,13 +88,46 @@ class MainTest {
     }
 
     @Test
-    void deleteIsStubbed() {
-        assertStubbed("delete");
+    void housekeepIsStubbed() {
+        assertStubbed("housekeep");
     }
 
     @Test
-    void housekeepIsStubbed() {
-        assertStubbed("housekeep");
+    void deleteRemovesStoredSession() throws IOException {
+        Path configFile = writeConfig();
+        new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
+                .save(
+                        new BackupSession(
+                                "full-20260101120000",
+                                BackupType.FULL,
+                                SessionStatus.FINISHED,
+                                Instant.parse("2026-01-01T12:00:00Z"),
+                                Instant.parse("2026-01-01T12:05:00Z"),
+                                "10M"));
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode =
+                cmd.execute("--config", configFile.toString(), "delete", "--session", "full-20260101120000");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString().contains("Backup session full-20260101120000 removed."));
+        assertTrue(
+                new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
+                        .findSession("full-20260101120000")
+                        .isEmpty());
+    }
+
+    @Test
+    void deleteReportsSessionNotFound() throws IOException {
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "delete", "--session", "does-not-exist");
+
+        assertEquals(1, exitCode);
+        assertTrue(err.toString().contains("does-not-exist not found in database"));
     }
 
     private void assertStubbed(String subcommand) {
