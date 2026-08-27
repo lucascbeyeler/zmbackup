@@ -1,9 +1,14 @@
 package io.zmbackup.app.cucumber;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.sdk.Attribute;
@@ -18,16 +23,14 @@ import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
-import io.zmbackup.core.port.ZimbraMailboxExporter;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
+import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,9 +54,12 @@ public class BackupIntegrationSteps {
 
     private static final String BIND_DN = "uid=zimbra,cn=admins,cn=zimbra";
     private static final String BIND_PASSWORD = "secret";
+    private static final String MAILBOX_ADMIN_USER = "zimbra";
+    private static final String MAILBOX_ADMIN_PASSWORD = "secret";
 
     private Path tempDir;
     private InMemoryDirectoryServer directoryServer;
+    private WireMockServer mailboxServer;
     private Connection sqliteAnchor;
     private SqliteMetadataStore metadataStore;
     private LocalStorageProvider storageProvider;
@@ -83,6 +89,11 @@ public class BackupIntegrationSteps {
         UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
                 "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
 
+        mailboxServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        mailboxServer.start();
+        ZimbraRestMailboxExporter mailboxExporter =
+                new ZimbraRestMailboxExporter(mailboxServer.baseUrl(), MAILBOX_ADMIN_USER, MAILBOX_ADMIN_PASSWORD);
+
         String cacheName = "cucumber-" + UUID.randomUUID();
         String sqliteUrl = "jdbc:sqlite:file:" + cacheName + "?mode=memory&cache=shared";
         sqliteAnchor = DriverManager.getConnection(sqliteUrl);
@@ -90,8 +101,7 @@ public class BackupIntegrationSteps {
 
         storageProvider = new LocalStorageProvider(tempDir);
 
-        backupService =
-                new BackupService(ldapAdapter, ldapAdapter, new NoOpMailboxExporter(), storageProvider, metadataStore);
+        backupService = new BackupService(ldapAdapter, ldapAdapter, mailboxExporter, storageProvider, metadataStore);
         housekeepService = new HousekeepService(storageProvider, metadataStore);
         sessionService = new SessionService(storageProvider, metadataStore);
     }
@@ -100,6 +110,9 @@ public class BackupIntegrationSteps {
     public void tearDown() throws IOException, SQLException {
         if (directoryServer != null) {
             directoryServer.shutDown(true);
+        }
+        if (mailboxServer != null) {
+            mailboxServer.stop();
         }
         if (sqliteAnchor != null) {
             sqliteAnchor.close();
@@ -159,6 +172,23 @@ public class BackupIntegrationSteps {
         lastSession = secondNamedSession;
     }
 
+    @Given("the mailbox export endpoint for {string} returns tgz content {string}")
+    public void theMailboxExportEndpointForReturnsTgzContent(String account, String tgzContent) {
+        mailboxServer.stubFor(get(urlPathEqualTo("/home/" + account + "/"))
+                .willReturn(aResponse().withStatus(200).withBody(tgzContent)));
+    }
+
+    @Given("the mailbox export endpoint for {string} returns HTTP {int}")
+    public void theMailboxExportEndpointForReturnsHttp(String account, int status) {
+        mailboxServer.stubFor(
+                get(urlPathEqualTo("/home/" + account + "/")).willReturn(aResponse().withStatus(status)));
+    }
+
+    @When("I run a full backup")
+    public void iRunAFullBackup() throws IOException {
+        lastSession = backupService.backup(BackupType.FULL).orElseThrow();
+    }
+
     @When("I run a domain backup")
     public void iRunADomainBackup() throws IOException {
         lastSession = backupService.backup(BackupType.DOMAIN).orElseThrow();
@@ -205,6 +235,13 @@ public class BackupIntegrationSteps {
         Path ldif = tempDir.resolve(lastSession.sessionId()).resolve(identifier + ".ldiff");
         assertTrue(Files.exists(ldif), "expected " + ldif + " to exist");
         assertTrue(Files.readString(ldif).contains(expectedContent));
+    }
+
+    @Then("the mailbox archive for {string} contains {string}")
+    public void theMailboxArchiveForContains(String identifier, String expectedContent) throws IOException {
+        Path tgz = tempDir.resolve(lastSession.sessionId()).resolve(identifier + ".tgz");
+        assertTrue(Files.exists(tgz), "expected " + tgz + " to exist");
+        assertEquals(expectedContent, Files.readString(tgz));
     }
 
     @Then("the metadata store has {int} account records for the session")
@@ -257,18 +294,5 @@ public class BackupIntegrationSteps {
                 return FileVisitResult.CONTINUE;
             }
         });
-    }
-
-    /** Unused by the current LDAP-only scenarios; satisfies {@link BackupService}'s constructor. */
-    private static final class NoOpMailboxExporter implements ZimbraMailboxExporter {
-        @Override
-        public boolean export(String account, OutputStream destination, Instant since) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void restore(String account, InputStream source) {
-            throw new UnsupportedOperationException();
-        }
     }
 }
