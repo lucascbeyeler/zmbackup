@@ -124,9 +124,50 @@ class BackupServiceTest {
     }
 
     @Test
-    void rejectsCombinedLdapAndMailboxBackupTypes() {
-        assertThrows(IllegalArgumentException.class, () -> backupService.backup(BackupType.FULL));
+    void rejectsIncrementalBackupType() {
         assertThrows(IllegalArgumentException.class, () -> backupService.backup(BackupType.INCREMENTAL));
+    }
+
+    @Test
+    void backsUpDiscoveredAccountsForFullType() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.FULL);
+
+        assertTrue(result.isPresent());
+        BackupSession session = result.get();
+        assertTrue(session.sessionId().startsWith("full-"));
+        assertEquals(BackupType.FULL, session.type());
+        assertEquals(SessionStatus.FINISHED, session.status());
+
+        List<BackupAccountRecord> records = metadataStore.findAccountsForSession(session.sessionId());
+        assertEquals(Set.of("alice@example.com", "bob@example.com"), namesOf(records));
+        assertEquals(Set.of(LdapObjectType.ACCOUNT), ldapExporter.exportedTypesFor("alice@example.com", "bob@example.com"));
+        assertEquals(Set.of("alice@example.com", "bob@example.com"), mailboxExporter.exported.keySet());
+    }
+
+    @Test
+    void fullTypeSkipsMailboxAndRecordWhenLdapExportFails() throws IOException {
+        ldapExporter.failing.add("bad@example.com");
+
+        Optional<BackupSession> result = backupService.backup(BackupType.FULL, List.of("bad@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertTrue(metadataStore.findAccountsForSession(result.get().sessionId()).isEmpty());
+        assertFalse(mailboxExporter.exported.containsKey("bad@example.com"));
+    }
+
+    @Test
+    void fullTypeSkipsRecordWhenMailboxExportFailsAfterLdapSucceeds() throws IOException {
+        mailboxExporter.failing.add("bad@example.com");
+
+        Optional<BackupSession> result = backupService.backup(BackupType.FULL, List.of("bad@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertTrue(metadataStore.findAccountsForSession(result.get().sessionId()).isEmpty());
+        assertEquals(List.of(LdapObjectType.ACCOUNT), ldapExporter.exportedTypes.get("bad@example.com"));
     }
 
     @Test
