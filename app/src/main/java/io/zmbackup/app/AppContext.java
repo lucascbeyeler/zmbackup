@@ -5,6 +5,7 @@ import io.zmbackup.app.config.YamlConfigLoader;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
+import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
@@ -24,6 +25,7 @@ public final class AppContext {
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
     private final AccountDiscovery accountDiscovery;
+    private final SessionService sessionService;
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
@@ -34,6 +36,7 @@ public final class AppContext {
                 config.zimbraLdap().bindDn(),
                 config.zimbraLdap().bindPassword(),
                 config.zimbraLdap().sslEnabled());
+        this.sessionService = new SessionService(metadataStore);
     }
 
     /** Reads {@code configFile} and wires the components it describes. */
@@ -55,5 +58,9 @@ public final class AppContext {
 
     public AccountDiscovery accountDiscovery() {
         return accountDiscovery;
+    }
+
+    public SessionService sessionService() {
+        return sessionService;
     }
 }

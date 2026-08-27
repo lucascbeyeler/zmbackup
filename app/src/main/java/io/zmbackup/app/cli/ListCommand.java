@@ -31,7 +31,7 @@ public final class ListCommand implements Callable<Integer> {
         out.println(BORDER);
         out.printf(ROW_FORMAT, "Session ID", "Started", "Completed", "Size", "Type");
         out.println(BORDER);
-        for (BackupSession session : context.metadataStore().listSessions()) {
+        for (BackupSession session : context.sessionService().listSessions()) {
             out.printf(
                     ROW_FORMAT,
                     session.sessionId(),
