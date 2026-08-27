@@ -81,6 +81,15 @@ class BackupServiceTest {
     }
 
     @Test
+    void backsUpSignatureType() throws IOException {
+        Optional<BackupSession> result = backupService.backup(BackupType.SIGNATURE, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().sessionId().startsWith("signature-"));
+        assertEquals(List.of(LdapObjectType.SIGNATURE), ldapExporter.exportedTypes.get("alice@example.com"));
+    }
+
+    @Test
     void domainTypeDiscoversDomainsAndUsesExportDomain() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.DOMAIN, List.of("example.com"));
 
