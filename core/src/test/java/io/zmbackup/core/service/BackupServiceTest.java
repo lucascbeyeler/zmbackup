@@ -14,6 +14,7 @@ import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
+import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,10 +35,11 @@ class BackupServiceTest {
 
     private final FakeAccountDiscovery accountDiscovery = new FakeAccountDiscovery();
     private final FakeZimbraLdapExporter ldapExporter = new FakeZimbraLdapExporter();
+    private final FakeZimbraMailboxExporter mailboxExporter = new FakeZimbraMailboxExporter();
     private final InMemoryStorageProvider storageProvider = new InMemoryStorageProvider();
     private final InMemoryMetadataStore metadataStore = new InMemoryMetadataStore();
-    private final BackupService backupService =
-            new BackupService(accountDiscovery, ldapExporter, storageProvider, metadataStore);
+    private final BackupService backupService = new BackupService(
+            accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
 
     @Test
     void backsUpDiscoveredAccountsForLdapType() throws IOException {
@@ -122,10 +124,49 @@ class BackupServiceTest {
     }
 
     @Test
-    void rejectsMailboxInclusiveBackupTypes() {
+    void rejectsCombinedLdapAndMailboxBackupTypes() {
         assertThrows(IllegalArgumentException.class, () -> backupService.backup(BackupType.FULL));
         assertThrows(IllegalArgumentException.class, () -> backupService.backup(BackupType.INCREMENTAL));
-        assertThrows(IllegalArgumentException.class, () -> backupService.backup(BackupType.MAILBOX));
+    }
+
+    @Test
+    void backsUpDiscoveredAccountsForMailboxType() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.MAILBOX);
+
+        assertTrue(result.isPresent());
+        BackupSession session = result.get();
+        assertTrue(session.sessionId().startsWith("mbox-"));
+        assertEquals(BackupType.MAILBOX, session.type());
+        assertEquals(SessionStatus.FINISHED, session.status());
+
+        List<BackupAccountRecord> records = metadataStore.findAccountsForSession(session.sessionId());
+        assertEquals(Set.of("alice@example.com", "bob@example.com"), namesOf(records));
+        assertEquals(Set.of("alice@example.com", "bob@example.com"), mailboxExporter.exported.keySet());
+        assertTrue(ldapExporter.exportedTypes.isEmpty());
+    }
+
+    @Test
+    void mailboxTypeSucceedsWithoutWritingWhenNoNewContent() throws IOException {
+        mailboxExporter.noNewContent.add("alice@example.com");
+
+        Optional<BackupSession> result = backupService.backup(BackupType.MAILBOX, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+        assertEquals(1, metadataStore.findAccountsForSession(result.get().sessionId()).size());
+    }
+
+    @Test
+    void marksSessionFailedWhenMailboxExportFails() throws IOException {
+        mailboxExporter.failing.add("bad@example.com");
+
+        Optional<BackupSession> result = backupService.backup(BackupType.MAILBOX, List.of("bad@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertTrue(metadataStore.findAccountsForSession(result.get().sessionId()).isEmpty());
     }
 
     private static Set<String> namesOf(List<BackupAccountRecord> records) {
@@ -189,6 +230,31 @@ class BackupServiceTest {
                 types.addAll(exportedTypes.getOrDefault(identifier, List.of()));
             }
             return types;
+        }
+    }
+
+    /** In-memory {@link ZimbraMailboxExporter} fake that records what was exported. */
+    private static final class FakeZimbraMailboxExporter implements ZimbraMailboxExporter {
+        final Map<String, Instant> exported = new LinkedHashMap<>();
+        final Set<String> noNewContent = new HashSet<>();
+        final Set<String> failing = new HashSet<>();
+
+        @Override
+        public boolean export(String account, OutputStream destination, Instant since) throws IOException {
+            if (failing.contains(account)) {
+                throw new IOException("simulated export failure for " + account);
+            }
+            if (noNewContent.contains(account)) {
+                return false;
+            }
+            exported.put(account, since);
+            destination.write(("tgz:" + account).getBytes());
+            return true;
+        }
+
+        @Override
+        public void restore(String account, InputStream source) {
+            throw new UnsupportedOperationException();
         }
     }
 

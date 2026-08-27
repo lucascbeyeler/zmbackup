@@ -18,6 +18,7 @@ import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
+import io.zmbackup.core.port.ZimbraMailboxExporter;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
 import io.zmbackup.core.service.SessionService;
@@ -25,6 +26,8 @@ import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -87,7 +90,8 @@ public class BackupIntegrationSteps {
 
         storageProvider = new LocalStorageProvider(tempDir);
 
-        backupService = new BackupService(ldapAdapter, ldapAdapter, storageProvider, metadataStore);
+        backupService =
+                new BackupService(ldapAdapter, ldapAdapter, new NoOpMailboxExporter(), storageProvider, metadataStore);
         housekeepService = new HousekeepService(storageProvider, metadataStore);
         sessionService = new SessionService(storageProvider, metadataStore);
     }
@@ -253,5 +257,18 @@ public class BackupIntegrationSteps {
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    /** Unused by the current LDAP-only scenarios; satisfies {@link BackupService}'s constructor. */
+    private static final class NoOpMailboxExporter implements ZimbraMailboxExporter {
+        @Override
+        public boolean export(String account, OutputStream destination, Instant since) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void restore(String account, InputStream source) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
