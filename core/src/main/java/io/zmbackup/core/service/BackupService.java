@@ -12,6 +12,7 @@ import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -21,10 +22,10 @@ import java.util.Optional;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
- * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}), {@code MAILBOX}, and {@code FULL},
- * mirroring {@code backup_main} and its {@code __backupLdap}/{@code __backupDomain}/{@code
- * __backupMailbox}/{@code __backupFullInc} helpers in the bash tool's {@code BackupAction.sh}.
- * {@code INCREMENTAL} is handled by a separate service.
+ * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}), {@code MAILBOX}, {@code FULL}, and
+ * {@code INCREMENTAL}, mirroring {@code backup_main} and its {@code __backupLdap}/{@code
+ * __backupDomain}/{@code __backupMailbox}/{@code __backupFullInc} helpers in the bash tool's
+ * {@code BackupAction.sh}.
  */
 public class BackupService {
 
@@ -32,6 +33,12 @@ public class BackupService {
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
+
+    /**
+     * Mirrors the bash tool's {@code YESTERDAY} variable: how far back of the last successful
+     * backup an incremental export's {@code after} cutoff is set.
+     */
+    private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
     private final AccountDiscovery accountDiscovery;
     private final ZimbraLdapExporter ldapExporter;
@@ -69,7 +76,7 @@ public class BackupService {
      *
      * @param type        an LDAP-only backup type ({@code LDAP}, {@code ALIAS}, {@code
      *                    DISTRIBUTION_LIST}, {@code SIGNATURE}, or {@code DOMAIN}), {@code
-     *                    MAILBOX}, or {@code FULL}
+     *                    MAILBOX}, {@code FULL}, or {@code INCREMENTAL}
      * @param identifiers explicit accounts (or domains, for {@code DOMAIN}) to back up, bypassing
      *                    discovery; empty to discover automatically
      * @param domain      when {@code identifiers} is empty and {@code type != DOMAIN}, restricts
@@ -79,11 +86,6 @@ public class BackupService {
      */
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain)
             throws IOException {
-        if (type == BackupType.INCREMENTAL) {
-            throw new IllegalArgumentException(
-                    "BackupService does not support the INCREMENTAL backup type, got " + type);
-        }
-
         List<String> resolved = resolveIdentifiers(type, identifiers, domain);
         if (resolved.isEmpty()) {
             return Optional.empty();
@@ -111,7 +113,8 @@ public class BackupService {
     /**
      * Exports and stores a single object, recording its result. Returns {@code false} on failure.
      * For {@code FULL}, mirrors {@code __backupFullInc}: exports LDAP first, then skips the
-     * mailbox export (and the account record) entirely if the LDAP export failed.
+     * mailbox export (and the account record) entirely if the LDAP export failed. For {@code
+     * INCREMENTAL}, exports mailbox content after {@link #incrementalCutoff(String)}.
      */
     private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
         Instant startedAt = Instant.now();
@@ -119,6 +122,10 @@ public class BackupService {
             if (type == BackupType.MAILBOX) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
                     mailboxExporter.export(identifier, destination);
+                }
+            } else if (type == BackupType.INCREMENTAL) {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
+                    mailboxExporter.export(identifier, destination, incrementalCutoff(identifier));
                 }
             } else if (type == BackupType.FULL) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
@@ -146,6 +153,19 @@ public class BackupService {
         return true;
     }
 
+    /**
+     * The {@code after} cutoff for an incremental export of {@code email}: {@link
+     * #INCREMENTAL_LOOKBACK} before its last successful backup, mirroring the bash tool's {@code
+     * YESTERDAY} variable. Returns {@code null} (falling back to a full export) when {@code email}
+     * has no prior successful backup.
+     */
+    private Instant incrementalCutoff(String email) throws IOException {
+        return metadataStore
+                .lastSuccessfulBackupTime(email)
+                .map(lastBackup -> lastBackup.minus(INCREMENTAL_LOOKBACK))
+                .orElse(null);
+    }
+
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain)
             throws IOException {
         if (!identifiers.isEmpty()) {
@@ -162,7 +182,7 @@ public class BackupService {
 
     private static LdapObjectType objectTypeFor(BackupType type) {
         return switch (type) {
-            case LDAP, MAILBOX, FULL -> LdapObjectType.ACCOUNT;
+            case LDAP, MAILBOX, FULL, INCREMENTAL -> LdapObjectType.ACCOUNT;
             case ALIAS -> LdapObjectType.ALIAS;
             case DISTRIBUTION_LIST -> LdapObjectType.DISTRIBUTION_LIST;
             case SIGNATURE -> LdapObjectType.SIGNATURE;

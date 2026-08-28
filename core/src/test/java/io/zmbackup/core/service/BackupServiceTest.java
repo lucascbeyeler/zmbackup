@@ -2,7 +2,6 @@ package io.zmbackup.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
@@ -19,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -124,8 +124,26 @@ class BackupServiceTest {
     }
 
     @Test
-    void rejectsIncrementalBackupType() {
-        assertThrows(IllegalArgumentException.class, () -> backupService.backup(BackupType.INCREMENTAL));
+    void incrementalTypePassesFortyEightHourCutoffToExporter() throws IOException {
+        Instant lastBackup = Instant.parse("2026-01-10T12:00:00Z");
+        metadataStore.lastBackupTimes.put("alice@example.com", lastBackup);
+
+        Optional<BackupSession> result = backupService.backup(BackupType.INCREMENTAL, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().sessionId().startsWith("inc-"));
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+        assertEquals(lastBackup.minus(Duration.ofHours(48)), mailboxExporter.exported.get("alice@example.com"));
+    }
+
+    @Test
+    void incrementalTypeFallsBackToFullExportWhenNoPriorBackup() throws IOException {
+        Optional<BackupSession> result = backupService.backup(BackupType.INCREMENTAL, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+        assertTrue(mailboxExporter.exported.containsKey("alice@example.com"));
+        assertEquals(null, mailboxExporter.exported.get("alice@example.com"));
     }
 
     @Test
@@ -363,6 +381,7 @@ class BackupServiceTest {
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();
+        final Map<String, Instant> lastBackupTimes = new HashMap<>();
 
         @Override
         public void save(BackupSession session) {
@@ -404,7 +423,7 @@ class BackupServiceTest {
 
         @Override
         public Optional<Instant> lastSuccessfulBackupTime(String email) {
-            throw new UnsupportedOperationException();
+            return Optional.ofNullable(lastBackupTimes.get(email));
         }
     }
 }
