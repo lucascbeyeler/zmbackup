@@ -2,7 +2,6 @@ package io.zmbackup.local;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
@@ -140,8 +139,48 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
-    void lastSuccessfulBackupTimeIsNotYetImplemented() {
-        assertThrows(UnsupportedOperationException.class, () -> store.lastSuccessfulBackupTime("user@example.com"));
+    void lastSuccessfulBackupTimeIsEmptyWhenAccountNeverBackedUp() throws IOException {
+        assertEquals(Optional.empty(), store.lastSuccessfulBackupTime("user@example.com"));
+    }
+
+    @Test
+    void lastSuccessfulBackupTimeReturnsMostRecentFinishedMailboxSession() throws IOException {
+        Instant now = Instant.now();
+        Instant older = now.minus(2, ChronoUnit.DAYS);
+        Instant newer = now.minus(1, ChronoUnit.DAYS);
+        store.save(session("full-1", BackupType.FULL, SessionStatus.FINISHED, older));
+        store.save(session("inc-1", BackupType.INCREMENTAL, SessionStatus.FINISHED, newer));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com", older));
+        store.recordAccountBackup(accountRecord("inc-1", "user@example.com", newer));
+
+        assertEquals(Optional.of(newer), store.lastSuccessfulBackupTime("user@example.com"));
+    }
+
+    @Test
+    void lastSuccessfulBackupTimeIgnoresUnfinishedSessions() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("full-1", BackupType.FULL, SessionStatus.IN_PROGRESS, null));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com", now));
+
+        assertEquals(Optional.empty(), store.lastSuccessfulBackupTime("user@example.com"));
+    }
+
+    @Test
+    void lastSuccessfulBackupTimeIgnoresNonMailboxSessionTypes() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("ldap-1", "user@example.com", now));
+
+        assertEquals(Optional.empty(), store.lastSuccessfulBackupTime("user@example.com"));
+    }
+
+    @Test
+    void lastSuccessfulBackupTimeIgnoresOtherAccounts() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("full-1", BackupType.FULL, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("full-1", "other@example.com", now));
+
+        assertEquals(Optional.empty(), store.lastSuccessfulBackupTime("user@example.com"));
     }
 
     private static BackupSession session(String sessionId, SessionStatus status, String size) {
@@ -150,8 +189,17 @@ class SqliteMetadataStoreTest {
         return new BackupSession(sessionId, BackupType.FULL, status, now, completedAt, size);
     }
 
+    private static BackupSession session(String sessionId, BackupType type, SessionStatus status, Instant completedAt) {
+        Instant now = Instant.now();
+        return new BackupSession(sessionId, type, status, now, completedAt, "1M");
+    }
+
     private static BackupAccountRecord accountRecord(String sessionId, String email) {
         Instant now = Instant.now();
         return new BackupAccountRecord(null, sessionId, email, "1M", now, now);
+    }
+
+    private static BackupAccountRecord accountRecord(String sessionId, String email, Instant completedAt) {
+        return new BackupAccountRecord(null, sessionId, email, "1M", completedAt, completedAt);
     }
 }

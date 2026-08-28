@@ -193,7 +193,25 @@ public class SqliteMetadataStore implements MetadataStore {
 
     @Override
     public Optional<Instant> lastSuccessfulBackupTime(String email) throws IOException {
-        throw new UnsupportedOperationException("lastSuccessfulBackupTime is implemented in a later delivery (#259)");
+        String sql =
+                """
+                select max(ba.conclusion_date) as last_backup
+                from backup_account ba
+                join backup_session bs on ba.sessionID = bs.sessionID
+                where ba.email = ?
+                  and bs.status = ?
+                  and (ba.sessionID like 'full%' or ba.sessionID like 'inc%' or ba.sessionID like 'mbox%')
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, email);
+            statement.setString(2, SessionStatus.FINISHED.dbValue());
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next() ? Optional.ofNullable(fromDb(rs.getString("last_backup"))) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
     }
 
     private Connection connect() throws SQLException {
