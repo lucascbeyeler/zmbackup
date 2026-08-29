@@ -9,8 +9,11 @@ import com.unboundid.ldap.sdk.LDAPURL;
 import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldap.sdk.SearchRequest;
 import com.unboundid.ldap.sdk.SearchResult;
+import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
 import com.unboundid.ldap.sdk.extensions.StartTLSExtendedRequest;
+import com.unboundid.ldif.LDIFException;
+import com.unboundid.ldif.LDIFReader;
 import com.unboundid.ldif.LDIFWriter;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
@@ -147,11 +150,52 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     /**
      * {@inheritDoc}
      *
-     * <p>Not yet implemented.
+     * <p>Mirrors {@code ldap_restore} in the bash tool's {@code ParallelAction.sh}: {@code
+     * ldapdelete -Z -r ...} on the entry's DN (result discarded, exactly as the bash tool does),
+     * followed by {@code ldapadd -Z ...} to re-add it from the LDIF. The DN is read from the LDIF
+     * itself, so {@code type} is not otherwise used here.
      */
     @Override
     public void restore(LdapObjectType type, InputStream source) throws IOException {
-        throw new UnsupportedOperationException("UnboundIdLdapAdapter.restore() is not yet implemented");
+        Entry entry = readEntry(source);
+        try (LDAPConnection connection = connect()) {
+            deleteRecursively(connection, entry.getDN());
+            connection.add(entry);
+        } catch (LDAPException e) {
+            throw new IOException(
+                    "Failed to restore " + entry.getDN() + " to Zimbra LDAP at " + host + ":" + port, e);
+        }
+    }
+
+    private static Entry readEntry(InputStream source) throws IOException {
+        try (LDIFReader ldifReader = new LDIFReader(source)) {
+            Entry entry = ldifReader.readEntry();
+            if (entry == null) {
+                throw new IOException("No LDAP entry found in restore source");
+            }
+            return entry;
+        } catch (LDIFException e) {
+            throw new IOException("Invalid LDIF content in restore source", e);
+        }
+    }
+
+    /**
+     * Best-effort recursive delete of {@code dn} and its children, mirroring {@code ldapdelete
+     * -r}: the bash tool discards this command's result entirely (redirected to {@code
+     * /dev/null}), relying on the following {@code ldapadd} to report any real failure, so
+     * failures here are swallowed the same way.
+     */
+    private static void deleteRecursively(LDAPConnection connection, String dn) {
+        try {
+            SearchResult children =
+                    connection.search(dn, SearchScope.ONE, Filter.createPresenceFilter("objectClass"));
+            for (SearchResultEntry child : children.getSearchEntries()) {
+                deleteRecursively(connection, child.getDN());
+            }
+            connection.delete(dn);
+        } catch (LDAPException ignored) {
+            // Best-effort, exactly like the bash tool's `ldapdelete -r ... > /dev/null 2>&1`.
+        }
     }
 
     private static String domainBaseDn(String domain) {
