@@ -76,10 +76,28 @@ public class RestoreService {
      * sessionId} when {@code accounts} is empty), mirroring {@code restore_main_mailbox}.
      */
     public RestoreResult restoreMailbox(String sessionId, List<String> accounts) throws IOException {
+        return restoreMailbox(sessionId, accounts, null);
+    }
+
+    /**
+     * Restores the mailbox content for each of {@code accounts} (or every account in {@code
+     * sessionId} when {@code accounts} is empty) into {@code destination} when given, mirroring
+     * {@code restore_main_mailbox}'s restore-on-account handling of its {@code $3} destination
+     * argument.
+     *
+     * @param destination a different account to restore the mailbox content into, or {@code null}
+     *     to restore each account into itself; when given, {@code accounts} must contain exactly
+     *     one account
+     */
+    public RestoreResult restoreMailbox(String sessionId, List<String> accounts, String destination)
+            throws IOException {
+        if (destination != null && accounts.size() != 1) {
+            throw new IllegalArgumentException("destination requires exactly one account, got " + accounts.size());
+        }
         List<String> resolved = resolve(sessionId, accounts);
         List<String> failed = new ArrayList<>();
         for (String account : resolved) {
-            if (!restoreMailboxOne(sessionId, account, account)) {
+            if (!restoreMailboxOne(sessionId, account, destination != null ? destination : account)) {
                 failed.add(account);
             }
         }

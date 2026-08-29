@@ -1,6 +1,7 @@
 package io.zmbackup.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
@@ -109,6 +110,33 @@ class RestoreServiceTest {
 
         assertTrue(result.allSucceeded());
         assertTrue(mailboxExporter.restoredInto.isEmpty());
+    }
+
+    @Test
+    void restoreMailboxRestoresIntoDestinationAccountWhenGiven() throws IOException {
+        storageProvider.put("mbox-1", "alice@example.com", "tgz", "tgz:alice");
+
+        RestoreResult result =
+                restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"), "bob@example.com");
+
+        assertTrue(result.allSucceeded());
+        assertEquals(List.of("tgz:alice"), mailboxExporter.restoredInto.get("bob@example.com"));
+        assertTrue(mailboxExporter.restoredInto.get("alice@example.com") == null);
+    }
+
+    @Test
+    void restoreMailboxRejectsDestinationWithMultipleAccounts() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> restoreService.restoreMailbox(
+                        "mbox-1", List.of("alice@example.com", "bob@example.com"), "carol@example.com"));
+    }
+
+    @Test
+    void restoreMailboxRejectsDestinationWithNoExplicitAccount() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> restoreService.restoreMailbox("mbox-1", List.of(), "carol@example.com"));
     }
 
     @Test
