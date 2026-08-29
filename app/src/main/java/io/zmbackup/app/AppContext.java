@@ -9,6 +9,7 @@ import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
+import io.zmbackup.core.service.RestoreService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
@@ -34,6 +35,7 @@ public final class AppContext {
     private final ZimbraMailboxExporter mailboxExporter;
     private final SessionService sessionService;
     private final BackupService backupService;
+    private final RestoreService restoreService;
     private final HousekeepService housekeepService;
 
     public AppContext(AppConfig config) throws IOException {
@@ -54,6 +56,7 @@ public final class AppContext {
         this.sessionService = new SessionService(storageProvider, metadataStore);
         this.backupService =
                 new BackupService(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
+        this.restoreService = new RestoreService(ldapExporter, mailboxExporter, storageProvider, metadataStore);
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
     }
 
@@ -88,6 +91,10 @@ public final class AppContext {
 
     public BackupService backupService() {
         return backupService;
+    }
+
+    public RestoreService restoreService() {
+        return restoreService;
     }
 
     public HousekeepService housekeepService() {
