@@ -6,6 +6,7 @@ import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
+import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.logging.Logger;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
@@ -30,6 +32,9 @@ import java.util.concurrent.Callable;
  * {@code BackupAction.sh}.
  */
 public class BackupService {
+
+    private static final Logger LOG = Logger.getLogger(BackupService.class.getName());
+    private static final Blocklist NO_BLOCKLIST = identifier -> false;
 
     private static final DateTimeFormatter SESSION_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
@@ -47,6 +52,7 @@ public class BackupService {
     private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
+    private final Blocklist blocklist;
     private final int maxParallelProcesses;
 
     public BackupService(
@@ -55,7 +61,7 @@ public class BackupService {
             ZimbraMailboxExporter mailboxExporter,
             StorageProvider storageProvider,
             MetadataStore metadataStore) {
-        this(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, 1);
+        this(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, NO_BLOCKLIST, 1);
     }
 
     /**
@@ -69,11 +75,37 @@ public class BackupService {
             StorageProvider storageProvider,
             MetadataStore metadataStore,
             int maxParallelProcesses) {
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                NO_BLOCKLIST,
+                maxParallelProcesses);
+    }
+
+    /**
+     * @param blocklist            discovered accounts (or domains) found here are skipped rather
+     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
+     *                             as 1
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            Blocklist blocklist,
+            int maxParallelProcesses) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
+        this.blocklist = Objects.requireNonNull(blocklist, "blocklist must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
     }
 
@@ -183,18 +215,39 @@ public class BackupService {
                 .orElse(null);
     }
 
+    /**
+     * Resolves the objects to back up. Explicit {@code identifiers} are used as-is, bypassing the
+     * blocklist, mirroring {@code backup_main}'s {@code -a}/{@code --account} path (which bypasses
+     * {@code build_listBKP} entirely); discovered objects are filtered against the blocklist, same
+     * as {@code build_listBKP} always does via {@code ldap_filter}.
+     */
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain)
             throws IOException {
         if (!identifiers.isEmpty()) {
             return identifiers;
         }
+        List<String> discovered;
         if (type == BackupType.DOMAIN) {
-            return accountDiscovery.listDomains();
+            discovered = accountDiscovery.listDomains();
+        } else {
+            LdapObjectType objectType = objectTypeFor(type);
+            discovered = domain == null
+                    ? accountDiscovery.discover(objectType)
+                    : accountDiscovery.discoverForDomain(objectType, domain);
         }
-        LdapObjectType objectType = objectTypeFor(type);
-        return domain == null
-                ? accountDiscovery.discover(objectType)
-                : accountDiscovery.discoverForDomain(objectType, domain);
+        return filterBlocked(discovered);
+    }
+
+    private List<String> filterBlocked(List<String> identifiers) {
+        List<String> allowed = new ArrayList<>(identifiers.size());
+        for (String identifier : identifiers) {
+            if (blocklist.isBlocked(identifier)) {
+                LOG.info(() -> identifier + " found inside blocked list - skipping.");
+            } else {
+                allowed.add(identifier);
+            }
+        }
+        return allowed;
     }
 
     private static LdapObjectType objectTypeFor(BackupType type) {

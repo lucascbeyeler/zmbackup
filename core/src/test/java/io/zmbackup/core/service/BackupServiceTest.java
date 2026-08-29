@@ -103,6 +103,42 @@ class BackupServiceTest {
     }
 
     @Test
+    void discoveredAccountOnBlocklistIsSkipped() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> identifier.equals("bob@example.com"),
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void explicitAccountBypassesBlocklist() throws IOException {
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> true,
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+    }
+
+    @Test
     void returnsEmptyAndSkipsSessionWhenNothingToBackUp() throws IOException {
         Optional<BackupSession> result = backupService.backup(BackupType.SIGNATURE);
 

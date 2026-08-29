@@ -3,6 +3,7 @@ package io.zmbackup.app;
 import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.YamlConfigLoader;
 import io.zmbackup.core.port.AccountDiscovery;
+import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
@@ -11,6 +12,7 @@ import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
 import io.zmbackup.core.service.RestoreService;
 import io.zmbackup.core.service.SessionService;
+import io.zmbackup.local.FileBlocklist;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
@@ -53,6 +55,7 @@ public final class AppContext {
                 config.zimbraMailbox().restBaseUrl(),
                 config.zimbraMailbox().adminUser(),
                 config.zimbraMailbox().adminPassword());
+        Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
         this.sessionService = new SessionService(storageProvider, metadataStore);
         this.backupService = new BackupService(
                 accountDiscovery,
@@ -60,6 +63,7 @@ public final class AppContext {
                 mailboxExporter,
                 storageProvider,
                 metadataStore,
+                blocklist,
                 config.backup().maxParallelProcesses());
         this.restoreService = new RestoreService(
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
