@@ -192,6 +192,54 @@ class BackupServiceTest {
     }
 
     @Test
+    void backupNeverRunsMoreThanMaxParallelProcessesAccountsConcurrently() throws IOException {
+        List<String> accounts = List.of(
+                "a@example.com", "b@example.com", "c@example.com", "d@example.com", "e@example.com",
+                "f@example.com");
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, accounts);
+        java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger maxInFlight = new java.util.concurrent.atomic.AtomicInteger();
+        ZimbraLdapExporter trackingExporter = new ZimbraLdapExporter() {
+            @Override
+            public void export(String identifier, LdapObjectType type, OutputStream destination) throws IOException {
+                int current = inFlight.incrementAndGet();
+                maxInFlight.updateAndGet(prev -> Math.max(prev, current));
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    inFlight.decrementAndGet();
+                }
+            }
+
+            @Override
+            public void exportDomain(String domain, OutputStream destination) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void restore(LdapObjectType type, InputStream source) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void restoreDomain(InputStream source) {
+                throw new UnsupportedOperationException();
+            }
+        };
+        BackupService parallelBackup = new BackupService(
+                accountDiscovery, trackingExporter, mailboxExporter, storageProvider, metadataStore, 2);
+
+        Optional<BackupSession> result = parallelBackup.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+        assertTrue(maxInFlight.get() <= 2, "observed " + maxInFlight.get() + " concurrent exports, expected at most 2");
+        assertEquals(2, maxInFlight.get());
+    }
+
+    @Test
     void notifiesBeginAndFinishForASession() throws IOException {
         RecordingNotifier notifier = new RecordingNotifier();
         BackupService notified = new BackupService(
@@ -450,9 +498,13 @@ class BackupServiceTest {
         }
     }
 
-    /** In-memory {@link StorageProvider} fake backed by a byte-array map. */
+    /**
+     * In-memory {@link StorageProvider} fake backed by a byte-array map. Uses a {@link
+     * ConcurrentHashMap} since {@link #backupNeverRunsMoreThanMaxParallelProcessesAccountsConcurrently}
+     * exercises it from multiple threads at once.
+     */
     private static final class InMemoryStorageProvider implements StorageProvider {
-        final Map<String, byte[]> content = new LinkedHashMap<>();
+        final Map<String, byte[]> content = new java.util.concurrent.ConcurrentHashMap<>();
 
         @Override
         public OutputStream openWrite(String sessionId, String account, String suffix) {
@@ -560,7 +612,7 @@ class BackupServiceTest {
         }
 
         @Override
-        public void recordAccountBackup(BackupAccountRecord record) {
+        public synchronized void recordAccountBackup(BackupAccountRecord record) {
             accounts.computeIfAbsent(record.sessionId(), k -> new ArrayList<>()).add(record);
         }
 
