@@ -1,10 +1,15 @@
 package io.zmbackup.app.cucumber;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -22,9 +27,11 @@ import io.cucumber.java.en.When;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.RestoreResult;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
+import io.zmbackup.core.service.RestoreService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
@@ -46,9 +53,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Step definitions backing {@code backup_integration.feature}: wires {@link BackupService},
- * {@link HousekeepService}, and {@link SessionService} against real port implementations rather
- * than the mocked ports used by {@code BackupServiceTest}.
+ * Step definitions backing {@code backup_integration.feature} and {@code
+ * restore_integration.feature}: wires {@link BackupService}, {@link RestoreService}, {@link
+ * HousekeepService}, and {@link SessionService} against real port implementations rather than the
+ * mocked ports used by {@code BackupServiceTest}/{@code RestoreServiceTest}.
  */
 public class BackupIntegrationSteps {
 
@@ -64,6 +72,7 @@ public class BackupIntegrationSteps {
     private SqliteMetadataStore metadataStore;
     private LocalStorageProvider storageProvider;
     private BackupService backupService;
+    private RestoreService restoreService;
     private HousekeepService housekeepService;
     private SessionService sessionService;
 
@@ -72,6 +81,7 @@ public class BackupIntegrationSteps {
     private BackupSession secondNamedSession;
     private String oldSessionId;
     private String oldSessionAccount;
+    private RestoreResult lastRestoreResult;
 
     @Before
     public void setUp() throws Exception {
@@ -91,6 +101,8 @@ public class BackupIntegrationSteps {
 
         mailboxServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         mailboxServer.start();
+        // Restore POSTs succeed by default; scenarios only need to stub the GET export endpoint.
+        mailboxServer.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(200)));
         ZimbraRestMailboxExporter mailboxExporter =
                 new ZimbraRestMailboxExporter(mailboxServer.baseUrl(), MAILBOX_ADMIN_USER, MAILBOX_ADMIN_PASSWORD);
 
@@ -102,6 +114,7 @@ public class BackupIntegrationSteps {
         storageProvider = new LocalStorageProvider(tempDir);
 
         backupService = new BackupService(ldapAdapter, ldapAdapter, mailboxExporter, storageProvider, metadataStore);
+        restoreService = new RestoreService(ldapAdapter, mailboxExporter, storageProvider, metadataStore);
         housekeepService = new HousekeepService(storageProvider, metadataStore);
         sessionService = new SessionService(storageProvider, metadataStore);
     }
@@ -199,9 +212,49 @@ public class BackupIntegrationSteps {
         lastSession = backupService.backup(BackupType.DOMAIN, List.of(identifier)).orElseThrow();
     }
 
+    @Given("I have run a domain backup for {string}")
+    public void iHaveRunADomainBackupFor(String identifier) throws IOException {
+        iRunADomainBackupFor(identifier);
+    }
+
+    @Given("I have run a full backup for {string}")
+    public void iHaveRunAFullBackupFor(String identifier) throws IOException {
+        lastSession = backupService.backup(BackupType.FULL, List.of(identifier)).orElseThrow();
+    }
+
     @When("I delete that session")
     public void iDeleteThatSession() throws IOException {
         assertTrue(sessionService.deleteSession(lastSession.sessionId()));
+    }
+
+    @Given("the LDAP entry for {string} is deleted")
+    public void theLdapEntryForIsDeleted(String account) throws Exception {
+        directoryServer.delete(accountDn(account));
+    }
+
+    @When("I restore LDAP for {string}")
+    public void iRestoreLdapFor(String account) throws IOException {
+        lastRestoreResult = restoreService.restoreLdap(lastSession.sessionId(), List.of(account));
+    }
+
+    @When("I restore LDAP for {string} from session {string}")
+    public void iRestoreLdapForFromSession(String account, String sessionId) throws IOException {
+        lastRestoreResult = restoreService.restoreLdap(sessionId, List.of(account));
+    }
+
+    @When("I restore domain {string}")
+    public void iRestoreDomain(String domain) throws IOException {
+        lastRestoreResult = restoreService.restoreDomain(lastSession.sessionId(), List.of(domain));
+    }
+
+    @When("I restore the mailbox for {string}")
+    public void iRestoreTheMailboxFor(String account) throws IOException {
+        lastRestoreResult = restoreService.restoreMailbox(lastSession.sessionId(), List.of(account));
+    }
+
+    @When("I restore the mailbox for {string} into {string}")
+    public void iRestoreTheMailboxForInto(String account, String destination) throws IOException {
+        lastRestoreResult = restoreService.restoreMailbox(lastSession.sessionId(), List.of(account), destination);
     }
 
     @Given("a stored session {string} completed {int} days ago with account {string}")
@@ -275,6 +328,27 @@ public class BackupIntegrationSteps {
     @Then("the metadata store has no record of the old session")
     public void theMetadataStoreHasNoRecordOfTheOldSession() throws IOException {
         assertEquals(Optional.empty(), metadataStore.findSession(oldSessionId));
+    }
+
+    @Then("the {word} restore result has {int} failed accounts")
+    public void theRestoreResultHasFailedAccounts(String kind, int expectedFailedCount) {
+        assertEquals(expectedFailedCount, lastRestoreResult.failedAccounts().size());
+    }
+
+    @Then("the LDAP entry for {string} exists again")
+    public void theLdapEntryForExistsAgain(String account) throws Exception {
+        assertNotNull(directoryServer.getEntry(accountDn(account)));
+    }
+
+    @Then("the WireMock server received a mailbox restore POST for {string} with body {string}")
+    public void theWireMockServerReceivedAMailboxRestorePostForWithBody(String account, String expectedBody) {
+        mailboxServer.verify(postRequestedFor(urlPathEqualTo("/home/" + account + "/"))
+                .withRequestBody(equalTo(expectedBody)));
+    }
+
+    private static String accountDn(String account) {
+        String uid = account.substring(0, account.indexOf('@'));
+        return "uid=" + uid + ",dc=example,dc=com";
     }
 
     private static void deleteRecursively(Path root) throws IOException {
