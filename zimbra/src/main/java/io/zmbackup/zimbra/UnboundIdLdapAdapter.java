@@ -167,6 +167,27 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Mirrors {@code domain_restore} in the bash tool's {@code ParallelAction.sh}: {@code
+     * ldapadd -Z ...} only (no preceding delete), treating a {@code ldapadd} "Already exists"
+     * failure as success.
+     */
+    @Override
+    public void restoreDomain(InputStream source) throws IOException {
+        Entry entry = readEntry(source);
+        try (LDAPConnection connection = connect()) {
+            connection.add(entry);
+        } catch (LDAPException e) {
+            if (e.getResultCode() == ResultCode.ENTRY_ALREADY_EXISTS) {
+                return;
+            }
+            throw new IOException(
+                    "Failed to restore domain " + entry.getDN() + " to Zimbra LDAP at " + host + ":" + port, e);
+        }
+    }
+
     private static Entry readEntry(InputStream source) throws IOException {
         try (LDIFReader ldifReader = new LDIFReader(source)) {
             Entry entry = ldifReader.readEntry();

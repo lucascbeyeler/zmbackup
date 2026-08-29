@@ -283,6 +283,11 @@ class BackupServiceTest {
             throw new UnsupportedOperationException();
         }
 
+        @Override
+        public void restoreDomain(InputStream source) {
+            throw new UnsupportedOperationException();
+        }
+
         Set<LdapObjectType> exportedTypesFor(String... identifiers) {
             Set<LdapObjectType> types = new HashSet<>();
             for (String identifier : identifiers) {

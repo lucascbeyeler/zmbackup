@@ -364,6 +364,54 @@ class UnboundIdLdapAdapterTest {
     }
 
     @Test
+    void restoreDomainAddsEntryThatDidNotPreviouslyExist() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+        String ldif =
+                "dn: dc=other,dc=com\n"
+                        + "objectClass: zimbraDomain\n"
+                        + "dc: other\n"
+                        + "zimbraDomainName: other.com\n";
+
+        adapter.restoreDomain(new ByteArrayInputStream(ldif.getBytes(StandardCharsets.UTF_8)));
+
+        Entry added = directoryServer.getEntry("dc=other,dc=com");
+        assertEquals("other.com", added.getAttributeValue("zimbraDomainName"));
+    }
+
+    @Test
+    void restoreDomainTreatsAlreadyExistingEntryAsSuccess() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        directoryServer.add(
+                "dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDomain"),
+                new Attribute("dc", "other"),
+                new Attribute("zimbraDomainName", "other.com"));
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+        String ldif =
+                "dn: dc=other,dc=com\n"
+                        + "objectClass: zimbraDomain\n"
+                        + "dc: other\n"
+                        + "zimbraDomainName: other.com\n";
+
+        adapter.restoreDomain(new ByteArrayInputStream(ldif.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    void restoreDomainThrowsIOExceptionOnOtherFailures() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+        String ldif = "dn: dc=other,dc=nowhere,dc=missing\nobjectClass: zimbraDomain\ndc: other\n";
+
+        assertThrows(
+                IOException.class,
+                () -> adapter.restoreDomain(new ByteArrayInputStream(ldif.getBytes(StandardCharsets.UTF_8))));
+    }
+
+    @Test
     void restoreWrapsUnreachableServerInIOException() {
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
         String ldif = "dn: uid=alice,dc=example,dc=com\nobjectClass: zimbraAccount\nuid: alice\n";
