@@ -123,6 +123,58 @@ class BackupServiceTest {
     }
 
     @Test
+    void discoveredDomainOnBlocklistIsSkipped() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.DOMAIN, List.of("example.com", "blocked.example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> identifier.equals("blocked.example.com"),
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.DOMAIN);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void domainScopedDiscoveryRespectsBlocklist() throws IOException {
+        accountDiscovery.byDomain.put(
+                Map.entry(LdapObjectType.ACCOUNT, "example.com"),
+                List.of("alice@example.com", "bob@example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> identifier.equals("bob@example.com"),
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of(), "example.com");
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void backupIsSkippedEntirelyWhenEveryDiscoveredAccountIsBlocked() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, identifier -> true, 1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP);
+
+        assertTrue(result.isEmpty());
+        assertTrue(metadataStore.listSessions().isEmpty());
+    }
+
+    @Test
     void explicitAccountBypassesBlocklist() throws IOException {
         BackupService blocklisted = new BackupService(
                 accountDiscovery,
