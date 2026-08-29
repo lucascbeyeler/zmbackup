@@ -54,9 +54,15 @@ public final class AppContext {
                 config.zimbraMailbox().adminUser(),
                 config.zimbraMailbox().adminPassword());
         this.sessionService = new SessionService(storageProvider, metadataStore);
-        this.backupService =
-                new BackupService(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
-        this.restoreService = new RestoreService(ldapExporter, mailboxExporter, storageProvider, metadataStore);
+        this.backupService = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                config.backup().maxParallelProcesses());
+        this.restoreService = new RestoreService(
+                ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
     }
 

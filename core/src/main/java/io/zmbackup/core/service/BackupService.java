@@ -16,9 +16,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
@@ -45,6 +47,7 @@ public class BackupService {
     private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
+    private final int maxParallelProcesses;
 
     public BackupService(
             AccountDiscovery accountDiscovery,
@@ -52,11 +55,26 @@ public class BackupService {
             ZimbraMailboxExporter mailboxExporter,
             StorageProvider storageProvider,
             MetadataStore metadataStore) {
+        this(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, 1);
+    }
+
+    /**
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *     tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated as 1
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            int maxParallelProcesses) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
+        this.maxParallelProcesses = maxParallelProcesses;
     }
 
     /** Backs up every object of {@code type} found across the whole directory. */
@@ -95,12 +113,11 @@ public class BackupService {
         Instant sessionStart = Instant.now();
         metadataStore.save(new BackupSession(sessionId, type, SessionStatus.IN_PROGRESS, sessionStart, null, null));
 
-        boolean allSucceeded = true;
+        List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String identifier : resolved) {
-            if (!backupOne(sessionId, type, identifier)) {
-                allSucceeded = false;
-            }
+            tasks.add(() -> backupOne(sessionId, type, identifier));
         }
+        boolean allSucceeded = !Parallel.run(maxParallelProcesses, tasks).contains(false);
 
         Instant sessionEnd = Instant.now();
         String size = storageProvider.sizeOfSession(sessionId);

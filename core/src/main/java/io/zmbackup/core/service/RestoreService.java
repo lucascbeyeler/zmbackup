@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 /**
  * Restores previously backed-up LDAP entries and mailbox content, mirroring {@code
@@ -29,16 +30,31 @@ public class RestoreService {
     private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
+    private final int maxParallelProcesses;
 
     public RestoreService(
             ZimbraLdapExporter ldapExporter,
             ZimbraMailboxExporter mailboxExporter,
             StorageProvider storageProvider,
             MetadataStore metadataStore) {
+        this(ldapExporter, mailboxExporter, storageProvider, metadataStore, 1);
+    }
+
+    /**
+     * @param maxParallelProcesses how many accounts to restore concurrently, mirroring the bash
+     *     tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated as 1
+     */
+    public RestoreService(
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            int maxParallelProcesses) {
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
+        this.maxParallelProcesses = maxParallelProcesses;
     }
 
     /**
@@ -47,13 +63,11 @@ public class RestoreService {
      */
     public RestoreResult restoreLdap(String sessionId, List<String> accounts) throws IOException {
         List<String> resolved = resolve(sessionId, accounts);
-        List<String> failed = new ArrayList<>();
+        List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String account : resolved) {
-            if (!restoreLdapOne(sessionId, account)) {
-                failed.add(account);
-            }
+            tasks.add(() -> restoreLdapOne(sessionId, account));
         }
-        return new RestoreResult(resolved.size(), failed);
+        return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
     /**
@@ -62,13 +76,11 @@ public class RestoreService {
      */
     public RestoreResult restoreDomain(String sessionId, List<String> domains) throws IOException {
         List<String> resolved = resolve(sessionId, domains);
-        List<String> failed = new ArrayList<>();
+        List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String domain : resolved) {
-            if (!restoreDomainOne(sessionId, domain)) {
-                failed.add(domain);
-            }
+            tasks.add(() -> restoreDomainOne(sessionId, domain));
         }
-        return new RestoreResult(resolved.size(), failed);
+        return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
     /**
@@ -95,13 +107,11 @@ public class RestoreService {
             throw new IllegalArgumentException("destination requires exactly one account, got " + accounts.size());
         }
         List<String> resolved = resolve(sessionId, accounts);
-        List<String> failed = new ArrayList<>();
+        List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String account : resolved) {
-            if (!restoreMailboxOne(sessionId, account, destination != null ? destination : account)) {
-                failed.add(account);
-            }
+            tasks.add(() -> restoreMailboxOne(sessionId, account, destination != null ? destination : account));
         }
-        return new RestoreResult(resolved.size(), failed);
+        return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
     /**
@@ -149,6 +159,17 @@ public class RestoreService {
         } catch (IOException e) {
             return false;
         }
+    }
+
+    /** Pairs {@code resolved} with the matching per-account {@code outcomes} from {@link Parallel#run}. */
+    private static RestoreResult summarize(List<String> resolved, List<Boolean> outcomes) {
+        List<String> failed = new ArrayList<>();
+        for (int i = 0; i < resolved.size(); i++) {
+            if (!outcomes.get(i)) {
+                failed.add(resolved.get(i));
+            }
+        }
+        return new RestoreResult(resolved.size(), failed);
     }
 
     /**
