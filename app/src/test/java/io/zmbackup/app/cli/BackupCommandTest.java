@@ -143,6 +143,49 @@ class BackupCommandTest {
     }
 
     @Test
+    void incrementalBacksUpEveryDiscoveredAccountIncludingMailbox() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "incremental");
+
+        assertEquals(0, exitCode);
+        String output = out.toString();
+        assertTrue(output.contains("inc-"));
+        assertTrue(output.contains("FINISHED"));
+    }
+
+    @Test
+    void incrementalWithAccountOptionBacksUpOnlyThatAccountsMailbox() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute(
+                "--config", configFile.toString(), "backup", "incremental", "--account", "alice@example.com");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString().contains("FINISHED"));
+    }
+
+    @Test
     void mailboxBacksUpEveryDiscoveredAccountsMailbox() throws Exception {
         directoryServer = startDirectoryServer();
         directoryServer.add(
