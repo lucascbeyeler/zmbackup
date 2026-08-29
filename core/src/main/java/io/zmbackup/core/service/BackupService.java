@@ -8,6 +8,7 @@ import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
+import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
@@ -35,6 +36,13 @@ public class BackupService {
 
     private static final Logger LOG = Logger.getLogger(BackupService.class.getName());
     private static final Blocklist NO_BLOCKLIST = identifier -> false;
+    private static final Notifier NO_NOTIFIER = new Notifier() {
+        @Override
+        public void notifyBegin(String sessionId, BackupType type) {}
+
+        @Override
+        public void notifyFinish(String sessionId, BackupType type, SessionStatus status) {}
+    };
 
     private static final DateTimeFormatter SESSION_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
@@ -53,6 +61,7 @@ public class BackupService {
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
     private final Blocklist blocklist;
+    private final Notifier notifier;
     private final int maxParallelProcesses;
 
     public BackupService(
@@ -61,7 +70,15 @@ public class BackupService {
             ZimbraMailboxExporter mailboxExporter,
             StorageProvider storageProvider,
             MetadataStore metadataStore) {
-        this(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, NO_BLOCKLIST, 1);
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                NO_BLOCKLIST,
+                NO_NOTIFIER,
+                1);
     }
 
     /**
@@ -82,6 +99,7 @@ public class BackupService {
                 storageProvider,
                 metadataStore,
                 NO_BLOCKLIST,
+                NO_NOTIFIER,
                 maxParallelProcesses);
     }
 
@@ -100,12 +118,42 @@ public class BackupService {
             MetadataStore metadataStore,
             Blocklist blocklist,
             int maxParallelProcesses) {
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                blocklist,
+                NO_NOTIFIER,
+                maxParallelProcesses);
+    }
+
+    /**
+     * @param blocklist            discovered accounts (or domains) found here are skipped rather
+     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
+     * @param notifier             notified when a session starts and finishes, mirroring {@code
+     *                             notify_begin}/{@code notify_finish}
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
+     *                             as 1
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            Blocklist blocklist,
+            Notifier notifier,
+            int maxParallelProcesses) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
         this.blocklist = Objects.requireNonNull(blocklist, "blocklist must not be null");
+        this.notifier = Objects.requireNonNull(notifier, "notifier must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
     }
 
@@ -144,6 +192,7 @@ public class BackupService {
         String sessionId = type.sessionPrefix() + "-" + SESSION_TIMESTAMP.format(Instant.now());
         Instant sessionStart = Instant.now();
         metadataStore.save(new BackupSession(sessionId, type, SessionStatus.IN_PROGRESS, sessionStart, null, null));
+        notifySafely(() -> notifier.notifyBegin(sessionId, type));
 
         List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String identifier : resolved) {
@@ -156,7 +205,25 @@ public class BackupService {
         SessionStatus status = allSucceeded ? SessionStatus.FINISHED : SessionStatus.FAILED;
         BackupSession completed = new BackupSession(sessionId, type, status, sessionStart, sessionEnd, size);
         metadataStore.save(completed);
+        notifySafely(() -> notifier.notifyFinish(sessionId, type, status));
         return Optional.of(completed);
+    }
+
+    private interface NotifierCall {
+        void run() throws IOException;
+    }
+
+    /**
+     * Runs a {@link Notifier} call, logging rather than propagating a failure: a notification
+     * problem must never fail the backup itself, mirroring how the bash tool's {@code
+     * notify_begin}/{@code notify_finish} only log a warning when {@code sendmail} fails.
+     */
+    private void notifySafely(NotifierCall call) {
+        try {
+            call.run();
+        } catch (IOException e) {
+            LOG.warning(() -> "Failed to send backup notification: " + e.getMessage());
+        }
     }
 
     /**
