@@ -8,13 +8,14 @@ import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
 /**
- * Groups the backup subcommands: {@code full}, {@code mailbox}, {@code ldap}, {@code alias},
- * {@code distlist}, {@code signature}, {@code domain}.
+ * Groups the backup subcommands: {@code full}, {@code incremental}, {@code mailbox}, {@code
+ * ldap}, {@code alias}, {@code distlist}, {@code signature}, {@code domain}.
  */
 @Command(
         name = "backup",
         subcommands = {
             BackupFullCommand.class,
+            BackupIncrementalCommand.class,
             BackupMailboxCommand.class,
             BackupLdapCommand.class,
             BackupAliasCommand.class,
