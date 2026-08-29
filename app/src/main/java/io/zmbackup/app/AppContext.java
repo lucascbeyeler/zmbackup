@@ -22,6 +22,9 @@ import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Wires the application's components from a parsed {@link AppConfig} with plain {@code new},
@@ -40,6 +43,9 @@ public final class AppContext {
 
     private static final int NOTIFY_SMTP_PORT = 25;
 
+    /** Root logger name every zmbackup class logs under, so one handler covers all of them. */
+    private static final String ROOT_LOGGER_NAME = "io.zmbackup";
+
     private final AppConfig config;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
@@ -53,6 +59,7 @@ public final class AppContext {
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
+        installLogging(config.backup().logFile());
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
         UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
@@ -81,6 +88,21 @@ public final class AppContext {
         this.restoreService = new RestoreService(
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
+    }
+
+    /**
+     * Routes every {@code io.zmbackup} logger to {@code logFile}/syslog through a {@link
+     * ZmbackupLogHandler}, the same two destinations the bash tool's {@code zmlog} writes to,
+     * instead of the JDK's default console handler.
+     */
+    private static void installLogging(Path logFile) {
+        Logger rootLogger = Logger.getLogger(ROOT_LOGGER_NAME);
+        rootLogger.setUseParentHandlers(false);
+        rootLogger.setLevel(Level.INFO);
+        for (Handler handler : rootLogger.getHandlers()) {
+            rootLogger.removeHandler(handler);
+        }
+        rootLogger.addHandler(new ZmbackupLogHandler(logFile));
     }
 
     /**
