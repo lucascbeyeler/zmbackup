@@ -8,6 +8,10 @@ dependencies {
     implementation(project(":local"))
     implementation("org.yaml:snakeyaml:2.6")
     implementation("info.picocli:picocli:4.7.6")
+    // The standard SLF4J/Logback logging stack, fed by core's java.util.logging calls through the
+    // jul-to-slf4j bridge (core stays dependency-free; see core/build.gradle.kts).
+    implementation("ch.qos.logback:logback-classic:1.5.16")
+    implementation("org.slf4j:jul-to-slf4j:2.0.16")
     testImplementation("com.unboundid:unboundid-ldapsdk:7.0.5")
     testImplementation("org.wiremock:wiremock:3.13.1")
     testImplementation("io.cucumber:cucumber-java:7.34.7")

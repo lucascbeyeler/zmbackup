@@ -20,8 +20,16 @@ import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.FileAppender;
+import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 import java.io.IOException;
 import java.nio.file.Path;
+import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 /**
  * Wires the application's components from a parsed {@link AppConfig} with plain {@code new},
@@ -40,6 +48,9 @@ public final class AppContext {
 
     private static final int NOTIFY_SMTP_PORT = 25;
 
+    /** Root logger name every zmbackup class logs under, so one appender pair covers all of them. */
+    private static final String ROOT_LOGGER_NAME = "io.zmbackup";
+
     private final AppConfig config;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
@@ -53,6 +64,7 @@ public final class AppContext {
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
+        installLogging(config.backup().logFile());
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
         UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
@@ -81,6 +93,52 @@ public final class AppContext {
         this.restoreService = new RestoreService(
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
+    }
+
+    /**
+     * Routes every {@code io.zmbackup} logger to {@code logFile}/syslog, the same two
+     * destinations the bash tool's {@code zmlog} writes to, using the standard SLF4J/Logback
+     * stack instead of the JDK's default console handler.
+     *
+     * <p>{@code core} stays free of external dependencies (see {@code core/build.gradle.kts}) and
+     * keeps logging through plain {@code java.util.logging}; {@link SLF4JBridgeHandler} routes
+     * those records into SLF4J/Logback here instead.
+     */
+    private static void installLogging(Path logFile) {
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        Logger zmbackupLogger = loggerContext.getLogger(ROOT_LOGGER_NAME);
+        zmbackupLogger.setAdditive(false);
+        zmbackupLogger.setLevel(Level.INFO);
+        zmbackupLogger.detachAndStopAllAppenders();
+        zmbackupLogger.addAppender(fileAppender(logFile, loggerContext));
+        zmbackupLogger.addAppender(syslogAppender(loggerContext));
+    }
+
+    private static FileAppender<ILoggingEvent> fileAppender(Path logFile, LoggerContext loggerContext) {
+        LayoutWrappingEncoder<ILoggingEvent> encoder = new LayoutWrappingEncoder<>();
+        encoder.setContext(loggerContext);
+        encoder.setLayout(new ZmlogLayout());
+        encoder.start();
+
+        FileAppender<ILoggingEvent> appender = new FileAppender<>();
+        appender.setContext(loggerContext);
+        appender.setName("zmbackup-logfile");
+        appender.setFile(logFile.toString());
+        appender.setAppend(true);
+        appender.setEncoder(encoder);
+        appender.start();
+        return appender;
+    }
+
+    private static LocalSyslogAppender syslogAppender(LoggerContext loggerContext) {
+        LocalSyslogAppender appender = new LocalSyslogAppender();
+        appender.setContext(loggerContext);
+        appender.setName("zmbackup-syslog");
+        appender.start();
+        return appender;
     }
 
     /**
