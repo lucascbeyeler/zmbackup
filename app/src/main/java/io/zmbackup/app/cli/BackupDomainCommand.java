@@ -27,6 +27,9 @@ public final class BackupDomainCommand implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        return BackupRunner.run(context, spec.commandLine().getOut(), BackupType.DOMAIN, domains, null);
+        return LockedExecution.run(
+                context,
+                spec.commandLine().getErr(),
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.DOMAIN, domains, null));
     }
 }

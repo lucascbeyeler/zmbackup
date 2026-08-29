@@ -33,6 +33,9 @@ public final class BackupFullCommand implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        return BackupRunner.run(context, spec.commandLine().getOut(), BackupType.FULL, accounts, domain);
+        return LockedExecution.run(
+                context,
+                spec.commandLine().getErr(),
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.FULL, accounts, domain));
     }
 }

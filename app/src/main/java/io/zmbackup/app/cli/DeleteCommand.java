@@ -26,13 +26,16 @@ public final class DeleteCommand implements Callable<Integer> {
     public Integer call() throws Exception {
         AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
+        PrintWriter err = spec.commandLine().getErr();
 
-        out.println("Removing session " + sessionId + " - please wait.");
-        if (context.sessionService().deleteSession(sessionId)) {
-            out.println("Backup session " + sessionId + " removed.");
-            return 0;
-        }
-        spec.commandLine().getErr().println("Session " + sessionId + " not found in database - ignoring.");
-        return 1;
+        return LockedExecution.run(context, err, () -> {
+            out.println("Removing session " + sessionId + " - please wait.");
+            if (context.sessionService().deleteSession(sessionId)) {
+                out.println("Backup session " + sessionId + " removed.");
+                return 0;
+            }
+            err.println("Session " + sessionId + " not found in database - ignoring.");
+            return 1;
+        });
     }
 }

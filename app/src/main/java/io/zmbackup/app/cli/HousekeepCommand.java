@@ -30,19 +30,21 @@ public final class HousekeepCommand implements Callable<Integer> {
         PrintWriter out = spec.commandLine().getOut();
         HousekeepService housekeepService = context.housekeepService();
 
-        out.println("Removing old backup sessions - please wait.");
-        List<BackupSession> rotated =
-                housekeepService.rotateOldSessions(context.config().backup().rotateDays());
-        for (BackupSession session : rotated) {
-            out.println("Backup session " + session.sessionId() + " removed.");
-        }
+        return LockedExecution.run(context, spec.commandLine().getErr(), () -> {
+            out.println("Removing old backup sessions - please wait.");
+            List<BackupSession> rotated =
+                    housekeepService.rotateOldSessions(context.config().backup().rotateDays());
+            for (BackupSession session : rotated) {
+                out.println("Backup session " + session.sessionId() + " removed.");
+            }
 
-        out.println("Removing empty backup sessions - please wait.");
-        List<BackupSession> emptied = housekeepService.cleanEmpty();
-        for (BackupSession session : emptied) {
-            out.println("Backup session " + session.sessionId() + " removed.");
-        }
+            out.println("Removing empty backup sessions - please wait.");
+            List<BackupSession> emptied = housekeepService.cleanEmpty();
+            for (BackupSession session : emptied) {
+                out.println("Backup session " + session.sessionId() + " removed.");
+            }
 
-        return 0;
+            return 0;
+        });
     }
 }

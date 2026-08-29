@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.app.AppContext;
+import io.zmbackup.app.PidLock;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
@@ -62,6 +63,23 @@ class HousekeepCommandTest {
         assertTrue(context.metadataStore().findSession("ldap-old").isEmpty());
         assertTrue(context.metadataStore().findSession("ldap-empty").isEmpty());
         assertTrue(context.metadataStore().findSession("ldap-recent").isPresent());
+    }
+
+    @Test
+    void failsWithoutRunningWhenAnotherProcessHoldsTheLock() throws Exception {
+        Path configFile = writeConfig(7);
+        StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = new CommandLine(new Main());
+        cmd.setOut(new PrintWriter(out));
+        cmd.setErr(new PrintWriter(err));
+
+        try (PidLock lock = PidLock.acquire(tempDir)) {
+            int exitCode = cmd.execute("--config", configFile.toString(), "housekeep");
+
+            assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
+            assertTrue(err.toString().contains("already running"));
+        }
     }
 
     private static BackupSession session(String sessionId, Instant completedAt) {

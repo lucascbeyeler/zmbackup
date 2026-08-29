@@ -30,7 +30,9 @@ public final class RestoreDomainCommand implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        RestoreResult result = context.restoreService().restoreDomain(sessionId, domains);
-        return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
+        return LockedExecution.run(context, spec.commandLine().getErr(), () -> {
+            RestoreResult result = context.restoreService().restoreDomain(sessionId, domains);
+            return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
+        });
     }
 }
