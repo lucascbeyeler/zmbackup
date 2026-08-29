@@ -95,6 +95,37 @@ class RestoreServiceTest {
     }
 
     @Test
+    void restoreDomainResolvesEveryDomainInSessionWhenNoneGiven() throws IOException {
+        storageProvider.put("domain-1", "example.com", "ldiff", "ldiff:example.com");
+        storageProvider.put("domain-1", "other.com", "ldiff", "ldiff:other.com");
+        metadataStore.recordAccountBackup(recordFor("domain-1", "example.com"));
+        metadataStore.recordAccountBackup(recordFor("domain-1", "other.com"));
+
+        RestoreResult result = restoreService.restoreDomain("domain-1", List.of());
+
+        assertEquals(2, result.total());
+        assertTrue(result.allSucceeded());
+        assertEquals(Set.of("example.com", "other.com"), ldapExporter.restoredDomains.keySet());
+    }
+
+    @Test
+    void restoreDomainRecordsFailureWhenLdifIsMissing() throws IOException {
+        RestoreResult result = restoreService.restoreDomain("domain-1", List.of("missing.com"));
+
+        assertEquals(List.of("missing.com"), result.failedAccounts());
+    }
+
+    @Test
+    void restoreDomainRecordsFailureWhenAdapterThrows() throws IOException {
+        storageProvider.put("domain-1", "bad.com", "ldiff", "ldiff:bad.com");
+        ldapExporter.failing.add("bad.com");
+
+        RestoreResult result = restoreService.restoreDomain("domain-1", List.of("bad.com"));
+
+        assertEquals(List.of("bad.com"), result.failedAccounts());
+    }
+
+    @Test
     void restoreMailboxRestoresIntoTheSameAccountByDefault() throws IOException {
         storageProvider.put("mbox-1", "alice@example.com", "tgz", "tgz:alice");
 
@@ -164,6 +195,22 @@ class RestoreServiceTest {
         assertEquals(List.of("bad@example.com"), result.failedAccounts());
         assertEquals(List.of("tgz:alice"), mailboxExporter.restoredInto.get("alice@example.com"));
         assertEquals(List.of("ldiff:alice@example.com"), ldapExporter.restored.get("alice@example.com"));
+    }
+
+    @Test
+    void constructorRejectsNullPorts() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new RestoreService(null, mailboxExporter, storageProvider, metadataStore));
+        assertThrows(
+                NullPointerException.class,
+                () -> new RestoreService(ldapExporter, null, storageProvider, metadataStore));
+        assertThrows(
+                NullPointerException.class,
+                () -> new RestoreService(ldapExporter, mailboxExporter, null, metadataStore));
+        assertThrows(
+                NullPointerException.class,
+                () -> new RestoreService(ldapExporter, mailboxExporter, storageProvider, null));
     }
 
     private static BackupAccountRecord recordFor(String sessionId, String email) {
