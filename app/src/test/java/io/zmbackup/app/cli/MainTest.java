@@ -83,11 +83,6 @@ class MainTest {
     }
 
     @Test
-    void restoreIsStubbed() {
-        assertStubbed("restore");
-    }
-
-    @Test
     void housekeepRemovesOldSessions() throws IOException {
         Path configFile = writeConfig();
         new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
@@ -148,16 +143,6 @@ class MainTest {
 
         assertEquals(1, exitCode);
         assertTrue(err.toString().contains("does-not-exist not found in database"));
-    }
-
-    private void assertStubbed(String subcommand) {
-        StringWriter err = new StringWriter();
-        CommandLine cmd = commandLine(new StringWriter(), err);
-
-        int exitCode = cmd.execute(subcommand);
-
-        assertEquals(1, exitCode);
-        assertTrue(err.toString().contains("not yet implemented"));
     }
 
     private Path writeConfig() throws IOException {

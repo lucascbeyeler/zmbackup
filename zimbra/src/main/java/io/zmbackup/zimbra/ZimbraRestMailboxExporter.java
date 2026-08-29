@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
@@ -50,7 +51,10 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         this.baseUri = URI.create(baseUrl);
         this.adminUser = Objects.requireNonNull(adminUser, "adminUser must not be null");
         this.adminPassword = Objects.requireNonNull(adminPassword, "adminPassword must not be null");
-        this.httpClient = HttpClient.newHttpClient();
+        // WireMock (used in tests) and most Zimbra REST deployments only speak HTTP/1.1; pinning
+        // the version avoids the client's default h2 upgrade attempt hitting an RST_STREAM/EOF on
+        // unknown-length POST bodies (see restore()).
+        this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
     }
 
     /**
@@ -92,19 +96,46 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     /**
      * {@inheritDoc}
      *
-     * <p>Not yet implemented.
+     * <p>Issues an HTTP POST of {@code source} against {@code
+     * {baseUrl}/home/{account}/?fmt=tgz&resolve=skip}, mirroring {@code mailbox_restore} in the
+     * bash tool's {@code ParallelAction.sh}: {@code postRestURL '//?fmt=tgz&resolve=skip'
+     * <file>.tgz}. {@code account} is whichever account the caller wants the content restored
+     * into, which may differ from the account it was originally exported from (restore-on-account).
      */
     @Override
     public void restore(String account, InputStream source) throws IOException {
-        throw new UnsupportedOperationException("ZimbraRestMailboxExporter.restore() is not yet implemented");
+        HttpRequest request = HttpRequest.newBuilder(restoreUri(account))
+                .header("Authorization", basicAuthHeader())
+                .POST(BodyPublishers.ofInputStream(() -> source))
+                .build();
+
+        HttpResponse<Void> response;
+        try {
+            response = httpClient.send(request, BodyHandlers.discarding());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while restoring mailbox for " + account, e);
+        }
+
+        if (response.statusCode() / 100 != 2) {
+            throw new IOException("Failed to restore mailbox for " + account + ": HTTP " + response.statusCode());
+        }
     }
 
     private URI exportUri(String account, Instant since) throws IOException {
-        String path = (baseUri.getRawPath() == null ? "" : baseUri.getRawPath()) + "/home/" + account + "/";
         String query = "fmt=tgz&resolve=skip";
         if (since != null) {
             query += "&query=after:\"" + AFTER_DATE_FORMAT.format(since) + "\"";
         }
+        return restUri(account, query);
+    }
+
+    private URI restoreUri(String account) throws IOException {
+        return restUri(account, "fmt=tgz&resolve=skip");
+    }
+
+    private URI restUri(String account, String query) throws IOException {
+        String path = (baseUri.getRawPath() == null ? "" : baseUri.getRawPath()) + "/home/" + account + "/";
         try {
             return new URI(baseUri.getScheme(), baseUri.getAuthority(), path, query, null);
         } catch (URISyntaxException e) {

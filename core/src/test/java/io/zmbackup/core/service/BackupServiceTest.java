@@ -11,6 +11,7 @@ import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.MetadataStore;
+import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
@@ -100,6 +101,181 @@ class BackupServiceTest {
         assertTrue(result.isPresent());
         assertTrue(ldapExporter.domainExports.contains("example.com"));
         assertTrue(ldapExporter.exportedTypes.isEmpty());
+    }
+
+    @Test
+    void discoveredAccountOnBlocklistIsSkipped() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> identifier.equals("bob@example.com"),
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void discoveredDomainOnBlocklistIsSkipped() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.DOMAIN, List.of("example.com", "blocked.example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> identifier.equals("blocked.example.com"),
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.DOMAIN);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void domainScopedDiscoveryRespectsBlocklist() throws IOException {
+        accountDiscovery.byDomain.put(
+                Map.entry(LdapObjectType.ACCOUNT, "example.com"),
+                List.of("alice@example.com", "bob@example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> identifier.equals("bob@example.com"),
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of(), "example.com");
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void backupIsSkippedEntirelyWhenEveryDiscoveredAccountIsBlocked() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        BackupService blocklisted = new BackupService(
+                accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, identifier -> true, 1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP);
+
+        assertTrue(result.isEmpty());
+        assertTrue(metadataStore.listSessions().isEmpty());
+    }
+
+    @Test
+    void explicitAccountBypassesBlocklist() throws IOException {
+        BackupService blocklisted = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> true,
+                1);
+
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+    }
+
+    @Test
+    void backupNeverRunsMoreThanMaxParallelProcessesAccountsConcurrently() throws IOException {
+        List<String> accounts = List.of(
+                "a@example.com", "b@example.com", "c@example.com", "d@example.com", "e@example.com",
+                "f@example.com");
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, accounts);
+        java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger maxInFlight = new java.util.concurrent.atomic.AtomicInteger();
+        ZimbraLdapExporter trackingExporter = new ZimbraLdapExporter() {
+            @Override
+            public void export(String identifier, LdapObjectType type, OutputStream destination) throws IOException {
+                int current = inFlight.incrementAndGet();
+                maxInFlight.updateAndGet(prev -> Math.max(prev, current));
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    inFlight.decrementAndGet();
+                }
+            }
+
+            @Override
+            public void exportDomain(String domain, OutputStream destination) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void restore(LdapObjectType type, InputStream source) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void restoreDomain(InputStream source) {
+                throw new UnsupportedOperationException();
+            }
+        };
+        BackupService parallelBackup = new BackupService(
+                accountDiscovery, trackingExporter, mailboxExporter, storageProvider, metadataStore, 2);
+
+        Optional<BackupSession> result = parallelBackup.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+        assertTrue(maxInFlight.get() <= 2, "observed " + maxInFlight.get() + " concurrent exports, expected at most 2");
+        assertEquals(2, maxInFlight.get());
+    }
+
+    @Test
+    void notifiesBeginAndFinishForASession() throws IOException {
+        RecordingNotifier notifier = new RecordingNotifier();
+        BackupService notified = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> false,
+                notifier,
+                1);
+
+        Optional<BackupSession> result = notified.backup(BackupType.LDAP, List.of("alice@example.com"));
+
+        assertEquals(2, notifier.calls.size());
+        assertTrue(notifier.calls.get(0).startsWith("begin:"));
+        assertEquals(
+                "finish:" + result.get().sessionId() + ":LDAP:" + result.get().status(), notifier.calls.get(1));
+    }
+
+    @Test
+    void doesNotNotifyWhenNothingToBackUp() throws IOException {
+        RecordingNotifier notifier = new RecordingNotifier();
+        BackupService notified = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> false,
+                notifier,
+                1);
+
+        notified.backup(BackupType.SIGNATURE);
+
+        assertTrue(notifier.calls.isEmpty());
     }
 
     @Test
@@ -283,6 +459,11 @@ class BackupServiceTest {
             throw new UnsupportedOperationException();
         }
 
+        @Override
+        public void restoreDomain(InputStream source) {
+            throw new UnsupportedOperationException();
+        }
+
         Set<LdapObjectType> exportedTypesFor(String... identifiers) {
             Set<LdapObjectType> types = new HashSet<>();
             for (String identifier : identifiers) {
@@ -317,9 +498,13 @@ class BackupServiceTest {
         }
     }
 
-    /** In-memory {@link StorageProvider} fake backed by a byte-array map. */
+    /**
+     * In-memory {@link StorageProvider} fake backed by a byte-array map. Uses a {@link
+     * ConcurrentHashMap} since {@link #backupNeverRunsMoreThanMaxParallelProcessesAccountsConcurrently}
+     * exercises it from multiple threads at once.
+     */
     private static final class InMemoryStorageProvider implements StorageProvider {
-        final Map<String, byte[]> content = new LinkedHashMap<>();
+        final Map<String, byte[]> content = new java.util.concurrent.ConcurrentHashMap<>();
 
         @Override
         public OutputStream openWrite(String sessionId, String account, String suffix) {
@@ -378,6 +563,21 @@ class BackupServiceTest {
     }
 
     /** In-memory {@link MetadataStore} fake backed by simple maps. */
+    /** {@link Notifier} fake that records every call it receives. */
+    private static final class RecordingNotifier implements Notifier {
+        final List<String> calls = new ArrayList<>();
+
+        @Override
+        public void notifyBegin(String sessionId, BackupType type) {
+            calls.add("begin:" + sessionId + ":" + type);
+        }
+
+        @Override
+        public void notifyFinish(String sessionId, BackupType type, SessionStatus status) {
+            calls.add("finish:" + sessionId + ":" + type + ":" + status);
+        }
+    }
+
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();
@@ -412,7 +612,7 @@ class BackupServiceTest {
         }
 
         @Override
-        public void recordAccountBackup(BackupAccountRecord record) {
+        public synchronized void recordAccountBackup(BackupAccountRecord record) {
             accounts.computeIfAbsent(record.sessionId(), k -> new ArrayList<>()).add(record);
         }
 

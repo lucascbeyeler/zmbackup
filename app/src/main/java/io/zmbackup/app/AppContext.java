@@ -1,15 +1,21 @@
 package io.zmbackup.app;
 
 import io.zmbackup.app.config.AppConfig;
+import io.zmbackup.app.config.EmailNotifyLevel;
 import io.zmbackup.app.config.YamlConfigLoader;
 import io.zmbackup.core.port.AccountDiscovery;
+import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
+import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
+import io.zmbackup.core.service.RestoreService;
 import io.zmbackup.core.service.SessionService;
+import io.zmbackup.local.EmailNotifier;
+import io.zmbackup.local.FileBlocklist;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
@@ -26,6 +32,14 @@ public final class AppContext {
     /** Filename of the SQLite database within {@link io.zmbackup.app.config.BackupConfig#workDir()}. */
     private static final String METADATA_STORE_FILENAME = "sessions.sqlite3";
 
+    /**
+     * Host/port of the local SMTP relay {@link EmailNotifier} submits through, matching the bash
+     * tool's use of the {@code sendmail} command to submit to the machine's own MTA.
+     */
+    private static final String NOTIFY_SMTP_HOST = "localhost";
+
+    private static final int NOTIFY_SMTP_PORT = 25;
+
     private final AppConfig config;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
@@ -34,6 +48,7 @@ public final class AppContext {
     private final ZimbraMailboxExporter mailboxExporter;
     private final SessionService sessionService;
     private final BackupService backupService;
+    private final RestoreService restoreService;
     private final HousekeepService housekeepService;
 
     public AppContext(AppConfig config) throws IOException {
@@ -51,10 +66,40 @@ public final class AppContext {
                 config.zimbraMailbox().restBaseUrl(),
                 config.zimbraMailbox().adminUser(),
                 config.zimbraMailbox().adminPassword());
+        Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
+        Notifier notifier = emailNotifier(config);
         this.sessionService = new SessionService(storageProvider, metadataStore);
-        this.backupService =
-                new BackupService(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
+        this.backupService = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                blocklist,
+                notifier,
+                config.backup().maxParallelProcesses());
+        this.restoreService = new RestoreService(
+                ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
+    }
+
+    /**
+     * Builds an {@link EmailNotifier} from {@code config}'s {@code backup.emailNotify} section,
+     * translating {@link EmailNotifyLevel} into which lifecycle events it notifies on.
+     */
+    private static EmailNotifier emailNotifier(AppConfig config) {
+        EmailNotifyLevel level = config.backup().emailNotify().level();
+        boolean notifyOnBegin = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.START;
+        boolean notifyOnFinishSuccess = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.FINISH;
+        boolean notifyOnFinishError = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.ERROR;
+        return new EmailNotifier(
+                NOTIFY_SMTP_HOST,
+                NOTIFY_SMTP_PORT,
+                config.backup().emailNotify().sender(),
+                config.backup().emailNotify().recipient(),
+                notifyOnBegin,
+                notifyOnFinishSuccess,
+                notifyOnFinishError);
     }
 
     /** Reads {@code configFile} and wires the components it describes. */
@@ -88,6 +133,10 @@ public final class AppContext {
 
     public BackupService backupService() {
         return backupService;
+    }
+
+    public RestoreService restoreService() {
+        return restoreService;
     }
 
     public HousekeepService housekeepService() {

@@ -29,4 +29,14 @@ public interface ZimbraLdapExporter {
      * entry, replacing any existing entry with the same distinguished name.
      */
     void restore(LdapObjectType type, InputStream source) throws IOException;
+
+    /**
+     * Restores a domain entry from a previously exported {@code .ldiff} entry, adding it without
+     * first deleting any existing entry. Unlike {@link #restore}, an entry that already exists is
+     * treated as success rather than a failure, mirroring {@code domain_restore}'s handling of
+     * {@code ldapadd}'s "Already exists" error in the bash tool's {@code ParallelAction.sh}: a
+     * clean install's domain parent entries are expected to already exist ahead of account
+     * restores.
+     */
+    void restoreDomain(InputStream source) throws IOException;
 }

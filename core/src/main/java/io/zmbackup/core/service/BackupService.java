@@ -6,7 +6,9 @@ import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
+import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
+import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
@@ -16,9 +18,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.logging.Logger;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
@@ -28,6 +33,16 @@ import java.util.Optional;
  * {@code BackupAction.sh}.
  */
 public class BackupService {
+
+    private static final Logger LOG = Logger.getLogger(BackupService.class.getName());
+    private static final Blocklist NO_BLOCKLIST = identifier -> false;
+    private static final Notifier NO_NOTIFIER = new Notifier() {
+        @Override
+        public void notifyBegin(String sessionId, BackupType type) {}
+
+        @Override
+        public void notifyFinish(String sessionId, BackupType type, SessionStatus status) {}
+    };
 
     private static final DateTimeFormatter SESSION_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
@@ -45,6 +60,9 @@ public class BackupService {
     private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
+    private final Blocklist blocklist;
+    private final Notifier notifier;
+    private final int maxParallelProcesses;
 
     public BackupService(
             AccountDiscovery accountDiscovery,
@@ -52,11 +70,91 @@ public class BackupService {
             ZimbraMailboxExporter mailboxExporter,
             StorageProvider storageProvider,
             MetadataStore metadataStore) {
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                NO_BLOCKLIST,
+                NO_NOTIFIER,
+                1);
+    }
+
+    /**
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *     tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated as 1
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            int maxParallelProcesses) {
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                NO_BLOCKLIST,
+                NO_NOTIFIER,
+                maxParallelProcesses);
+    }
+
+    /**
+     * @param blocklist            discovered accounts (or domains) found here are skipped rather
+     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
+     *                             as 1
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            Blocklist blocklist,
+            int maxParallelProcesses) {
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                blocklist,
+                NO_NOTIFIER,
+                maxParallelProcesses);
+    }
+
+    /**
+     * @param blocklist            discovered accounts (or domains) found here are skipped rather
+     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
+     * @param notifier             notified when a session starts and finishes, mirroring {@code
+     *                             notify_begin}/{@code notify_finish}
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
+     *                             as 1
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            Blocklist blocklist,
+            Notifier notifier,
+            int maxParallelProcesses) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
+        this.blocklist = Objects.requireNonNull(blocklist, "blocklist must not be null");
+        this.notifier = Objects.requireNonNull(notifier, "notifier must not be null");
+        this.maxParallelProcesses = maxParallelProcesses;
     }
 
     /** Backs up every object of {@code type} found across the whole directory. */
@@ -94,20 +192,38 @@ public class BackupService {
         String sessionId = type.sessionPrefix() + "-" + SESSION_TIMESTAMP.format(Instant.now());
         Instant sessionStart = Instant.now();
         metadataStore.save(new BackupSession(sessionId, type, SessionStatus.IN_PROGRESS, sessionStart, null, null));
+        notifySafely(() -> notifier.notifyBegin(sessionId, type));
 
-        boolean allSucceeded = true;
+        List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String identifier : resolved) {
-            if (!backupOne(sessionId, type, identifier)) {
-                allSucceeded = false;
-            }
+            tasks.add(() -> backupOne(sessionId, type, identifier));
         }
+        boolean allSucceeded = !Parallel.run(maxParallelProcesses, tasks).contains(false);
 
         Instant sessionEnd = Instant.now();
         String size = storageProvider.sizeOfSession(sessionId);
         SessionStatus status = allSucceeded ? SessionStatus.FINISHED : SessionStatus.FAILED;
         BackupSession completed = new BackupSession(sessionId, type, status, sessionStart, sessionEnd, size);
         metadataStore.save(completed);
+        notifySafely(() -> notifier.notifyFinish(sessionId, type, status));
         return Optional.of(completed);
+    }
+
+    private interface NotifierCall {
+        void run() throws IOException;
+    }
+
+    /**
+     * Runs a {@link Notifier} call, logging rather than propagating a failure: a notification
+     * problem must never fail the backup itself, mirroring how the bash tool's {@code
+     * notify_begin}/{@code notify_finish} only log a warning when {@code sendmail} fails.
+     */
+    private void notifySafely(NotifierCall call) {
+        try {
+            call.run();
+        } catch (IOException e) {
+            LOG.warning(() -> "Failed to send backup notification: " + e.getMessage());
+        }
     }
 
     /**
@@ -166,18 +282,39 @@ public class BackupService {
                 .orElse(null);
     }
 
+    /**
+     * Resolves the objects to back up. Explicit {@code identifiers} are used as-is, bypassing the
+     * blocklist, mirroring {@code backup_main}'s {@code -a}/{@code --account} path (which bypasses
+     * {@code build_listBKP} entirely); discovered objects are filtered against the blocklist, same
+     * as {@code build_listBKP} always does via {@code ldap_filter}.
+     */
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain)
             throws IOException {
         if (!identifiers.isEmpty()) {
             return identifiers;
         }
+        List<String> discovered;
         if (type == BackupType.DOMAIN) {
-            return accountDiscovery.listDomains();
+            discovered = accountDiscovery.listDomains();
+        } else {
+            LdapObjectType objectType = objectTypeFor(type);
+            discovered = domain == null
+                    ? accountDiscovery.discover(objectType)
+                    : accountDiscovery.discoverForDomain(objectType, domain);
         }
-        LdapObjectType objectType = objectTypeFor(type);
-        return domain == null
-                ? accountDiscovery.discover(objectType)
-                : accountDiscovery.discoverForDomain(objectType, domain);
+        return filterBlocked(discovered);
+    }
+
+    private List<String> filterBlocked(List<String> identifiers) {
+        List<String> allowed = new ArrayList<>(identifiers.size());
+        for (String identifier : identifiers) {
+            if (blocklist.isBlocked(identifier)) {
+                LOG.info(() -> identifier + " found inside blocked list - skipping.");
+            } else {
+                allowed.add(identifier);
+            }
+        }
+        return allowed;
     }
 
     private static LdapObjectType objectTypeFor(BackupType type) {

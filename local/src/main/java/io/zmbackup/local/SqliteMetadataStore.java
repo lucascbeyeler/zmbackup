@@ -215,7 +215,15 @@ public class SqliteMetadataStore implements MetadataStore {
     }
 
     private Connection connect() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl);
+        Connection connection = DriverManager.getConnection(jdbcUrl);
+        // Backup and restore sessions now run accounts through a thread pool (see
+        // io.zmbackup.core.service.Parallel), so concurrent connections from the same process can
+        // momentarily contend for SQLite's file lock; retry instead of failing immediately with
+        // SQLITE_BUSY.
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA busy_timeout = 5000");
+        }
+        return connection;
     }
 
     private static BackupSession mapSession(ResultSet rs) throws SQLException {
