@@ -62,9 +62,11 @@ public final class RestoreCommand implements Callable<Integer> {
 
         AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
-        RestoreResult result = destination != null
-                ? context.restoreService().restoreMailbox(sessionId, accounts, destination)
-                : context.restoreService().restoreFull(sessionId, accounts);
-        return RestoreRunner.printResult(out, sessionId, result);
+        return LockedExecution.run(context, err, () -> {
+            RestoreResult result = destination != null
+                    ? context.restoreService().restoreMailbox(sessionId, accounts, destination)
+                    : context.restoreService().restoreFull(sessionId, accounts);
+            return RestoreRunner.printResult(out, sessionId, result);
+        });
     }
 }

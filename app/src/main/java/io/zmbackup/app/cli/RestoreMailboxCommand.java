@@ -43,7 +43,9 @@ public final class RestoreMailboxCommand implements Callable<Integer> {
         }
 
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        RestoreResult result = context.restoreService().restoreMailbox(sessionId, accounts, destination);
-        return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
+        return LockedExecution.run(context, err, () -> {
+            RestoreResult result = context.restoreService().restoreMailbox(sessionId, accounts, destination);
+            return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
+        });
     }
 }

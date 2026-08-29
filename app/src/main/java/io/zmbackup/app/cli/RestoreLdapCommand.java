@@ -30,7 +30,9 @@ public final class RestoreLdapCommand implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        RestoreResult result = context.restoreService().restoreLdap(sessionId, accounts);
-        return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
+        return LockedExecution.run(context, spec.commandLine().getErr(), () -> {
+            RestoreResult result = context.restoreService().restoreLdap(sessionId, accounts);
+            return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
+        });
     }
 }
