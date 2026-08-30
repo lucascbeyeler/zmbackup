@@ -90,6 +90,28 @@ $ zmbackup -v
   zmbackup version: 1.2.9
 ```
 
+### Installation (Java version)
+
+Zmbackup 2.0, the Java rewrite, has its own installer, **install-java.sh**, that prepares the
+environment the same way **install.sh** does for the bash tool: it checks for (and, if missing,
+installs) a Java 21 JDK, builds `zmbackup.jar` with the bundled Gradle wrapper, then installs the
+jar, a thin `zmbackup` launcher, `zmbackup.yaml`, the blocked list and a cron file. It does not
+require GNU Parallel, ldap-utils or the sqlite3 CLI - the Java tool talks to LDAP and SQLite
+directly, so those are only needed for the bash tool.
+
+```
+# cd zmbackup
+# ./install-java.sh
+# su - zimbra
+$ zmbackup --version
+  zmbackup version: 1.2.9
+```
+
+Building the jar needs internet access on first run (to download Gradle and the project's Maven
+dependencies). Run `./install-java.sh --remove` to uninstall, or `./install-java.sh --force-upgrade`
+to rebuild and redeploy the jar without touching your existing configuration. See
+`./install-java.sh --help` for details.
+
 ## Usage
 
 To check all the options available to Zmbackup, just execute **zmbackup -h** or **zmbackup --help**. This will return for you a list with all the options, what each one of them does, and the syntax.

@@ -1,0 +1,7 @@
+#!/bin/bash
+# sudo mock - simulates blocklist_gen's "sudo -H -u $OSE_USER bash -c ..." call
+if [ "${MOCK_SU_FAIL:-0}" = "1" ]; then
+  exit 1
+fi
+echo "${MOCK_SU_OUTPUT:-}"
+exit 0
