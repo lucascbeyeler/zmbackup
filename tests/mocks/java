@@ -1,4 +1,8 @@
 #!/bin/bash
 # java mock
+if [ -n "${MOCK_JAVA_VERSION_OUTPUT:-}" ] && [ "$1" = "-version" ]; then
+  echo "$MOCK_JAVA_VERSION_OUTPUT" >&2
+  exit "${MOCK_JAVA_EXIT:-0}"
+fi
 echo "$@"
 exit "${MOCK_JAVA_EXIT:-0}"

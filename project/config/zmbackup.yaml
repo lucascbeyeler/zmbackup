@@ -1,48 +1,50 @@
 # zmbackup configuration file (Java tool).
 #
 # Equivalent of zmbackup.conf for the bash tool. Installed at /etc/zmbackup/zmbackup.yaml.
+# The curly-brace tokens below are filled in by install-java.sh; if you are reading this
+# file as a template rather than an installed copy, replace them by hand.
 
 zimbraLdap:
   # LDAP server URL.
-  url: ldap://127.0.0.1:389
+  url: ldap://{OSE_INSTALL_ADDRESS}:389
   # Admin distinguished name used to bind.
   bindDn: uid=zimbra,cn=admins,cn=zimbra
   # Admin password used to bind.
-  bindPassword: changeme
+  bindPassword: {OSE_INSTALL_LDAPPASS}
   # Whether to use SSL when talking to the Zimbra server. Optional, defaults to true.
   sslEnabled: true
 
 zimbraMailbox:
   # Zimbra service account used to start/stop the service and run zmmailbox.
-  backupUser: zimbra
+  backupUser: {OSE_USER}
   # Location of the zmmailbox binary.
-  zmmailboxPath: /opt/zimbra/bin/zmmailbox
+  zmmailboxPath: {OSE_INSTALL_DIR}/bin/zmmailbox
   # Whether to include disabled accounts. Optional, defaults to true.
   backupInactiveAccounts: true
   # Zimbra server's REST base URL, used to export mailbox content.
-  restBaseUrl: https://127.0.0.1:7071
+  restBaseUrl: https://{OSE_INSTALL_ADDRESS}:7071
   # Zimbra admin account used for REST HTTP Basic authentication.
-  adminUser: zimbra
+  adminUser: {OSE_USER}
   # The admin account's password.
-  adminPassword: changeme
+  adminPassword: {OSE_INSTALL_LDAPPASS}
 
 backup:
   # Directory backups and session metadata are stored under.
-  workDir: /opt/zimbra/backup
+  workDir: {OSE_DEFAULT_BKP_DIR}
   # Path zmbackup writes its logs to.
-  logFile: /opt/zimbra/log/zmbackup.log
+  logFile: {OSE_INSTALL_DIR}/log/zmbackup.log
   # Path to the file listing accounts that should never be backed up.
-  blockedListFile: /etc/zmbackup/blockedlist.conf
+  blockedListFile: {ZMBKP_CONF}/blockedlist.conf
   # How many accounts to back up concurrently. Optional, defaults to 3.
-  maxParallelProcesses: 3
+  maxParallelProcesses: {MAX_PARALLEL_PROCESS}
   # How many days of backups to keep before housekeeping deletes them. Optional, defaults to 30.
-  rotateDays: 30
+  rotateDays: {ROTATE_TIME}
   # Whether to allow only one backup session per type per day. Optional, defaults to true.
-  lockBackup: true
+  lockBackup: {LOCK_BACKUP}
   emailNotify:
     # Which lifecycle events to notify on: ALL, START, FINISH, ERROR, or NONE. Optional, defaults to ALL.
     level: ALL
     # Address a report is sent to after each run.
-    recipient: admin@example.com
+    recipient: {ZMBKP_MAIL_ALERT}
     # Address the report is sent from.
-    sender: root@example.com
+    sender: {ZMBKP_MAIL_SENDER}
