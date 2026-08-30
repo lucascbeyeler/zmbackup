@@ -28,13 +28,17 @@ function deploy_new_java() {
 
   # Thin launcher + jar - paths are fixed by app/src/main/scripts/zmbackup and
   # YamlConfigLoader.DEFAULT_CONFIG_PATH, so they must land exactly here.
-  install -o root -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
-  install -o root -g "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+  # Owned by OSE_USER rather than root, matching the bash tool's own
+  # project/zmbackup and project/lib install (install.sh always runs as
+  # root, so this is just about who owns the files afterward, not who can
+  # deploy them).
+  install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
+  install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
 
   # Config + blocked list + cron
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup.yaml "$ZMBKP_CONF"
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
-  install --backup=numbered -o root -m 600 "$MYDIR"/project/config/zmbackup-java.cron "$ZMBKP_CRON_FILE"
+  install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup-java.cron "$ZMBKP_CRON_FILE"
 
   # Including custom settings
   sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" "$ZMBKP_CONF"/zmbackup.yaml
@@ -73,8 +77,8 @@ function deploy_upgrade_java() {
 
   test -d "$ZMBKP_SRC" || mkdir -p "$ZMBKP_SRC"
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
-  install -o root -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
-  install -o root -g "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+  install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
+  install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
 
   echo "Upgrade completed."
 }
