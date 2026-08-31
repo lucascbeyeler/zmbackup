@@ -12,6 +12,7 @@ import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
+import io.zmbackup.core.service.MigrationService;
 import io.zmbackup.core.service.RestoreService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.EmailNotifier;
@@ -61,6 +62,7 @@ public final class AppContext {
     private final BackupService backupService;
     private final RestoreService restoreService;
     private final HousekeepService housekeepService;
+    private final MigrationService migrationService;
 
     public AppContext(AppConfig config) throws IOException {
         this.config = config;
@@ -93,6 +95,7 @@ public final class AppContext {
         this.restoreService = new RestoreService(
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
+        this.migrationService = new MigrationService(storageProvider, metadataStore);
     }
 
     /**
@@ -199,5 +202,9 @@ public final class AppContext {
 
     public HousekeepService housekeepService() {
         return housekeepService;
+    }
+
+    public MigrationService migrationService() {
+        return migrationService;
     }
 }
