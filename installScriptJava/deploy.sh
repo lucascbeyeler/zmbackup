@@ -6,6 +6,22 @@
 ################################################################################
 
 ################################################################################
+# migrate_legacy_sessions: The Java build only ever reads session metadata from
+# SQLite, but a server moving to it from the bash tool may have been using the
+# bash tool's TXT sessions instead. If a sessions.txt is sitting in the backup
+# directory, import it into the SQLite metadata store via "zmbackup migrate"
+# (io.zmbackup.app.cli.MigrateCommand) so that history isn't silently lost.
+# Safe to call unconditionally: the command itself is a no-op once there is no
+# sessions.txt left to import (it renames it to sessions.txt.migrated).
+################################################################################
+function migrate_legacy_sessions() {
+  if [[ -f "$OSE_DEFAULT_BKP_DIR/sessions.txt" ]]; then
+    echo "Found an existing sessions.txt - migrating it into the SQLite metadata store..."
+    sudo -H -u "$OSE_USER" bash -c "zmbackup migrate"
+  fi
+}
+
+################################################################################
 # deploy_new_java: Deploy a new install of the Java build of Zmbackup
 ################################################################################
 function deploy_new_java() {
@@ -66,6 +82,10 @@ function deploy_new_java() {
 
   # Generate Zmbackup's blocked list (shared logic with the bash installer)
   blocklist_gen
+
+  # zmbackup.yaml/the jar are fully in place now, so "zmbackup migrate" can load
+  # config and open the SQLite metadata store if there's a legacy sessions.txt.
+  migrate_legacy_sessions
 }
 
 ################################################################################
@@ -79,6 +99,11 @@ function deploy_upgrade_java() {
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+
+  # Covers a server that switched to the Java build without ever having its
+  # sessions.txt migrated (e.g. a bash-to-Java move immediately followed by
+  # --force-upgrade); a no-op otherwise.
+  migrate_legacy_sessions
 
   echo "Upgrade completed."
 }

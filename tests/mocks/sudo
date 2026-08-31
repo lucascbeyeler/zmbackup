@@ -1,5 +1,11 @@
 #!/bin/bash
-# sudo mock - simulates blocklist_gen's "sudo -H -u $OSE_USER bash -c ..." call
+# sudo mock - simulates blocklist_gen's and migrate_legacy_sessions's
+# "sudo -H -u $OSE_USER bash -c ..." calls. Records each invocation's
+# arguments to $MOCK_SUDO_LOG when set, so tests can assert which command was
+# actually run under sudo.
+if [ -n "${MOCK_SUDO_LOG:-}" ]; then
+  echo "$*" >> "$MOCK_SUDO_LOG"
+fi
 if [ "${MOCK_SU_FAIL:-0}" = "1" ]; then
   exit 1
 fi

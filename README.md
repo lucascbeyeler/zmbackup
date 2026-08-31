@@ -99,6 +99,14 @@ jar, a thin `zmbackup` launcher, `zmbackup.yaml`, the blocked list and a cron fi
 require GNU Parallel, ldap-utils or the sqlite3 CLI - the Java tool talks to LDAP and SQLite
 directly, so those are only needed for the bash tool.
 
+Unlike the bash tool, the Java build only ever reads session metadata from SQLite - there's no
+TXT mode. If you're moving to it from the bash tool and its `WORKDIR` still has a `sessions.txt`,
+`install-java.sh` migrates it into the SQLite metadata store automatically at the end of the
+install (or upgrade), via the `zmbackup migrate` command. That command is also safe to run by
+hand at any time - `$ zmbackup migrate` - and is a no-op once there's nothing left to import (it
+renames `sessions.txt` to `sessions.txt.migrated` after a successful import, so re-running it,
+e.g. after `install-java.sh --force-upgrade`, doesn't import the same sessions twice).
+
 ```
 # cd zmbackup
 # ./install-java.sh

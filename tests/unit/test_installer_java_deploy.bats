@@ -133,6 +133,24 @@ user@example.com"
   grep -q "galsync@example.com" "${ZMBKP_CONF}/blockedlist.conf"
 }
 
+@test "deploy_new_java: migrates an existing sessions.txt via zmbackup migrate" {
+  mkdir -p "$OSE_DEFAULT_BKP_DIR"
+  touch "${OSE_DEFAULT_BKP_DIR}/sessions.txt"
+  MOCK_SUDO_LOG="$(mktemp)"
+  MOCK_SU_OUTPUT=""
+  export MOCK_SUDO_LOG
+  deploy_new_java
+  grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
+}
+
+@test "deploy_new_java: does not invoke migrate when there is no sessions.txt" {
+  MOCK_SUDO_LOG="$(mktemp)"
+  MOCK_SU_OUTPUT=""
+  export MOCK_SUDO_LOG
+  deploy_new_java
+  ! grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
+}
+
 # ---------------------------------------------------------------------------
 # deploy_upgrade_java
 # ---------------------------------------------------------------------------
@@ -145,6 +163,22 @@ user@example.com"
 @test "deploy_upgrade_java: reinstalls the jar" {
   run deploy_upgrade_java
   [ -f "${ZMBKP_LIB}/${ZMBKP_JAR_NAME}" ]
+}
+
+@test "deploy_upgrade_java: migrates an existing sessions.txt via zmbackup migrate" {
+  mkdir -p "$OSE_DEFAULT_BKP_DIR"
+  touch "${OSE_DEFAULT_BKP_DIR}/sessions.txt"
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  deploy_upgrade_java
+  grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
+}
+
+@test "deploy_upgrade_java: does not invoke migrate when there is no sessions.txt" {
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  deploy_upgrade_java
+  ! grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
 }
 
 # ---------------------------------------------------------------------------
