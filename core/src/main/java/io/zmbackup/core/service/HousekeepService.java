@@ -6,7 +6,6 @@ import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -44,20 +43,14 @@ public class HousekeepService {
     }
 
     /**
-     * Deletes every session with no account records, mirroring {@code clean_empty}'s removal of
-     * empty leftovers from an interrupted or failed backup.
+     * Deletes every zero-byte file left under storage, mirroring {@code clean_empty}'s removal of
+     * empty leftovers (e.g. a partial export) from an interrupted or failed backup. Unlike {@link
+     * #rotateOldSessions}, this never removes a whole session or its metadata.
      *
-     * @return the sessions that were removed
+     * @return how many empty files were removed
      */
-    public List<BackupSession> cleanEmpty() throws IOException {
-        List<BackupSession> removed = new ArrayList<>();
-        for (BackupSession session : metadataStore.listSessions()) {
-            if (metadataStore.findAccountsForSession(session.sessionId()).isEmpty()) {
-                remove(session);
-                removed.add(session);
-            }
-        }
-        return removed;
+    public int cleanEmpty() throws IOException {
+        return storageProvider.deleteEmptyFiles();
     }
 
     private void remove(BackupSession session) throws IOException {

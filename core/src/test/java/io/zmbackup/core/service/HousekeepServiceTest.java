@@ -54,33 +54,41 @@ class HousekeepServiceTest {
     }
 
     @Test
-    void cleanEmptyRemovesSessionsWithNoAccountRecords() throws IOException {
-        BackupSession empty = session("ldap-empty", Instant.now());
-        BackupSession withAccounts = session("ldap-full", Instant.now());
-        metadataStore.save(empty);
-        metadataStore.save(withAccounts);
+    void cleanEmptyRemovesZeroByteFilesButKeepsTheSessionAndOtherContent() throws IOException {
+        BackupSession session = session("ldap-full", Instant.now());
+        metadataStore.save(session);
         metadataStore.recordAccountBackup(
                 new BackupAccountRecord(null, "ldap-full", "alice@example.com", "1K", Instant.now(), Instant.now()));
+        storageProvider.content.put("ldap-full/alice@example.com.ldiff", new byte[] {1});
+        storageProvider.content.put("ldap-full/bob@example.com.ldiff", new byte[0]);
 
-        List<BackupSession> removed = housekeepService.cleanEmpty();
+        int removed = housekeepService.cleanEmpty();
 
-        assertEquals(List.of(empty), removed);
-        assertEquals(Optional.empty(), metadataStore.findSession("ldap-empty"));
+        assertEquals(1, removed);
         assertTrue(metadataStore.findSession("ldap-full").isPresent());
-        assertTrue(storageProvider.deletedSessions.contains("ldap-empty"));
+        assertTrue(storageProvider.content.containsKey("ldap-full/alice@example.com.ldiff"));
+        assertTrue(!storageProvider.content.containsKey("ldap-full/bob@example.com.ldiff"));
+        assertTrue(!storageProvider.deletedSessions.contains("ldap-full"));
     }
 
     @Test
-    void cleanEmptyKeepsSessionsWithAccountRecords() throws IOException {
-        BackupSession withAccounts = session("ldap-full", Instant.now());
-        metadataStore.save(withAccounts);
-        metadataStore.recordAccountBackup(
-                new BackupAccountRecord(null, "ldap-full", "alice@example.com", "1K", Instant.now(), Instant.now()));
+    void cleanEmptyCountsZeroByteFilesAcrossSessions() throws IOException {
+        storageProvider.content.put("ldap-one/alice@example.com.ldiff", new byte[0]);
+        storageProvider.content.put("ldap-two/bob@example.com.ldiff", new byte[0]);
 
-        List<BackupSession> removed = housekeepService.cleanEmpty();
+        int removed = housekeepService.cleanEmpty();
 
-        assertTrue(removed.isEmpty());
-        assertTrue(metadataStore.findSession("ldap-full").isPresent());
+        assertEquals(2, removed);
+    }
+
+    @Test
+    void cleanEmptyReturnsZeroWhenNothingIsEmpty() throws IOException {
+        storageProvider.content.put("ldap-full/alice@example.com.ldiff", new byte[] {1});
+
+        int removed = housekeepService.cleanEmpty();
+
+        assertEquals(0, removed);
+        assertTrue(storageProvider.content.containsKey("ldap-full/alice@example.com.ldiff"));
     }
 
     private static BackupSession session(String sessionId, Instant completedAt) {
@@ -122,6 +130,17 @@ class HousekeepServiceTest {
         public void deleteSession(String sessionId) {
             deletedSessions.add(sessionId);
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
+        }
+
+        @Override
+        public int deleteEmptyFiles() {
+            List<String> empty =
+                    content.entrySet().stream()
+                            .filter(entry -> entry.getValue().length == 0)
+                            .map(Map.Entry::getKey)
+                            .toList();
+            empty.forEach(content::remove);
+            return empty.size();
         }
     }
 
@@ -175,6 +194,11 @@ class HousekeepServiceTest {
 
         @Override
         public Optional<Instant> lastSuccessfulBackupTime(String email) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean backedUpSince(String identifier, Instant since) {
             throw new UnsupportedOperationException();
         }
     }

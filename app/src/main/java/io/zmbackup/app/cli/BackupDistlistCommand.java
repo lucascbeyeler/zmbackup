@@ -23,6 +23,9 @@ public final class BackupDistlistCommand implements Callable<Integer> {
             description = "Back up only this distribution list (repeatable); default: every distribution list.")
     private List<String> accounts = new ArrayList<>();
 
+    @Option(names = "--domain", description = "Restrict discovery to this Zimbra domain (e.g. example.com).")
+    private String domain;
+
     @Spec
     private CommandSpec spec;
 
@@ -33,6 +36,6 @@ public final class BackupDistlistCommand implements Callable<Integer> {
                 context,
                 spec.commandLine().getErr(),
                 () -> BackupRunner.run(
-                        context, spec.commandLine().getOut(), BackupType.DISTRIBUTION_LIST, accounts, null));
+                        context, spec.commandLine().getOut(), BackupType.DISTRIBUTION_LIST, accounts, domain));
     }
 }

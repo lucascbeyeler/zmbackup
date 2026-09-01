@@ -91,7 +91,8 @@ public final class AppContext {
                 metadataStore,
                 blocklist,
                 notifier,
-                config.backup().maxParallelProcesses());
+                config.backup().maxParallelProcesses(),
+                config.backup().lockBackup());
         this.restoreService = new RestoreService(
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);

@@ -183,6 +183,56 @@ class RestoreCommandTest {
     }
 
     @Test
+    void topLevelRestoreWithIntoBypassesTheFullIncrementalSessionCheck() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer();
+        Path configFile = writeConfig();
+        StringWriter backupOut = new StringWriter();
+        commandLine(backupOut, new StringWriter())
+                .execute("--config", configFile.toString(), "backup", "mailbox", "--account", "alice@example.com");
+        String sessionId = sessionIdOf(backupOut, "mbox-");
+
+        StringWriter restoreOut = new StringWriter();
+        int restoreExit = commandLine(restoreOut, new StringWriter())
+                .execute(
+                        "--config", configFile.toString(), "restore", "--session", sessionId, "--account",
+                        "alice@example.com", "--into", "bob@example.com");
+
+        assertEquals(0, restoreExit);
+        assertEquals(List.of("POST /home/bob@example.com/"), mailboxRestorePosts);
+    }
+
+    @Test
+    void topLevelRestoreRejectsNonFullIncrementalSession() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        Path configFile = writeConfig();
+        StringWriter backupOut = new StringWriter();
+        int backupExit = commandLine(backupOut, new StringWriter())
+                .execute("--config", configFile.toString(), "backup", "ldap", "--account", "alice@example.com");
+        assertEquals(0, backupExit);
+        String sessionId = sessionIdOf(backupOut, "ldap-");
+        StringWriter err = new StringWriter();
+
+        int exitCode = commandLine(new StringWriter(), err)
+                .execute("--config", configFile.toString(), "restore", "--session", sessionId);
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("not a full/incremental session"));
+    }
+
+    @Test
     void topLevelRestoreRestoresLdapAndMailbox() throws Exception {
         directoryServer = startDirectoryServer();
         directoryServer.add(

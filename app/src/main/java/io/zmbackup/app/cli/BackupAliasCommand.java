@@ -21,6 +21,9 @@ public final class BackupAliasCommand implements Callable<Integer> {
     @Option(names = "--account", description = "Back up only this alias (repeatable); default: every alias.")
     private List<String> accounts = new ArrayList<>();
 
+    @Option(names = "--domain", description = "Restrict discovery to this Zimbra domain (e.g. example.com).")
+    private String domain;
+
     @Spec
     private CommandSpec spec;
 
@@ -30,6 +33,6 @@ public final class BackupAliasCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.ALIAS, accounts, null));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.ALIAS, accounts, domain));
     }
 }

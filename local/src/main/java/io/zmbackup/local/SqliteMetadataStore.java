@@ -231,6 +231,21 @@ public class SqliteMetadataStore implements MetadataStore {
         }
     }
 
+    @Override
+    public boolean backedUpSince(String identifier, Instant since) throws IOException {
+        String sql = "select 1 from backup_account where email = ? and conclusion_date > ? limit 1";
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, identifier);
+            statement.setString(2, toDb(since));
+            try (ResultSet rs = statement.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
+    }
+
     private Connection connect() throws SQLException {
         Connection connection = DriverManager.getConnection(jdbcUrl);
         // Backup and restore sessions now run accounts through a thread pool (see

@@ -99,6 +99,25 @@ public class LocalStorageProvider implements StorageProvider {
         });
     }
 
+    @Override
+    public int deleteEmptyFiles() throws IOException {
+        if (!Files.isDirectory(workDir)) {
+            return 0;
+        }
+        int[] removed = {0};
+        Files.walkFileTree(workDir, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                if (attrs.isRegularFile() && attrs.size() == 0) {
+                    Files.delete(file);
+                    removed[0]++;
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+        return removed[0];
+    }
+
     private Path sessionDir(String sessionId) {
         return workDir.resolve(sessionId);
     }

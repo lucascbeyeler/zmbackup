@@ -41,7 +41,8 @@ public class BackupService {
         public void notifyBegin(String sessionId, BackupType type) {}
 
         @Override
-        public void notifyFinish(String sessionId, BackupType type, SessionStatus status) {}
+        public void notifyFinish(
+                String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {}
     };
 
     private static final DateTimeFormatter SESSION_TIMESTAMP =
@@ -55,6 +56,12 @@ public class BackupService {
      */
     private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
+    /**
+     * How far back {@code lockBackup} looks for a prior backup of a discovered identifier,
+     * mirroring {@code ldap_filter}'s {@code YESTERDAY} cutoff.
+     */
+    private static final Duration LOCK_BACKUP_WINDOW = Duration.ofHours(24);
+
     private final AccountDiscovery accountDiscovery;
     private final ZimbraLdapExporter ldapExporter;
     private final ZimbraMailboxExporter mailboxExporter;
@@ -63,6 +70,7 @@ public class BackupService {
     private final Blocklist blocklist;
     private final Notifier notifier;
     private final int maxParallelProcesses;
+    private final boolean lockBackup;
 
     public BackupService(
             AccountDiscovery accountDiscovery,
@@ -147,6 +155,41 @@ public class BackupService {
             Blocklist blocklist,
             Notifier notifier,
             int maxParallelProcesses) {
+        this(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                blocklist,
+                notifier,
+                maxParallelProcesses,
+                false);
+    }
+
+    /**
+     * @param blocklist            discovered accounts (or domains) found here are skipped rather
+     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
+     * @param notifier             notified when a session starts and finishes, mirroring {@code
+     *                             notify_begin}/{@code notify_finish}
+     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
+     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
+     *                             as 1
+     * @param lockBackup           when true, discovered identifiers (not explicit {@code
+     *                             --account} lists) with an account-level backup completed within
+     *                             the last 24 hours are skipped, mirroring {@code ldap_filter}'s
+     *                             {@code LOCK_BACKUP} dedup check
+     */
+    public BackupService(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            Blocklist blocklist,
+            Notifier notifier,
+            int maxParallelProcesses,
+            boolean lockBackup) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
@@ -155,6 +198,7 @@ public class BackupService {
         this.blocklist = Objects.requireNonNull(blocklist, "blocklist must not be null");
         this.notifier = Objects.requireNonNull(notifier, "notifier must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
+        this.lockBackup = lockBackup;
     }
 
     /** Backs up every object of {@code type} found across the whole directory. */
@@ -205,7 +249,11 @@ public class BackupService {
         SessionStatus status = allSucceeded ? SessionStatus.FINISHED : SessionStatus.FAILED;
         BackupSession completed = new BackupSession(sessionId, type, status, sessionStart, sessionEnd, size);
         metadataStore.save(completed);
-        notifySafely(() -> notifier.notifyFinish(sessionId, type, status));
+        // Mirrors notify_finish's SIZE=0/QTDE=0 on a failed session: only report real numbers on success.
+        String notifySize = status == SessionStatus.FINISHED ? size : "0";
+        int notifyAccountCount =
+                status == SessionStatus.FINISHED ? metadataStore.findAccountsForSession(sessionId).size() : 0;
+        notifySafely(() -> notifier.notifyFinish(sessionId, type, status, notifySize, notifyAccountCount));
         return Optional.of(completed);
     }
 
@@ -284,9 +332,10 @@ public class BackupService {
 
     /**
      * Resolves the objects to back up. Explicit {@code identifiers} are used as-is, bypassing the
-     * blocklist, mirroring {@code backup_main}'s {@code -a}/{@code --account} path (which bypasses
-     * {@code build_listBKP} entirely); discovered objects are filtered against the blocklist, same
-     * as {@code build_listBKP} always does via {@code ldap_filter}.
+     * blocklist and {@code lockBackup} dedup, mirroring {@code backup_main}'s {@code -a}/{@code
+     * --account} path (which bypasses {@code build_listBKP} entirely); discovered objects are
+     * filtered against the blocklist and, when {@link #lockBackup} is enabled, against identifiers
+     * already backed up today - same as {@code build_listBKP} always does via {@code ldap_filter}.
      */
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain)
             throws IOException {
@@ -302,7 +351,7 @@ public class BackupService {
                     ? accountDiscovery.discover(objectType)
                     : accountDiscovery.discoverForDomain(objectType, domain);
         }
-        return filterBlocked(discovered);
+        return filterAlreadyBackedUpToday(filterBlocked(discovered));
     }
 
     private List<String> filterBlocked(List<String> identifiers) {
@@ -310,6 +359,27 @@ public class BackupService {
         for (String identifier : identifiers) {
             if (blocklist.isBlocked(identifier)) {
                 LOG.info(() -> identifier + " found inside blocked list - skipping.");
+            } else {
+                allowed.add(identifier);
+            }
+        }
+        return allowed;
+    }
+
+    /**
+     * When {@link #lockBackup} is enabled, drops identifiers already backed up within {@link
+     * #LOCK_BACKUP_WINDOW}, mirroring {@code ldap_filter}'s {@code LOCK_BACKUP} check. A no-op
+     * when {@link #lockBackup} is disabled.
+     */
+    private List<String> filterAlreadyBackedUpToday(List<String> identifiers) throws IOException {
+        if (!lockBackup) {
+            return identifiers;
+        }
+        Instant since = Instant.now().minus(LOCK_BACKUP_WINDOW);
+        List<String> allowed = new ArrayList<>(identifiers.size());
+        for (String identifier : identifiers) {
+            if (metadataStore.backedUpSince(identifier, since)) {
+                LOG.info(() -> identifier + " already has backup today - skipping.");
             } else {
                 allowed.add(identifier);
             }

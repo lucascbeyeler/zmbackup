@@ -23,6 +23,9 @@ public final class BackupSignatureCommand implements Callable<Integer> {
             description = "Back up only this account's signatures (repeatable); default: every account.")
     private List<String> accounts = new ArrayList<>();
 
+    @Option(names = "--domain", description = "Restrict discovery to this Zimbra domain (e.g. example.com).")
+    private String domain;
+
     @Spec
     private CommandSpec spec;
 
@@ -32,6 +35,6 @@ public final class BackupSignatureCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.SIGNATURE, accounts, null));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.SIGNATURE, accounts, domain));
     }
 }

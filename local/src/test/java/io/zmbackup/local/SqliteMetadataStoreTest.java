@@ -201,6 +201,48 @@ class SqliteMetadataStoreTest {
         assertEquals(Optional.empty(), store.lastSuccessfulBackupTime("user@example.com"));
     }
 
+    @Test
+    void backedUpSinceIsFalseWhenAccountNeverBackedUp() throws IOException {
+        assertEquals(false, store.backedUpSince("user@example.com", Instant.now().minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void backedUpSinceIsTrueWhenAccountBackedUpAfterCutoff() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("ldap-1", "user@example.com", now));
+
+        assertEquals(true, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void backedUpSinceIsFalseWhenLastBackupIsBeforeCutoff() throws IOException {
+        Instant old = Instant.now().minus(30, ChronoUnit.HOURS);
+        store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, old));
+        store.recordAccountBackup(accountRecord("ldap-1", "user@example.com", old));
+
+        assertEquals(
+                false, store.backedUpSince("user@example.com", Instant.now().minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void backedUpSinceIgnoresTheOwningSessionsOverallStatus() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("full-1", BackupType.FULL, SessionStatus.FAILED, now));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com", now));
+
+        assertEquals(true, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void backedUpSinceIgnoresOtherAccounts() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("ldap-1", "other@example.com", now));
+
+        assertEquals(false, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+    }
+
     private static BackupSession session(String sessionId, SessionStatus status, String size) {
         Instant now = Instant.now();
         Instant completedAt = status == SessionStatus.IN_PROGRESS ? null : now;

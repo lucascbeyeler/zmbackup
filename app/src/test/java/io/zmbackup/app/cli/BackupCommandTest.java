@@ -96,7 +96,7 @@ class BackupCommandTest {
                 cmd.execute("--config", configFile.toString(), "backup", "ldap", "--account", "alice@example.com");
 
         assertEquals(0, exitCode);
-        assertTrue(Files.exists(tempDir.resolve("ldap-" + sessionSuffixOf(out) + "/alice@example.com.ldiff")));
+        assertTrue(Files.exists(tempDir.resolve("ldap-" + sessionSuffixOf(out, "ldap-") + "/alice@example.com.ldiff")));
     }
 
     @Test
@@ -265,6 +265,37 @@ class BackupCommandTest {
     }
 
     @Test
+    void distlistWithDomainOptionRestrictsDiscoveryToThatDomain() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "cn=engineering,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraDistributionList"),
+                new Attribute("cn", "engineering"),
+                new Attribute("mail", "engineering@example.com"));
+        directoryServer.add(
+                "dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDomain"),
+                new Attribute("dc", "other"),
+                new Attribute("zimbraDomainName", "other.com"));
+        directoryServer.add(
+                "cn=sales,dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDistributionList"),
+                new Attribute("cn", "sales"),
+                new Attribute("mail", "sales@other.com"));
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode =
+                cmd.execute("--config", configFile.toString(), "backup", "distlist", "--domain", "other.com");
+
+        assertEquals(0, exitCode);
+        String sessionId = "distlist-" + sessionSuffixOf(out, "distlist-");
+        assertTrue(Files.exists(tempDir.resolve(sessionId + "/sales@other.com.ldiff")));
+        assertTrue(Files.notExists(tempDir.resolve(sessionId + "/engineering@example.com.ldiff")));
+    }
+
+    @Test
     void signaturePrintsNothingFoundWhenDirectoryHasNoSignatures() throws Exception {
         directoryServer = startDirectoryServer();
         Path configFile = writeConfig();
@@ -314,9 +345,9 @@ class BackupCommandTest {
         assertTrue(out.toString().contains("FINISHED"));
     }
 
-    private static String sessionSuffixOf(StringWriter out) {
+    private static String sessionSuffixOf(StringWriter out, String prefix) {
         String output = out.toString();
-        int start = output.indexOf("ldap-") + "ldap-".length();
+        int start = output.indexOf(prefix) + prefix.length();
         int end = output.indexOf(' ', start);
         return output.substring(start, end);
     }

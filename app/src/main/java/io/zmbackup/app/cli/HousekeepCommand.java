@@ -38,11 +38,9 @@ public final class HousekeepCommand implements Callable<Integer> {
                 out.println("Backup session " + session.sessionId() + " removed.");
             }
 
-            out.println("Removing empty backup sessions - please wait.");
-            List<BackupSession> emptied = housekeepService.cleanEmpty();
-            for (BackupSession session : emptied) {
-                out.println("Backup session " + session.sessionId() + " removed.");
-            }
+            out.println("Removing empty files - please wait.");
+            int emptyFilesRemoved = housekeepService.cleanEmpty();
+            out.println(emptyFilesRemoved + " empty file(s) removed.");
 
             return 0;
         });

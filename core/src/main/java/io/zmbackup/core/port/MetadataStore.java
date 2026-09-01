@@ -47,8 +47,17 @@ public interface MetadataStore {
     /**
      * When {@code email} was last successfully backed up — the latest
      * {@link BackupAccountRecord#completedAt()} across all of its sessions — or empty if it was
-     * never backed up. Used both to compute the "after" cutoff for incremental mailbox backups
-     * and to skip accounts already backed up today.
+     * never backed up. Used to compute the "after" cutoff for incremental mailbox backups.
      */
     Optional<Instant> lastSuccessfulBackupTime(String email) throws IOException;
+
+    /**
+     * Whether {@code identifier} has any account-level backup record ({@link
+     * BackupAccountRecord#completedAt()}) after {@code since}, across every session type and
+     * regardless of the owning session's overall status. Mirrors the bash tool's {@code
+     * ldap_filter} LOCK_BACKUP dedup check ({@code conclusion_date > YESTERDAY}): used by {@code
+     * BackupService} to skip discovery-based backups (not explicit {@code --account} lists) for
+     * objects already backed up within roughly the last day.
+     */
+    boolean backedUpSince(String identifier, Instant since) throws IOException;
 }
