@@ -29,6 +29,15 @@ public interface MetadataStore {
     /** Removes a session and its associated account records. */
     void deleteSession(String sessionId) throws IOException;
 
+    /**
+     * Deletes every session and account record, emptying the store completely. Unlike {@link
+     * #deleteSession}, this cannot be scoped or undone - callers are responsible for confirming
+     * intent first (see {@code zmbackup truncate}).
+     *
+     * @return the number of sessions removed
+     */
+    int truncate() throws IOException;
+
     /** Records that the account in {@code record} was backed up as part of its session. */
     void recordAccountBackup(BackupAccountRecord record) throws IOException;
 

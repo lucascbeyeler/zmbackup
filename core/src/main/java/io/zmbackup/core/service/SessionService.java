@@ -45,4 +45,16 @@ public class SessionService {
         metadataStore.deleteSession(sessionId);
         return true;
     }
+
+    /**
+     * Empties the metadata store of every session and account record, mirroring the bash tool's
+     * {@code -t}/{@code --truncate} ({@code leeroy_jenkins}) in spirit, but scoped to the database
+     * only - the backup files on disk are left untouched. Irreversible, so intended only for
+     * resetting a test/non-production installation; driven by {@code zmbackup truncate}.
+     *
+     * @return the number of sessions removed
+     */
+    public int truncateDatabase() throws IOException {
+        return metadataStore.truncate();
+    }
 }

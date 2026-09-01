@@ -109,20 +109,46 @@ function deploy_upgrade_java() {
 }
 
 ################################################################################
+# truncate_database: Ask whether to also empty the SQLite metadata store (via
+# "zmbackup truncate --force-clean") before it's torn down along with the rest
+# of the install. Irreversible and, per "zmbackup truncate" itself, meant only
+# for a test/development install being decommissioned - never run it against
+# a production server, since the deleted session/account history cannot be
+# recovered. Must run before the jar/config are removed below, since the
+# command needs both to load.
+################################################################################
+function truncate_database() {
+  printf "Also empty the backup metadata database (sessions.sqlite3)? This only makes sense for a "
+  printf "\ntest/development install being torn down - it is irreversible and must NEVER be used on "
+  printf "\na production server. [y/N]"
+  read -r OPT
+  if [[ $OPT == 'y' || $OPT == 'Y' ]]; then
+    echo "Truncating the backup metadata database..."
+    sudo -H -u "$OSE_USER" bash -c "zmbackup truncate --force-clean"
+  fi
+}
+
+################################################################################
 # uninstall_java: Remove the Java build of Zmbackup and all files related
 ################################################################################
 function uninstall_java() {
   echo "Removing... Please wait while we make some changes."
-
-  rm -f "$ZMBKP_SRC"/zmbackup
-  rm -rf "$ZMBKP_LIB"
-  rm -f "$ZMBKP_CRON_FILE"
 
   WORKDIR=""
   if [[ -f "$ZMBKP_CONF"/zmbackup.yaml ]]; then
     WORKDIR=$(grep "workDir:" "$ZMBKP_CONF"/zmbackup.yaml | head -1 | awk '{print $2}')
   fi
 
+  # Ask about the database while the jar/config are still in place to run
+  # "zmbackup truncate" against - only offer it when there is actually an
+  # install left to run it with.
+  if [[ -f "$ZMBKP_LIB/$ZMBKP_JAR_NAME" ]] && [[ -f "$ZMBKP_CONF"/zmbackup.yaml ]]; then
+    truncate_database
+  fi
+
+  rm -f "$ZMBKP_SRC"/zmbackup
+  rm -rf "$ZMBKP_LIB"
+  rm -f "$ZMBKP_CRON_FILE"
   rm -rf "$ZMBKP_CONF"
 
   printf "Preserve Backup Storage?[n/Y]"

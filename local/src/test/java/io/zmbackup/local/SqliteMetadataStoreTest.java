@@ -116,6 +116,24 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
+    void truncateRemovesEverySessionAndAccountRecordAndReturnsCount() throws IOException {
+        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-2", SessionStatus.IN_PROGRESS, null));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
+
+        int removed = store.truncate();
+
+        assertEquals(2, removed);
+        assertEquals(List.of(), store.listSessions());
+        assertEquals(List.of(), store.findAccountsForSession("full-1"));
+    }
+
+    @Test
+    void truncateOnEmptyStoreReturnsZero() throws IOException {
+        assertEquals(0, store.truncate());
+    }
+
+    @Test
     void recordedAccountBackupCanBeFoundBySession() throws IOException {
         store.save(session("full-1", SessionStatus.FINISHED, "10M"));
         BackupAccountRecord record = accountRecord("full-1", "user@example.com");

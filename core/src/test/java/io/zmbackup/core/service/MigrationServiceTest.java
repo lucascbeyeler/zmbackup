@@ -163,6 +163,11 @@ class MigrationServiceTest {
         }
 
         @Override
+        public int truncate() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void recordAccountBackup(BackupAccountRecord record) {
             accounts.computeIfAbsent(record.sessionId(), key -> new ArrayList<>()).add(record);
         }
