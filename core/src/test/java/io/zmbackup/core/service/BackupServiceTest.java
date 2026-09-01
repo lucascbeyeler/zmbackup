@@ -175,6 +175,91 @@ class BackupServiceTest {
     }
 
     @Test
+    void lockBackupSkipsDiscoveredAccountAlreadyBackedUpToday() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "ldap-earlier", "bob@example.com", "1B", Instant.now(), Instant.now()));
+        BackupService lockedBackup = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> false,
+                new RecordingNotifier(),
+                1,
+                true);
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void lockBackupDoesNotSkipWhenPriorBackupIsOlderThanADay() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null,
+                "ldap-earlier",
+                "alice@example.com",
+                "1B",
+                Instant.now().minus(Duration.ofHours(30)),
+                Instant.now().minus(Duration.ofHours(30))));
+        BackupService lockedBackup = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> false,
+                new RecordingNotifier(),
+                1,
+                true);
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void lockBackupDisabledDoesNotSkipRecentlyBackedUpAccount() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void explicitAccountBypassesLockBackup() throws IOException {
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+        BackupService lockedBackup = new BackupService(
+                accountDiscovery,
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> false,
+                new RecordingNotifier(),
+                1,
+                true);
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
+    }
+
+    @Test
     void explicitAccountBypassesBlocklist() throws IOException {
         BackupService blocklisted = new BackupService(
                 accountDiscovery,
@@ -257,7 +342,9 @@ class BackupServiceTest {
         assertEquals(2, notifier.calls.size());
         assertTrue(notifier.calls.get(0).startsWith("begin:"));
         assertEquals(
-                "finish:" + result.get().sessionId() + ":LDAP:" + result.get().status(), notifier.calls.get(1));
+                "finish:" + result.get().sessionId() + ":LDAP:" + result.get().status() + ":" + result.get().size()
+                        + ":1",
+                notifier.calls.get(1));
     }
 
     @Test
@@ -557,6 +644,11 @@ class BackupServiceTest {
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
         }
 
+        @Override
+        public int deleteEmptyFiles() {
+            throw new UnsupportedOperationException();
+        }
+
         private static String key(String sessionId, String account, String suffix) {
             return sessionId + "/" + account + "." + suffix;
         }
@@ -573,8 +665,9 @@ class BackupServiceTest {
         }
 
         @Override
-        public void notifyFinish(String sessionId, BackupType type, SessionStatus status) {
-            calls.add("finish:" + sessionId + ":" + type + ":" + status);
+        public void notifyFinish(
+                String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {
+            calls.add("finish:" + sessionId + ":" + type + ":" + status + ":" + size + ":" + accountCount);
         }
     }
 
@@ -629,6 +722,15 @@ class BackupServiceTest {
         @Override
         public Optional<Instant> lastSuccessfulBackupTime(String email) {
             return Optional.ofNullable(lastBackupTimes.get(email));
+        }
+
+        @Override
+        public boolean backedUpSince(String identifier, Instant since) {
+            return accounts.values().stream()
+                    .flatMap(List::stream)
+                    .anyMatch(record -> record.email().equals(identifier)
+                            && record.completedAt() != null
+                            && record.completedAt().isAfter(since));
         }
     }
 }

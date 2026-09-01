@@ -59,6 +59,13 @@ public final class RestoreCommand implements Callable<Integer> {
             err.println("restore: --into requires exactly one --account");
             return CommandLine.ExitCode.USAGE;
         }
+        if (destination == null && !(sessionId.startsWith("full") || sessionId.startsWith("inc"))) {
+            err.println(
+                    "restore: '--session=" + sessionId
+                            + "' is not a full/incremental session; use 'restore ldap', 'restore domain', or"
+                            + " 'restore mailbox' to restore one kind of content on its own.");
+            return CommandLine.ExitCode.USAGE;
+        }
 
         AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();

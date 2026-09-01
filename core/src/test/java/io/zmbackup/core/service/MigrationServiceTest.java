@@ -130,6 +130,11 @@ class MigrationServiceTest {
         public void deleteSession(String sessionId) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public int deleteEmptyFiles() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /** In-memory {@link MetadataStore} fake backed by simple maps. */
@@ -179,6 +184,11 @@ class MigrationServiceTest {
 
         @Override
         public Optional<Instant> lastSuccessfulBackupTime(String email) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean backedUpSince(String identifier, Instant since) {
             throw new UnsupportedOperationException();
         }
     }

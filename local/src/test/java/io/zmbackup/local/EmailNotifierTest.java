@@ -64,10 +64,12 @@ class EmailNotifierTest {
         EmailNotifier notifier = new EmailNotifier(
                 "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", true, true, false);
 
-        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED);
+        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3);
 
         FakeSmtpServer.Message message = smtpServer.awaitMessage();
         assertTrue(message.data().contains("FINISHED"));
+        assertTrue(message.data().contains("Size: 10M"));
+        assertTrue(message.data().contains("Accounts: 3"));
     }
 
     @Test
@@ -76,7 +78,7 @@ class EmailNotifierTest {
         EmailNotifier notifier = new EmailNotifier(
                 "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", true, false, true);
 
-        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED);
+        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3);
 
         assertFalse(smtpServer.receivedAnyMessage());
     }
@@ -87,10 +89,12 @@ class EmailNotifierTest {
         EmailNotifier notifier = new EmailNotifier(
                 "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", true, false, true);
 
-        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FAILED);
+        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FAILED, "0", 0);
 
         FakeSmtpServer.Message message = smtpServer.awaitMessage();
         assertTrue(message.data().contains("FAILED"));
+        assertTrue(message.data().contains("Size: 0"));
+        assertTrue(message.data().contains("Accounts: 0"));
     }
 
     @Test

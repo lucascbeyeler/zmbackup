@@ -40,4 +40,15 @@ public interface StorageProvider {
 
     /** Permanently removes all stored content for {@code sessionId}. */
     void deleteSession(String sessionId) throws IOException;
+
+    /**
+     * Deletes every zero-byte file stored across every session, mirroring the bash tool's
+     * {@code clean_empty} ({@code find "$WORKDIR" -type f -size 0 -delete}): a stray leftover
+     * from an interrupted or failed export, left behind alongside an otherwise-successful
+     * session's content. Unlike {@link #deleteSession}, this never removes a whole session or its
+     * metadata - only individual empty files.
+     *
+     * @return how many files were removed
+     */
+    int deleteEmptyFiles() throws IOException;
 }

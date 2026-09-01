@@ -27,7 +27,7 @@ class HousekeepCommandTest {
     Path tempDir;
 
     @Test
-    void removesOldAndEmptySessions() throws Exception {
+    void removesOldSessionsAndEmptyFiles() throws Exception {
         Path configFile = writeConfig(7);
         AppContext context = AppContext.fromConfigFile(configFile);
         Instant now = Instant.now();
@@ -46,9 +46,11 @@ class HousekeepCommandTest {
         context.metadataStore()
                 .recordAccountBackup(
                         new BackupAccountRecord(null, "ldap-recent", "bob@example.com", "1K", now, now));
-
-        BackupSession empty = session("ldap-empty", now);
-        context.metadataStore().save(empty);
+        context.storageProvider().openWrite("ldap-recent", "bob@example.com", "ldiff").close();
+        context.storageProvider().openWrite("ldap-recent", "carol@example.com", "ldiff").close();
+        try (var writer = context.storageProvider().openWrite("ldap-recent", "dan@example.com", "ldiff")) {
+            writer.write("dn: uid=dan\n".getBytes());
+        }
 
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out);
@@ -58,11 +60,13 @@ class HousekeepCommandTest {
         assertEquals(0, exitCode);
         String output = out.toString();
         assertTrue(output.contains("Backup session ldap-old removed."));
-        assertTrue(output.contains("Backup session ldap-empty removed."));
+        assertTrue(output.contains("empty file(s) removed."));
         assertFalse(output.contains("ldap-recent removed"));
         assertTrue(context.metadataStore().findSession("ldap-old").isEmpty());
-        assertTrue(context.metadataStore().findSession("ldap-empty").isEmpty());
         assertTrue(context.metadataStore().findSession("ldap-recent").isPresent());
+        assertTrue(context.storageProvider().exists("ldap-recent", "dan@example.com", "ldiff"));
+        assertFalse(context.storageProvider().exists("ldap-recent", "bob@example.com", "ldiff"));
+        assertFalse(context.storageProvider().exists("ldap-recent", "carol@example.com", "ldiff"));
     }
 
     @Test

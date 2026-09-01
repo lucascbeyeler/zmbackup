@@ -324,6 +324,11 @@ class RestoreServiceTest {
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
         }
 
+        @Override
+        public int deleteEmptyFiles() {
+            throw new UnsupportedOperationException();
+        }
+
         private static String key(String sessionId, String account, String suffix) {
             return sessionId + "/" + account + "." + suffix;
         }
@@ -375,6 +380,11 @@ class RestoreServiceTest {
 
         @Override
         public Optional<Instant> lastSuccessfulBackupTime(String email) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean backedUpSince(String identifier, Instant since) {
             throw new UnsupportedOperationException();
         }
     }

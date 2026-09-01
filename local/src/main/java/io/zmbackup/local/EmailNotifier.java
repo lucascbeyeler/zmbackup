@@ -65,15 +65,20 @@ public class EmailNotifier implements Notifier {
     }
 
     @Override
-    public void notifyFinish(String sessionId, BackupType type, SessionStatus status) throws IOException {
+    public void notifyFinish(
+            String sessionId, BackupType type, SessionStatus status, String size, int accountCount)
+            throws IOException {
         boolean shouldNotify = status == SessionStatus.FINISHED ? notifyOnFinishSuccess : notifyOnFinishError;
         if (!shouldNotify) {
             return;
         }
         String subject = "Zmbackup - Backup routine for " + type.sessionPrefix() + " " + status.dbValue();
         String body = "This is an automatic message to inform you that the " + type.sessionPrefix()
-                + " backup session " + sessionId + " completed at " + Instant.now() + " with status "
-                + status.dbValue() + ".\n";
+                + " backup session " + sessionId + " completed at " + Instant.now() + ".\n\n"
+                + "Here some information about this session:\n\n"
+                + "Size: " + size + "\n"
+                + "Accounts: " + accountCount + "\n"
+                + "Status: " + status.dbValue() + "\n";
         send(subject, body);
     }
 

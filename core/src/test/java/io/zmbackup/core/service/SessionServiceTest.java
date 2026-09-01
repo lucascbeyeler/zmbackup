@@ -129,6 +129,11 @@ class SessionServiceTest {
             deletedSessions.add(sessionId);
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
         }
+
+        @Override
+        public int deleteEmptyFiles() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /** In-memory {@link MetadataStore} fake backed by simple maps. */
@@ -184,6 +189,11 @@ class SessionServiceTest {
 
         @Override
         public Optional<Instant> lastSuccessfulBackupTime(String email) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean backedUpSince(String identifier, Instant since) {
             throw new UnsupportedOperationException();
         }
     }
