@@ -236,6 +236,41 @@ user@example.com"
   MOCK_SU_OUTPUT=""
   deploy_new_java
   touch "${OSE_DEFAULT_BKP_DIR}/sessions.sqlite3"
-  echo "N" | uninstall_java
+  printf 'N\nN\n' | uninstall_java
   [ ! -f "${OSE_DEFAULT_BKP_DIR}/sessions.sqlite3" ]
+}
+
+# ---------------------------------------------------------------------------
+# uninstall_java: truncate_database prompt
+# ---------------------------------------------------------------------------
+
+@test "uninstall_java: does not offer to truncate the database when there is no jar/config to run it against" {
+  mkdir -p "$ZMBKP_SRC" "$ZMBKP_CONF" "$ZMBKP_LIB"
+  echo "backup:" > "${ZMBKP_CONF}/zmbackup.yaml"
+  echo "  workDir: ${DEPLOY_ROOT}/backup" >> "${ZMBKP_CONF}/zmbackup.yaml"
+  mkdir -p "${DEPLOY_ROOT}/backup"
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  # Only one answer is needed ("Preserve Backup Storage?") since the truncate
+  # prompt must not run without an installed jar/config to invoke it against.
+  echo "N" | uninstall_java
+  [ ! -s "$MOCK_SUDO_LOG" ]
+}
+
+@test "uninstall_java: invokes zmbackup truncate --force-clean when the user opts in" {
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  printf 'Y\nY\n' | uninstall_java
+  grep -q "zmbackup truncate --force-clean" "$MOCK_SUDO_LOG"
+}
+
+@test "uninstall_java: does not invoke zmbackup truncate when the user declines" {
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  printf 'N\nN\n' | uninstall_java
+  ! grep -q "zmbackup truncate" "$MOCK_SUDO_LOG"
 }
