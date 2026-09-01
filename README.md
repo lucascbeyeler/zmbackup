@@ -107,6 +107,14 @@ hand at any time - `$ zmbackup migrate` - and is a no-op once there's nothing le
 renames `sessions.txt` to `sessions.txt.migrated` after a successful import, so re-running it,
 e.g. after `install-java.sh --force-upgrade`, doesn't import the same sessions twice).
 
+The Java build also has `zmbackup truncate`, mirroring the bash tool's `-t`/`--truncate` in
+spirit but scoped to the database only - it does not delete any backup files. It permanently
+empties `sessions.sqlite3` (every session and account record) and, like the bash tool's own
+`--force-clean` guard, refuses to do anything unless run as `zmbackup truncate --force-clean`.
+**This is for test/development installs only - never run it against production**, since the
+deleted session/account history cannot be recovered afterward. `install-java.sh --remove` offers
+to run it for you (with the same warning) before it removes the rest of the install.
+
 ```
 # cd zmbackup
 # ./install-java.sh

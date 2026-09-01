@@ -159,6 +159,11 @@ class HousekeepServiceTest {
         }
 
         @Override
+        public int truncate() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void recordAccountBackup(BackupAccountRecord record) {
             accounts.computeIfAbsent(record.sessionId(), k -> new ArrayList<>()).add(record);
         }

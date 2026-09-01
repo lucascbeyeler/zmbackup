@@ -154,6 +154,23 @@ public class SqliteMetadataStore implements MetadataStore {
     }
 
     @Override
+    public int truncate() throws IOException {
+        try (Connection connection = connect();
+                Statement statement = connection.createStatement()) {
+            int removed;
+            try (ResultSet rs = statement.executeQuery("select count(*) from backup_session")) {
+                rs.next();
+                removed = rs.getInt(1);
+            }
+            statement.execute("delete from backup_account");
+            statement.execute("delete from backup_session");
+            return removed;
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
+    }
+
+    @Override
     public void recordAccountBackup(BackupAccountRecord record) throws IOException {
         String sql =
                 "insert into backup_account (sessionID, account_size, email, initial_date, conclusion_date) "

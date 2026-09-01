@@ -23,7 +23,8 @@ import picocli.CommandLine.Spec;
             DeleteCommand.class,
             HousekeepCommand.class,
             AccountsCommand.class,
-            MigrateCommand.class
+            MigrateCommand.class,
+            TruncateCommand.class
         })
 public final class Main implements Callable<Integer> {
 

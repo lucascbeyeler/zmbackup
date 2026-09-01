@@ -70,6 +70,26 @@ class SessionServiceTest {
         assertTrue(storageProvider.deletedSessions.isEmpty());
     }
 
+    @Test
+    void truncateDatabaseRemovesEverySessionAndAccountRecordButLeavesStorageAlone() throws IOException {
+        metadataStore.save(session("ldap-1", Instant.now()));
+        metadataStore.save(session("ldap-2", Instant.now()));
+        metadataStore.recordAccountBackup(
+                new BackupAccountRecord(null, "ldap-1", "alice@example.com", "1K", Instant.now(), Instant.now()));
+
+        int removed = sessionService.truncateDatabase();
+
+        assertEquals(2, removed);
+        assertEquals(List.of(), sessionService.listSessions());
+        assertEquals(List.of(), metadataStore.findAccountsForSession("ldap-1"));
+        assertTrue(storageProvider.deletedSessions.isEmpty());
+    }
+
+    @Test
+    void truncateDatabaseReturnsZeroWhenStoreAlreadyEmpty() throws IOException {
+        assertEquals(0, sessionService.truncateDatabase());
+    }
+
     private static BackupSession session(String sessionId, Instant startedAt) {
         return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, startedAt, startedAt, "1K");
     }
@@ -142,6 +162,14 @@ class SessionServiceTest {
         public void deleteSession(String sessionId) {
             sessions.remove(sessionId);
             accounts.remove(sessionId);
+        }
+
+        @Override
+        public int truncate() {
+            int removed = sessions.size();
+            sessions.clear();
+            accounts.clear();
+            return removed;
         }
 
         @Override
