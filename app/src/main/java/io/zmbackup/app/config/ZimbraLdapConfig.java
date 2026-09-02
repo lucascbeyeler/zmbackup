@@ -6,13 +6,26 @@ import java.util.Objects;
  * LDAP connection settings, mirroring the {@code LDAPSERVER}/{@code LDAPADMIN}/{@code LDAPPASS}/
  * {@code SSL_ENABLE} fields of the bash tool's {@code zmbackup.conf}.
  *
- * @param url          the LDAP server URL, e.g. {@code "ldap://127.0.0.1:389"}
- * @param bindDn       the admin distinguished name used to bind, e.g.
- *                     {@code "uid=zimbra,cn=admins,cn=zimbra"}
- * @param bindPassword the admin password used to bind
- * @param sslEnabled   whether to use SSL when talking to the Zimbra server
+ * @param url                  the LDAP server URL, e.g. {@code "ldap://127.0.0.1:389"}
+ * @param bindDn               the admin distinguished name used to bind, e.g.
+ *                             {@code "uid=zimbra,cn=admins,cn=zimbra"}
+ * @param bindPassword         the admin password used to bind
+ * @param sslEnabled           whether to use SSL (StartTLS) when talking to the Zimbra server
+ * @param caCertificatePath    path to a PEM-encoded CA certificate (bundle) used to verify the
+ *                             server's certificate, or {@code null} to use the JVM's default trust
+ *                             manager (or, if {@code trustAllCertificates} is set, to trust any
+ *                             certificate)
+ * @param trustAllCertificates whether to accept any server certificate when {@code caCertificatePath}
+ *                             is not set; must be explicitly enabled, since it offers no protection
+ *                             against an active MITM attack
  */
-public record ZimbraLdapConfig(String url, String bindDn, String bindPassword, boolean sslEnabled) {
+public record ZimbraLdapConfig(
+        String url,
+        String bindDn,
+        String bindPassword,
+        boolean sslEnabled,
+        String caCertificatePath,
+        boolean trustAllCertificates) {
 
     public ZimbraLdapConfig {
         Objects.requireNonNull(url, "url must not be null");

@@ -23,6 +23,8 @@ class YamlConfigLoaderTest {
               bindDn: uid=zimbra,cn=admins,cn=zimbra
               bindPassword: secret
               sslEnabled: false
+              caCertificatePath: /etc/zmbackup/ldap-ca.pem
+              trustAllCertificates: true
             zimbraMailbox:
               backupUser: zimbra
               zmmailboxPath: /opt/zimbra/bin/zmmailbox
@@ -72,6 +74,8 @@ class YamlConfigLoaderTest {
         assertEquals("uid=zimbra,cn=admins,cn=zimbra", config.zimbraLdap().bindDn());
         assertEquals("secret", config.zimbraLdap().bindPassword());
         assertFalseSsl(config);
+        assertEquals("/etc/zmbackup/ldap-ca.pem", config.zimbraLdap().caCertificatePath());
+        assertEquals(true, config.zimbraLdap().trustAllCertificates());
 
         assertEquals("zimbra", config.zimbraMailbox().backupUser());
         assertEquals(Path.of("/opt/zimbra/bin/zmmailbox"), config.zimbraMailbox().zmmailboxPath());
@@ -100,6 +104,8 @@ class YamlConfigLoaderTest {
         AppConfig config = YamlConfigLoader.load(new StringReader(MINIMAL_YAML));
 
         assertTrue(config.zimbraLdap().sslEnabled());
+        assertEquals(null, config.zimbraLdap().caCertificatePath());
+        assertEquals(false, config.zimbraLdap().trustAllCertificates());
         assertTrue(config.zimbraMailbox().backupInactiveAccounts());
         assertEquals(3, config.backup().maxParallelProcesses());
         assertEquals(30, config.backup().rotateDays());

@@ -52,7 +52,9 @@ public final class YamlConfigLoader {
                 requireString(root, "zimbraLdap.url"),
                 requireString(root, "zimbraLdap.bindDn"),
                 requireString(root, "zimbraLdap.bindPassword"),
-                optionalBoolean(root, "zimbraLdap.sslEnabled", true));
+                optionalBoolean(root, "zimbraLdap.sslEnabled", true),
+                optionalString(root, "zimbraLdap.caCertificatePath"),
+                optionalBoolean(root, "zimbraLdap.trustAllCertificates", false));
     }
 
     private static ZimbraMailboxConfig parseZimbraMailbox(Map<String, Object> root) {
@@ -116,6 +118,11 @@ public final class YamlConfigLoader {
 
     private static Path requirePath(Map<String, Object> root, String dottedPath) {
         return Path.of(requireString(root, dottedPath));
+    }
+
+    private static String optionalString(Map<String, Object> root, String dottedPath) {
+        Object value = get(root, dottedPath);
+        return value == null ? null : value.toString();
     }
 
     private static boolean optionalBoolean(Map<String, Object> root, String dottedPath, boolean defaultValue) {

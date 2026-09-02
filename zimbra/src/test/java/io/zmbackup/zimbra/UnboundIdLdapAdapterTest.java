@@ -42,6 +42,7 @@ class UnboundIdLdapAdapterTest {
 
     private InMemoryDirectoryServer directoryServer;
     private Path keyStoreFile;
+    private Path caCertificateFile;
 
     @AfterEach
     void tearDown() throws IOException {
@@ -51,13 +52,16 @@ class UnboundIdLdapAdapterTest {
         if (keyStoreFile != null) {
             Files.deleteIfExists(keyStoreFile);
         }
+        if (caCertificateFile != null) {
+            Files.deleteIfExists(caCertificateFile);
+        }
     }
 
     @Test
     void connectsAndBindsWithoutStartTls() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         try (LDAPConnection connection = adapter.connect()) {
             assertTrue(connection.isConnected());
@@ -65,28 +69,53 @@ class UnboundIdLdapAdapterTest {
     }
 
     @Test
-    void connectsAndBindsWithStartTls() throws Exception {
+    void connectsAndBindsWithStartTlsWhenTrustAllCertificatesIsEnabled() throws Exception {
         directoryServer = startDirectoryServer(serverStartTlsSocketFactory());
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, true);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, true, null, true);
 
         try (LDAPConnection connection = adapter.connect()) {
             assertTrue(connection.isConnected());
         }
+    }
+
+    @Test
+    void connectsAndBindsWithStartTlsUsingConfiguredCaCertificate() throws Exception {
+        directoryServer = startDirectoryServer(serverStartTlsSocketFactory());
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(),
+                BIND_DN,
+                BIND_PASSWORD,
+                true,
+                caCertificateFile.toString(),
+                false);
+
+        try (LDAPConnection connection = adapter.connect()) {
+            assertTrue(connection.isConnected());
+        }
+    }
+
+    @Test
+    void startTlsRejectsUntrustedCertificateWhenNoTrustIsConfigured() throws Exception {
+        directoryServer = startDirectoryServer(serverStartTlsSocketFactory());
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, true, null, false);
+
+        assertThrows(IOException.class, adapter::connect);
     }
 
     @Test
     void wrapsInvalidCredentialsInIOException() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, "wrong-password", false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, "wrong-password", false, null, false);
 
         assertThrows(IOException.class, adapter::connect);
     }
 
     @Test
     void wrapsUnreachableServerInIOException() {
-        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(IOException.class, adapter::connect);
     }
@@ -95,7 +124,7 @@ class UnboundIdLdapAdapterTest {
     void rejectsInvalidUrl() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new UnboundIdLdapAdapter("not-a-url", BIND_DN, BIND_PASSWORD, false));
+                () -> new UnboundIdLdapAdapter("not-a-url", BIND_DN, BIND_PASSWORD, false, null, false));
     }
 
     @Test
@@ -117,7 +146,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("cn", "engineering"),
                 new Attribute("mail", "engineering@example.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         List<String> accounts = adapter.discover(LdapObjectType.ACCOUNT);
 
@@ -128,7 +157,7 @@ class UnboundIdLdapAdapterTest {
     void discoverReturnsEmptyListWhenNoEntriesMatch() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertEquals(List.of(), adapter.discover(LdapObjectType.ACCOUNT));
     }
@@ -149,7 +178,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("uid", "carol"),
                 new Attribute("zimbraMailDeliveryAddress", "carol@other.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         List<String> accounts = adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com");
 
@@ -160,7 +189,7 @@ class UnboundIdLdapAdapterTest {
     void discoverForDomainReturnsEmptyListWhenDomainHasNoMatches() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertEquals(List.of(), adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com"));
     }
@@ -169,7 +198,7 @@ class UnboundIdLdapAdapterTest {
     void discoverForDomainWrapsUnknownBaseDnInIOException() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(IOException.class, () -> adapter.discoverForDomain(LdapObjectType.ACCOUNT, "nowhere.invalid"));
     }
@@ -188,7 +217,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         List<String> domains = adapter.listDomains();
 
@@ -199,7 +228,7 @@ class UnboundIdLdapAdapterTest {
     void listDomainsReturnsEmptyListWhenNoDomainsMatch() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertEquals(List.of(), adapter.listDomains());
     }
@@ -214,7 +243,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         ByteArrayOutputStream destination = new ByteArrayOutputStream();
         adapter.export("alice@example.com", LdapObjectType.ACCOUNT, destination);
@@ -233,7 +262,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("cn", "engineering"),
                 new Attribute("uid", "engineering@example.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         ByteArrayOutputStream destination = new ByteArrayOutputStream();
         adapter.export("engineering@example.com", LdapObjectType.DISTRIBUTION_LIST, destination);
@@ -245,7 +274,7 @@ class UnboundIdLdapAdapterTest {
     void exportWritesNothingWhenNoEntryMatches() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         ByteArrayOutputStream destination = new ByteArrayOutputStream();
         adapter.export("nobody@example.com", LdapObjectType.ACCOUNT, destination);
@@ -257,7 +286,7 @@ class UnboundIdLdapAdapterTest {
     void exportRejectsDomainObjectType() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(
                 UnsupportedOperationException.class,
@@ -266,7 +295,7 @@ class UnboundIdLdapAdapterTest {
 
     @Test
     void exportWrapsUnreachableServerInIOException() {
-        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(
                 IOException.class,
@@ -282,7 +311,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("dc", "other"),
                 new Attribute("zimbraDomainName", "other.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         ByteArrayOutputStream destination = new ByteArrayOutputStream();
         adapter.exportDomain("other.com", destination);
@@ -296,14 +325,14 @@ class UnboundIdLdapAdapterTest {
     void exportDomainWrapsUnknownDomainInIOException() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(IOException.class, () -> adapter.exportDomain("nowhere.invalid", new ByteArrayOutputStream()));
     }
 
     @Test
     void exportDomainWrapsUnreachableServerInIOException() {
-        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(
                 IOException.class, () -> adapter.exportDomain("example.com", new ByteArrayOutputStream()));
@@ -320,7 +349,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("mail", "alice@example.com"),
                 new Attribute("description", "stale"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
         String ldif =
                 "dn: uid=alice,dc=example,dc=com\n"
                         + "objectClass: zimbraAccount\n"
@@ -339,7 +368,7 @@ class UnboundIdLdapAdapterTest {
     void restoreAddsEntryThatDidNotPreviouslyExist() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
         String ldif =
                 "dn: uid=alice,dc=example,dc=com\n"
                         + "objectClass: zimbraAccount\n"
@@ -356,7 +385,7 @@ class UnboundIdLdapAdapterTest {
     void restoreThrowsIOExceptionWhenLdifHasNoEntry() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
 
         assertThrows(
                 IOException.class,
@@ -367,7 +396,7 @@ class UnboundIdLdapAdapterTest {
     void restoreDomainAddsEntryThatDidNotPreviouslyExist() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
         String ldif =
                 "dn: dc=other,dc=com\n"
                         + "objectClass: zimbraDomain\n"
@@ -389,7 +418,7 @@ class UnboundIdLdapAdapterTest {
                 new Attribute("dc", "other"),
                 new Attribute("zimbraDomainName", "other.com"));
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
         String ldif =
                 "dn: dc=other,dc=com\n"
                         + "objectClass: zimbraDomain\n"
@@ -403,7 +432,7 @@ class UnboundIdLdapAdapterTest {
     void restoreDomainThrowsIOExceptionOnOtherFailures() throws Exception {
         directoryServer = startDirectoryServer(null);
         UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
         String ldif = "dn: dc=other,dc=nowhere,dc=missing\nobjectClass: zimbraDomain\ndc: other\n";
 
         assertThrows(
@@ -413,7 +442,7 @@ class UnboundIdLdapAdapterTest {
 
     @Test
     void restoreWrapsUnreachableServerInIOException() {
-        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter("ldap://127.0.0.1:1", BIND_DN, BIND_PASSWORD, false, null, false);
         String ldif = "dn: uid=alice,dc=example,dc=com\nobjectClass: zimbraAccount\nuid: alice\n";
 
         assertThrows(
@@ -457,6 +486,9 @@ class UnboundIdLdapAdapterTest {
         try (OutputStream out = Files.newOutputStream(keyStoreFile)) {
             keyStore.store(out, BIND_PASSWORD.toCharArray());
         }
+
+        caCertificateFile = Files.createTempFile("zmbackup-test-ca-cert", ".pem");
+        Files.writeString(caCertificateFile, certAndKey.getFirst().toPEMString());
 
         KeyStoreKeyManager keyManager = new KeyStoreKeyManager(keyStoreFile.toFile(), BIND_PASSWORD.toCharArray());
         return new SSLUtil(keyManager, new TrustAllTrustManager()).createSSLSocketFactory();

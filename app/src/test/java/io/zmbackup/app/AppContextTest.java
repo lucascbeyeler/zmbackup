@@ -91,7 +91,8 @@ class AppContextTest {
 
     private static AppConfig configWithWorkDir(Path workDir, String backupUser) {
         return new AppConfig(
-                new ZimbraLdapConfig("ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true),
+                new ZimbraLdapConfig(
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false),
                 new ZimbraMailboxConfig(
                         backupUser,
                         Path.of("/opt/zimbra/bin/zmmailbox"),

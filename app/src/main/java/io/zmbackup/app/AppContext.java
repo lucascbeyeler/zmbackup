@@ -78,6 +78,11 @@ public final class AppContext {
             LOG.warn(
                     "zimbraLdap.sslEnabled is false: the LDAP admin bind will not use StartTLS and its"
                             + " credentials will be sent in cleartext. The bash tool never allowed this.");
+        } else if (config.zimbraLdap().caCertificatePath() == null && config.zimbraLdap().trustAllCertificates()) {
+            LOG.warn(
+                    "zimbraLdap.trustAllCertificates is true: the LDAP StartTLS connection will accept any"
+                            + " server certificate, which does not protect against an active MITM attack."
+                            + " Configure zimbraLdap.caCertificatePath instead for production use.");
         }
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
@@ -85,7 +90,9 @@ public final class AppContext {
                 config.zimbraLdap().url(),
                 config.zimbraLdap().bindDn(),
                 config.zimbraLdap().bindPassword(),
-                config.zimbraLdap().sslEnabled());
+                config.zimbraLdap().sslEnabled(),
+                config.zimbraLdap().caCertificatePath(),
+                config.zimbraLdap().trustAllCertificates());
         this.accountDiscovery = ldapAdapter;
         this.ldapExporter = ldapAdapter;
         this.mailboxExporter = new ZimbraRestMailboxExporter(
