@@ -243,7 +243,13 @@ public class BackupService {
         for (String identifier : resolved) {
             tasks.add(() -> backupOne(sessionId, type, identifier));
         }
-        boolean allSucceeded = !Parallel.run(maxParallelProcesses, tasks).contains(false);
+        boolean allSucceeded;
+        try {
+            allSucceeded = !Parallel.run(maxParallelProcesses, tasks).contains(false);
+        } catch (IOException e) {
+            recordFailedSession(sessionId, type, sessionStart);
+            throw e;
+        }
 
         Instant sessionEnd = Instant.now();
         String size = storageProvider.sizeOfSession(sessionId);
@@ -256,6 +262,19 @@ public class BackupService {
                 status == SessionStatus.FINISHED ? metadataStore.findAccountsForSession(sessionId).size() : 0;
         notifySafely(() -> notifier.notifyFinish(sessionId, type, status, notifySize, notifyAccountCount));
         return Optional.of(completed);
+    }
+
+    /**
+     * Records {@code sessionId} as {@code FAILED} when {@link Parallel#run} itself threw (e.g. the
+     * calling thread was interrupted by SIGTERM/shutdown) rather than any individual task failing,
+     * so the session is never left orphaned as {@code IN_PROGRESS} forever.
+     */
+    private void recordFailedSession(String sessionId, BackupType type, Instant sessionStart) throws IOException {
+        Instant sessionEnd = Instant.now();
+        String size = storageProvider.sizeOfSession(sessionId);
+        BackupSession failed = new BackupSession(sessionId, type, SessionStatus.FAILED, sessionStart, sessionEnd, size);
+        metadataStore.save(failed);
+        notifySafely(() -> notifier.notifyFinish(sessionId, type, SessionStatus.FAILED, "0", 0));
     }
 
     private interface NotifierCall {
