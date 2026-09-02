@@ -2,6 +2,7 @@ package io.zmbackup.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
@@ -384,6 +385,54 @@ class BackupServiceTest {
         assertEquals(SessionStatus.FAILED, result.get().status());
         List<BackupAccountRecord> records = metadataStore.findAccountsForSession(result.get().sessionId());
         assertEquals(Set.of("good@example.com"), namesOf(records));
+    }
+
+    @Test
+    void interruptedRunIsRecordedAsFailedRatherThanLeftInProgress() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        RecordingNotifier notifier = new RecordingNotifier();
+        ZimbraLdapExporter interruptingExporter = new ZimbraLdapExporter() {
+            @Override
+            public void export(String identifier, LdapObjectType type, OutputStream destination) {
+                // An unchecked exception escapes backupOne's IOException handling, propagating out
+                // of the task and forcing Parallel.run itself to throw - mirroring the interrupted
+                // shutdown scenario from the bug report, where Parallel.run throws before the
+                // session can be marked FINISHED/FAILED.
+                throw new RuntimeException("simulated interruption for " + identifier);
+            }
+
+            @Override
+            public void exportDomain(String domain, OutputStream destination) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void restore(LdapObjectType type, InputStream source) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void restoreDomain(InputStream source) {
+                throw new UnsupportedOperationException();
+            }
+        };
+        BackupService interrupted = new BackupService(
+                accountDiscovery,
+                interruptingExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                identifier -> false,
+                notifier,
+                1);
+
+        assertThrows(IOException.class, () -> interrupted.backup(BackupType.LDAP));
+
+        List<BackupSession> sessions = metadataStore.listSessions();
+        assertEquals(1, sessions.size());
+        assertEquals(SessionStatus.FAILED, sessions.get(0).status());
+        assertTrue(notifier.calls.get(notifier.calls.size() - 1).startsWith("finish:"));
+        assertTrue(notifier.calls.get(notifier.calls.size() - 1).contains(":FAILED:"));
     }
 
     @Test
