@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Restores previously backed-up LDAP entries and mailbox content, mirroring {@code
@@ -23,6 +25,7 @@ import java.util.concurrent.Callable;
  */
 public class RestoreService {
 
+    private static final Logger LOG = Logger.getLogger(RestoreService.class.getName());
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
 
@@ -134,6 +137,7 @@ public class RestoreService {
             ldapExporter.restore(LdapObjectType.ACCOUNT, source);
             return true;
         } catch (IOException e) {
+            LOG.log(Level.WARNING, "LDAP restore failed for " + account, e);
             return false;
         }
     }
@@ -143,6 +147,7 @@ public class RestoreService {
             ldapExporter.restoreDomain(source);
             return true;
         } catch (IOException e) {
+            LOG.log(Level.WARNING, "Domain restore failed for " + domain, e);
             return false;
         }
     }
@@ -157,6 +162,7 @@ public class RestoreService {
             mailboxExporter.restore(destination, source);
             return true;
         } catch (IOException e) {
+            LOG.log(Level.WARNING, "Mailbox restore failed for " + account, e);
             return false;
         }
     }
