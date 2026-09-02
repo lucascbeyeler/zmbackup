@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Exports a single account's mailbox content as a {@code .tgz} archive over Zimbra's REST
@@ -34,6 +35,15 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
      */
     private static final DateTimeFormatter AFTER_DATE_FORMAT =
             DateTimeFormatter.ofPattern("MM/dd/yyyy").withZone(ZoneId.systemDefault());
+
+    /**
+     * Zimbra account identifiers are always email addresses. Enforcing that shape here (rather
+     * than relying solely on CLI-layer validation) guards {@link #restUri} against identifiers
+     * from unvalidated sources, e.g. LDAP discovery, that contain {@code /}, {@code ?}, or {@code
+     * #} and could otherwise redirect the REST request to an unintended path or query.
+     */
+    private static final Pattern ACCOUNT_PATTERN =
+            Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
     private final URI baseUri;
     private final String adminUser;
@@ -135,6 +145,9 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     }
 
     private URI restUri(String account, String query) throws IOException {
+        if (!ACCOUNT_PATTERN.matcher(account).matches()) {
+            throw new IOException("Invalid Zimbra account identifier: " + account);
+        }
         String path = (baseUri.getRawPath() == null ? "" : baseUri.getRawPath()) + "/home/" + account + "/";
         try {
             return new URI(baseUri.getScheme(), baseUri.getAuthority(), path, query, null);
