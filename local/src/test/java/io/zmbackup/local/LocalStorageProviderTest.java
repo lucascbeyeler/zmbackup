@@ -10,8 +10,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,6 +46,21 @@ class LocalStorageProviderTest {
 
         assertTrue(Files.isDirectory(workDir.resolve("session1")));
         assertTrue(Files.exists(workDir.resolve("session1").resolve("user@example.com.tgz")));
+    }
+
+    @Test
+    void openWriteRestrictsSessionDirectoryAndFileToOwnerOnlyAccess() throws IOException {
+        Assumptions.assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+
+        write("session1", "user@example.com", "tgz", "content");
+
+        assertEquals(
+                "rwx------",
+                PosixFilePermissions.toString(Files.getPosixFilePermissions(workDir.resolve("session1"))));
+        assertEquals(
+                "rw-------",
+                PosixFilePermissions.toString(
+                        Files.getPosixFilePermissions(workDir.resolve("session1").resolve("user@example.com.tgz"))));
     }
 
     @Test
