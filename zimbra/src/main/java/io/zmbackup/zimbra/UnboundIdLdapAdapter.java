@@ -15,11 +15,13 @@ import com.unboundid.ldap.sdk.extensions.StartTLSExtendedRequest;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
 import com.unboundid.ldif.LDIFWriter;
+import com.unboundid.util.ssl.PEMFileTrustManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.ZimbraLdapExporter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,14 +41,30 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     private final String bindDn;
     private final String bindPassword;
     private final boolean startTls;
+    private final String caCertificatePath;
+    private final boolean trustAllCertificates;
 
     /**
-     * @param url          the LDAP server URL, e.g. {@code "ldap://127.0.0.1:389"}
-     * @param bindDn       the admin distinguished name used to bind
-     * @param bindPassword the admin password used to bind
-     * @param startTls     whether to upgrade the connection with StartTLS before binding
+     * @param url                   the LDAP server URL, e.g. {@code "ldap://127.0.0.1:389"}
+     * @param bindDn                the admin distinguished name used to bind
+     * @param bindPassword          the admin password used to bind
+     * @param startTls              whether to upgrade the connection with StartTLS before binding
+     * @param caCertificatePath     path to a PEM-encoded CA certificate (bundle) used to verify the server's
+     *                              certificate during StartTLS negotiation, or {@code null} to fall back to
+     *                              the JVM's default trust manager (or, if {@code trustAllCertificates} is
+     *                              set, to trusting any certificate)
+     * @param trustAllCertificates  whether to accept any server certificate during StartTLS negotiation when
+     *                              {@code caCertificatePath} is not set; must be explicitly enabled, e.g. for
+     *                              self-signed Zimbra certificates in dev/test environments, since it offers
+     *                              no protection against an active MITM attack
      */
-    public UnboundIdLdapAdapter(String url, String bindDn, String bindPassword, boolean startTls) {
+    public UnboundIdLdapAdapter(
+            String url,
+            String bindDn,
+            String bindPassword,
+            boolean startTls,
+            String caCertificatePath,
+            boolean trustAllCertificates) {
         LDAPURL parsedUrl;
         try {
             parsedUrl = new LDAPURL(url);
@@ -58,6 +76,8 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         this.bindDn = bindDn;
         this.bindPassword = bindPassword;
         this.startTls = startTls;
+        this.caCertificatePath = caCertificatePath;
+        this.trustAllCertificates = trustAllCertificates;
     }
 
     /**
@@ -258,10 +278,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         try {
             connection = new LDAPConnection(host, port);
             if (startTls) {
-                // Zimbra's own LDAP server uses a self-signed certificate that isn't in the JVM's
-                // default trust store, so trust it the same way the bash tool's ldapsearch does
-                // via its default ldaprc (TLS_REQCERT never) rather than requiring a CA bundle.
-                SSLContext sslContext = new SSLUtil(new TrustAllTrustManager()).createSSLContext();
+                SSLContext sslContext = startTlsSslContext();
                 ExtendedResult startTlsResult =
                         connection.processExtendedOperation(new StartTLSExtendedRequest(sslContext));
                 if (startTlsResult.getResultCode() != ResultCode.SUCCESS) {
@@ -278,5 +295,22 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
             }
             throw new IOException("Failed to connect to Zimbra LDAP at " + host + ":" + port, e);
         }
+    }
+
+    /**
+     * Builds the {@link SSLContext} used to verify the server's certificate during StartTLS
+     * negotiation: a configured CA certificate takes precedence, then an explicit opt-in to trust
+     * any certificate (e.g. for self-signed Zimbra certs in dev/test environments), and otherwise
+     * the JVM's default trust manager, which validates against real CAs and protects against an
+     * active MITM attack.
+     */
+    private SSLContext startTlsSslContext() throws GeneralSecurityException {
+        if (caCertificatePath != null) {
+            return new SSLUtil(new PEMFileTrustManager(new File(caCertificatePath))).createSSLContext();
+        }
+        if (trustAllCertificates) {
+            return new SSLUtil(new TrustAllTrustManager()).createSSLContext();
+        }
+        return new SSLUtil().createSSLContext();
     }
 }

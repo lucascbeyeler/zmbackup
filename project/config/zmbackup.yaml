@@ -13,6 +13,15 @@ zimbraLdap:
   bindPassword: {OSE_INSTALL_LDAPPASS}
   # Whether to use SSL when talking to the Zimbra server. Optional, defaults to true.
   sslEnabled: true
+  # Path to a PEM-encoded CA certificate (bundle) used to verify the LDAP server's certificate
+  # during StartTLS negotiation, e.g. Zimbra's self-signed CA at
+  # /opt/zimbra/ssl/zimbra/ca/ca.pem. Optional; if unset, the JVM's default trust manager is
+  # used (or, if trustAllCertificates is true, any certificate is trusted).
+  # caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem
+  # Whether to accept any LDAP server certificate when caCertificatePath is not set. This does
+  # NOT protect against an active MITM attack; only enable it for self-signed Zimbra certs in
+  # dev/test environments. Optional, defaults to false.
+  trustAllCertificates: false
 
 zimbraMailbox:
   # Zimbra service account used to start/stop the service and run zmmailbox.
