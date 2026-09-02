@@ -55,6 +55,28 @@ class HousekeepServiceTest {
     }
 
     @Test
+    void continuesPastAMidBatchFailureAndStillVacuums() throws IOException {
+        Instant now = Instant.now();
+        BackupSession failing = session("ldap-fail", now.minus(10, ChronoUnit.DAYS));
+        BackupSession ok = session("ldap-ok", now.minus(10, ChronoUnit.DAYS));
+        metadataStore.save(failing);
+        metadataStore.save(ok);
+        storageProvider.content.put("ldap-fail/alice@example.com.ldiff", new byte[0]);
+        storageProvider.content.put("ldap-ok/bob@example.com.ldiff", new byte[0]);
+        storageProvider.failOnDelete.add("ldap-fail");
+
+        List<BackupSession> removed = housekeepService.rotateOldSessions(7);
+
+        assertEquals(List.of(ok), removed);
+        assertTrue(storageProvider.content.containsKey("ldap-fail/alice@example.com.ldiff"));
+        assertTrue(storageProvider.deletedSessions.contains("ldap-ok"));
+        // Metadata is deleted before files, so a storage failure never leaves a ghost DB row
+        // pointing at content that's still there.
+        assertEquals(Optional.empty(), metadataStore.findSession("ldap-fail"));
+        assertEquals(1, metadataStore.vacuumCalls);
+    }
+
+    @Test
     void cleanEmptyRemovesZeroByteFilesButKeepsTheSessionAndOtherContent() throws IOException {
         BackupSession session = session("ldap-full", Instant.now());
         metadataStore.save(session);
@@ -101,6 +123,7 @@ class HousekeepServiceTest {
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new LinkedHashMap<>();
         final Set<String> deletedSessions = new java.util.HashSet<>();
+        final Set<String> failOnDelete = new java.util.HashSet<>();
 
         @Override
         public OutputStream openWrite(String sessionId, String account, String suffix) {
@@ -128,7 +151,10 @@ class HousekeepServiceTest {
         }
 
         @Override
-        public void deleteSession(String sessionId) {
+        public void deleteSession(String sessionId) throws IOException {
+            if (failOnDelete.contains(sessionId)) {
+                throw new IOException("simulated failure deleting " + sessionId);
+            }
             deletedSessions.add(sessionId);
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
         }
