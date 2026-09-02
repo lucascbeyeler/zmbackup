@@ -6,14 +6,19 @@ import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Housekeeping over stored backup sessions, mirroring the bash tool's {@code delete_old} and
  * {@code clean_empty} functions in {@code DeleteAction.sh}, driven by {@code zmbackup housekeep}.
  */
 public class HousekeepService {
+
+    private static final Logger LOG = Logger.getLogger(HousekeepService.class.getName());
 
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
@@ -29,8 +34,12 @@ public class HousekeepService {
      * then reclaims the freed space (mirroring {@code delete_old}'s trailing {@code sqlite3 ...
      * VACUUM}).
      *
+     * A session that fails to be removed (e.g. a permission error deleting one of its files) is
+     * logged and skipped rather than aborting the rest of the batch; {@link MetadataStore#vacuum()}
+     * still runs afterward over whatever was successfully removed.
+     *
      * @param days how many days of backups to keep; sessions completed before this cutoff are removed
-     * @return the sessions that were removed
+     * @return the sessions that were successfully removed
      */
     public List<BackupSession> rotateOldSessions(int days) throws IOException {
         if (days < 0) {
@@ -38,11 +47,14 @@ public class HousekeepService {
         }
         Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
         List<BackupSession> old = metadataStore.findSessionsCompletedBefore(cutoff);
+        List<BackupSession> removed = new ArrayList<>();
         for (BackupSession session : old) {
-            remove(session);
+            if (remove(session)) {
+                removed.add(session);
+            }
         }
         metadataStore.vacuum();
-        return old;
+        return removed;
     }
 
     /**
@@ -56,8 +68,20 @@ public class HousekeepService {
         return storageProvider.deleteEmptyFiles();
     }
 
-    private void remove(BackupSession session) throws IOException {
-        storageProvider.deleteSession(session.sessionId());
-        metadataStore.deleteSession(session.sessionId());
+    /**
+     * Deletes the metadata record before the stored files, so that if file deletion fails partway
+     * through, the DB is never left with a "ghost" row pointing at content that no longer exists.
+     *
+     * @return whether the session was fully removed
+     */
+    private boolean remove(BackupSession session) {
+        try {
+            metadataStore.deleteSession(session.sessionId());
+            storageProvider.deleteSession(session.sessionId());
+            return true;
+        } catch (IOException e) {
+            LOG.log(Level.WARNING, "Failed to remove backup session " + session.sessionId(), e);
+            return false;
+        }
     }
 }
