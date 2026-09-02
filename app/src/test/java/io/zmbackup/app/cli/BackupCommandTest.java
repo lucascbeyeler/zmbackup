@@ -53,6 +53,46 @@ class BackupCommandTest {
     }
 
     @Test
+    void ldapWithMalformedAccountIsRejected() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int exitCode =
+                cmd.execute("--config", configFile.toString(), "backup", "ldap", "--account", "not-an-email");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid email address: not-an-email"));
+    }
+
+    @Test
+    void ldapWithMalformedDomainIsRejected() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "ldap", "--domain", "not a domain");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid domain name: not a domain"));
+    }
+
+    @Test
+    void domainBackupWithMalformedDomainIsRejected() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "domain", "--domain", "??");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid domain name: ??"));
+    }
+
+    @Test
     void ldapBacksUpEveryDiscoveredAccount() throws Exception {
         directoryServer = startDirectoryServer();
         directoryServer.add(
@@ -387,7 +427,7 @@ class BackupCommandTest {
                   bindPassword: secret
                   sslEnabled: false
                 zimbraMailbox:
-                  backupUser: zimbra
+                  backupUser: %s
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: %s
                   adminUser: zimbra
@@ -402,6 +442,7 @@ class BackupCommandTest {
                 """
                         .formatted(
                                 directoryServer.getListenPort(),
+                                System.getProperty("user.name"),
                                 mailboxRestBaseUrl,
                                 tempDir,
                                 tempDir.resolve("zmbackup.log"),
@@ -410,7 +451,7 @@ class BackupCommandTest {
     }
 
     private static CommandLine commandLine(StringWriter out, StringWriter err) {
-        CommandLine cmd = new CommandLine(new Main());
+        CommandLine cmd = Main.commandLine();
         cmd.setOut(new PrintWriter(out));
         cmd.setErr(new PrintWriter(err));
         return cmd;

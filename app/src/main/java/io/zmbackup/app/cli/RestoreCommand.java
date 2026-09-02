@@ -55,6 +55,12 @@ public final class RestoreCommand implements Callable<Integer> {
             err.println("restore: missing required option '--session=<sessionId>'");
             return CommandLine.ExitCode.USAGE;
         }
+        if (!CliValidation.validateSessionId(sessionId, err)) {
+            return CommandLine.ExitCode.USAGE;
+        }
+        if (!(CliValidation.validateEmails(accounts, err) && CliValidation.validateEmail(destination, err))) {
+            return CommandLine.ExitCode.USAGE;
+        }
         if (destination != null && accounts.size() != 1) {
             err.println("restore: --into requires exactly one --account");
             return CommandLine.ExitCode.USAGE;

@@ -46,6 +46,7 @@ class HousekeepServiceTest {
         assertTrue(metadataStore.findSession("ldap-recent").isPresent());
         assertTrue(storageProvider.deletedSessions.contains("ldap-old"));
         assertTrue(!storageProvider.deletedSessions.contains("ldap-recent"));
+        assertEquals(1, metadataStore.vacuumCalls);
     }
 
     @Test
@@ -148,6 +149,7 @@ class HousekeepServiceTest {
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();
+        int vacuumCalls = 0;
 
         @Override
         public void save(BackupSession session) {
@@ -200,6 +202,11 @@ class HousekeepServiceTest {
         @Override
         public boolean backedUpSince(String identifier, Instant since) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void vacuum() {
+            vacuumCalls++;
         }
     }
 }

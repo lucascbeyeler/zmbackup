@@ -36,6 +36,11 @@ public final class BackupDistlistCommand implements Callable<Integer> {
                 context,
                 spec.commandLine().getErr(),
                 () -> BackupRunner.run(
-                        context, spec.commandLine().getOut(), BackupType.DISTRIBUTION_LIST, accounts, domain));
+                        context,
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr(),
+                        BackupType.DISTRIBUTION_LIST,
+                        accounts,
+                        domain));
     }
 }

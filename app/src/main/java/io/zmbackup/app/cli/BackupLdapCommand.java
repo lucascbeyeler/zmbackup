@@ -33,6 +33,6 @@ public final class BackupLdapCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.LDAP, accounts, domain));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), spec.commandLine().getErr(), BackupType.LDAP, accounts, domain));
     }
 }

@@ -35,6 +35,6 @@ public final class BackupSignatureCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.SIGNATURE, accounts, domain));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), spec.commandLine().getErr(), BackupType.SIGNATURE, accounts, domain));
     }
 }

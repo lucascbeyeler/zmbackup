@@ -2,9 +2,11 @@ package io.zmbackup.app.cli;
 
 import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.RestoreResult;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
@@ -29,8 +31,12 @@ public final class RestoreLdapCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        PrintWriter err = spec.commandLine().getErr();
+        if (!CliValidation.validateSessionId(sessionId, err) || !CliValidation.validateEmails(accounts, err)) {
+            return CommandLine.ExitCode.USAGE;
+        }
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        return LockedExecution.run(context, spec.commandLine().getErr(), () -> {
+        return LockedExecution.run(context, err, () -> {
             RestoreResult result = context.restoreService().restoreLdap(sessionId, accounts);
             return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
         });

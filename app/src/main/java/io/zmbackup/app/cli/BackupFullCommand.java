@@ -36,6 +36,6 @@ public final class BackupFullCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.FULL, accounts, domain));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), spec.commandLine().getErr(), BackupType.FULL, accounts, domain));
     }
 }
