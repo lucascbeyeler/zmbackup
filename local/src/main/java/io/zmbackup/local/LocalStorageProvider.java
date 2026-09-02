@@ -28,8 +28,8 @@ public class LocalStorageProvider implements StorageProvider {
     @Override
     public OutputStream openWrite(String sessionId, String account, String suffix) throws IOException {
         Path file = accountFile(sessionId, account, suffix);
-        Files.createDirectories(file.getParent());
-        return Files.newOutputStream(
+        PosixFileHardening.createDirectories(file.getParent());
+        return PosixFileHardening.newRestrictedOutputStream(
                 file, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
     }
 

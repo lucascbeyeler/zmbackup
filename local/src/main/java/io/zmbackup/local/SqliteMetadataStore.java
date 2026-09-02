@@ -6,6 +6,7 @@ import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.MetadataStore;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -49,16 +50,42 @@ public class SqliteMetadataStore implements MetadataStore {
             )
             """;
 
+    /**
+     * Prefix identifying a SQLite JDBC connection string (e.g. an in-memory or shared-cache URI)
+     * rather than a real filesystem path, so permission hardening is skipped for it.
+     */
+    private static final String SQLITE_URI_PREFIX = "file:";
+
     private final String jdbcUrl;
 
     public SqliteMetadataStore(Path databaseFile) throws IOException {
         this.jdbcUrl = "jdbc:sqlite:" + databaseFile;
+        if (!databaseFile.toString().startsWith(SQLITE_URI_PREFIX)) {
+            hardenDatabaseFile(databaseFile);
+        }
         try (Connection connection = connect();
                 Statement statement = connection.createStatement()) {
             statement.execute(CREATE_BACKUP_SESSION);
             statement.execute(CREATE_BACKUP_ACCOUNT);
         } catch (SQLException e) {
             throw new IOException(e);
+        }
+    }
+
+    /**
+     * Ensures the database's parent directory and the database file itself are restricted to
+     * owner-only access, whether this is the first run (nothing exists yet) or a later one
+     * against a database file that already exists.
+     */
+    private static void hardenDatabaseFile(Path databaseFile) throws IOException {
+        Path parent = databaseFile.toAbsolutePath().getParent();
+        if (parent != null) {
+            PosixFileHardening.createDirectories(parent);
+        }
+        if (Files.exists(databaseFile)) {
+            PosixFileHardening.restrictExistingFile(databaseFile);
+        } else {
+            PosixFileHardening.createFile(databaseFile);
         }
     }
 

@@ -9,7 +9,10 @@ import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.MetadataStore;
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -18,8 +21,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class SqliteMetadataStoreTest {
 
@@ -257,6 +262,19 @@ class SqliteMetadataStoreTest {
         store.recordAccountBackup(accountRecord("ldap-1", "other@example.com", now));
 
         assertEquals(false, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void constructingAgainstARealFileRestrictsDirectoryAndDatabaseToOwnerOnlyAccess(@TempDir Path workDir)
+            throws IOException {
+        Assumptions.assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path sessionDir = workDir.resolve("sessions");
+        Path databaseFile = sessionDir.resolve("sessions.sqlite3");
+
+        new SqliteMetadataStore(databaseFile);
+
+        assertEquals("rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(sessionDir)));
+        assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(databaseFile)));
     }
 
     private static BackupSession session(String sessionId, SessionStatus status, String size) {
