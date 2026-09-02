@@ -164,6 +164,34 @@ class ZimbraRestMailboxExporterTest {
                 () -> exporter.restore(ACCOUNT, new ByteArrayInputStream("tgz-content".getBytes())));
     }
 
+    @Test
+    void exportRejectsNonEmailShapedAccountIdentifier() {
+        ZimbraRestMailboxExporter exporter = exporter();
+
+        for (String maliciousAccount :
+                new String[] {"../etc/passwd", "alice@example.com/../bob", "alice@example.com?x=1", "alice@example.com#frag"
+                }) {
+            IOException exception = assertThrows(
+                    IOException.class,
+                    () -> exporter.export(maliciousAccount, new ByteArrayOutputStream(), null),
+                    "expected rejection of " + maliciousAccount);
+            assertTrue(exception.getMessage().contains("Invalid Zimbra account identifier"));
+        }
+    }
+
+    @Test
+    void restoreRejectsNonEmailShapedAccountIdentifier() {
+        ZimbraRestMailboxExporter exporter = exporter();
+
+        IOException exception = assertThrows(
+                IOException.class,
+                () -> exporter.restore(
+                        "alice@example.com/../bob",
+                        new ByteArrayInputStream("tgz-content".getBytes(StandardCharsets.UTF_8))));
+
+        assertTrue(exception.getMessage().contains("Invalid Zimbra account identifier"));
+    }
+
     private ZimbraRestMailboxExporter exporter() {
         return new ZimbraRestMailboxExporter(wireMockServer.baseUrl(), ADMIN_USER, ADMIN_PASSWORD);
     }
