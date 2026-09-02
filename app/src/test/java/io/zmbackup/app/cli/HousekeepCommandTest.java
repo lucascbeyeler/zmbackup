@@ -74,7 +74,7 @@ class HousekeepCommandTest {
         Path configFile = writeConfig(7);
         StringWriter out = new StringWriter();
         StringWriter err = new StringWriter();
-        CommandLine cmd = new CommandLine(new Main());
+        CommandLine cmd = Main.commandLine();
         cmd.setOut(new PrintWriter(out));
         cmd.setErr(new PrintWriter(err));
 
@@ -102,7 +102,7 @@ class HousekeepCommandTest {
                   bindPassword: secret
                   sslEnabled: false
                 zimbraMailbox:
-                  backupUser: zimbra
+                  backupUser: %s
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
@@ -117,6 +117,7 @@ class HousekeepCommandTest {
                     sender: root@example.com
                 """
                         .formatted(
+                                System.getProperty("user.name"),
                                 tempDir,
                                 tempDir.resolve("zmbackup.log"),
                                 tempDir.resolve("blockedlist.conf"),
@@ -125,7 +126,7 @@ class HousekeepCommandTest {
     }
 
     private static CommandLine commandLine(StringWriter out) {
-        CommandLine cmd = new CommandLine(new Main());
+        CommandLine cmd = Main.commandLine();
         cmd.setOut(new PrintWriter(out));
         cmd.setErr(new PrintWriter(new StringWriter()));
         return cmd;

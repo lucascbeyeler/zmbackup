@@ -37,6 +37,11 @@ public final class RestoreMailboxCommand implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         PrintWriter err = spec.commandLine().getErr();
+        if (!CliValidation.validateSessionId(sessionId, err)
+                || !CliValidation.validateEmails(accounts, err)
+                || !CliValidation.validateEmail(destination, err)) {
+            return CommandLine.ExitCode.USAGE;
+        }
         if (destination != null && accounts.size() != 1) {
             err.println("restore mailbox: --into requires exactly one --account");
             return CommandLine.ExitCode.USAGE;

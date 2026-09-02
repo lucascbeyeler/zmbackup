@@ -134,6 +134,22 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
+    void vacuumLeavesStoredDataIntact() throws IOException {
+        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
+
+        store.vacuum();
+
+        assertEquals(1, store.listSessions().size());
+        assertEquals(1, store.findAccountsForSession("full-1").size());
+    }
+
+    @Test
+    void vacuumOnEmptyStoreDoesNotThrow() {
+        assertDoesNotThrow(() -> store.vacuum());
+    }
+
+    @Test
     void recordedAccountBackupCanBeFoundBySession() throws IOException {
         store.save(session("full-1", SessionStatus.FINISHED, "10M"));
         BackupAccountRecord record = accountRecord("full-1", "user@example.com");

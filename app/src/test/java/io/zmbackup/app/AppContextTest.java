@@ -2,6 +2,7 @@ package io.zmbackup.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.app.config.AppConfig;
@@ -50,7 +51,7 @@ class AppContextTest {
                   bindDn: uid=zimbra,cn=admins,cn=zimbra
                   bindPassword: secret
                 zimbraMailbox:
-                  backupUser: zimbra
+                  backupUser: %s
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
@@ -64,7 +65,10 @@ class AppContextTest {
                     sender: root@example.com
                 """
                         .formatted(
-                                tempDir, tempDir.resolve("zmbackup.log"), tempDir.resolve("blockedlist.conf")));
+                                System.getProperty("user.name"),
+                                tempDir,
+                                tempDir.resolve("zmbackup.log"),
+                                tempDir.resolve("blockedlist.conf")));
 
         AppContext context = AppContext.fromConfigFile(configFile);
 
@@ -72,11 +76,24 @@ class AppContextTest {
         assertTrue(Files.exists(tempDir.resolve("sessions.sqlite3")));
     }
 
+    @Test
+    void constructorRejectsMismatchedBackupUser() {
+        AppConfig config = configWithWorkDir(tempDir, "not-the-real-user");
+
+        PrivilegeException exception = assertThrows(PrivilegeException.class, () -> new AppContext(config));
+
+        assertEquals("You need to be not-the-real-user to run this software.", exception.getMessage());
+    }
+
     private static AppConfig configWithWorkDir(Path workDir) {
+        return configWithWorkDir(workDir, System.getProperty("user.name"));
+    }
+
+    private static AppConfig configWithWorkDir(Path workDir, String backupUser) {
         return new AppConfig(
                 new ZimbraLdapConfig("ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true),
                 new ZimbraMailboxConfig(
-                        "zimbra",
+                        backupUser,
                         Path.of("/opt/zimbra/bin/zmmailbox"),
                         true,
                         "https://127.0.0.1:7071",

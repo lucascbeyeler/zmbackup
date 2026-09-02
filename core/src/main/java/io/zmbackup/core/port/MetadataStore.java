@@ -60,4 +60,12 @@ public interface MetadataStore {
      * objects already backed up within roughly the last day.
      */
     boolean backedUpSince(String identifier, Instant since) throws IOException;
+
+    /**
+     * Reclaims disk space freed by earlier deletions, mirroring the bash tool's {@code sqlite3
+     * ... VACUUM} run at the end of {@code delete_old}/{@code leeroy_jenkins}. A no-op by default
+     * - purely a maintenance operation with no effect on stored data, so backends that don't need
+     * it (or in-memory test fakes) don't have to implement it.
+     */
+    default void vacuum() throws IOException {}
 }

@@ -33,6 +33,6 @@ public final class BackupAliasCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.ALIAS, accounts, domain));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), spec.commandLine().getErr(), BackupType.ALIAS, accounts, domain));
     }
 }

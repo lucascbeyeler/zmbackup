@@ -56,6 +56,49 @@ class RestoreCommandTest {
     }
 
     @Test
+    void ldapSubcommandRejectsMalformedSessionId() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+
+        int exitCode = commandLine(new StringWriter(), err)
+                .execute("--config", configFile.toString(), "restore", "ldap", "--session", "not-a-session");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid session ID: not-a-session"));
+    }
+
+    @Test
+    void ldapSubcommandRejectsMalformedAccount() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+
+        int exitCode = commandLine(new StringWriter(), err)
+                .execute(
+                        "--config", configFile.toString(), "restore", "ldap", "--session",
+                        "ldap-20260101120000", "--account", "not-an-email");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid email address: not-an-email"));
+    }
+
+    @Test
+    void topLevelRestoreRejectsMalformedIntoDestination() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+
+        int exitCode = commandLine(new StringWriter(), err)
+                .execute(
+                        "--config", configFile.toString(), "restore", "--session", "full-20260101120000",
+                        "--account", "alice@example.com", "--into", "not-an-email");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid email address: not-an-email"));
+    }
+
+    @Test
     void ldapSubcommandRestoresAccountEntry() throws Exception {
         directoryServer = startDirectoryServer();
         directoryServer.add(
@@ -175,8 +218,9 @@ class RestoreCommandTest {
 
         int exitCode = commandLine(new StringWriter(), err)
                 .execute(
-                        "--config", configFile.toString(), "restore", "--session", "full-1", "--account",
-                        "alice@example.com", "--account", "bob@example.com", "--into", "carol@example.com");
+                        "--config", configFile.toString(), "restore", "--session", "full-20260101120000",
+                        "--account", "alice@example.com", "--account", "bob@example.com", "--into",
+                        "carol@example.com");
 
         assertEquals(CommandLine.ExitCode.USAGE, exitCode);
         assertTrue(err.toString().contains("--into requires exactly one --account"));
@@ -309,7 +353,7 @@ class RestoreCommandTest {
                   bindPassword: secret
                   sslEnabled: false
                 zimbraMailbox:
-                  backupUser: zimbra
+                  backupUser: %s
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: %s
                   adminUser: zimbra
@@ -324,6 +368,7 @@ class RestoreCommandTest {
                 """
                         .formatted(
                                 directoryServer.getListenPort(),
+                                System.getProperty("user.name"),
                                 mailboxRestBaseUrl,
                                 tempDir,
                                 tempDir.resolve("zmbackup.log"),
@@ -332,7 +377,7 @@ class RestoreCommandTest {
     }
 
     private static CommandLine commandLine(StringWriter out, StringWriter err) {
-        CommandLine cmd = new CommandLine(new Main());
+        CommandLine cmd = Main.commandLine();
         cmd.setOut(new PrintWriter(out));
         cmd.setErr(new PrintWriter(err));
         return cmd;

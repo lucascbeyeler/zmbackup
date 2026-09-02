@@ -1,5 +1,6 @@
 package io.zmbackup.app.cli;
 
+import io.zmbackup.app.PrivilegeException;
 import io.zmbackup.app.config.YamlConfigLoader;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -41,7 +42,25 @@ public final class Main implements Callable<Integer> {
     private CommandSpec spec;
 
     public static void main(String[] args) {
-        System.exit(new CommandLine(new Main()).execute(args));
+        System.exit(commandLine().execute(args));
+    }
+
+    /**
+     * Builds the {@link CommandLine} with a handler that reports {@link PrivilegeException}
+     * cleanly (message + the usage exit code, mirroring the bash tool's {@code validate_config}
+     * {@code exit 2}) instead of picocli's default stack-trace dump.
+     */
+    static CommandLine commandLine() {
+        CommandLine cmd = new CommandLine(new Main());
+        cmd.setExecutionExceptionHandler((ex, commandLine, parseResult) -> {
+            if (ex instanceof PrivilegeException) {
+                commandLine.getErr().println(ex.getMessage());
+                return CommandLine.ExitCode.USAGE;
+            }
+            ex.printStackTrace(commandLine.getErr());
+            return CommandLine.ExitCode.SOFTWARE;
+        });
+        return cmd;
     }
 
     /** The config file passed via {@code --config}, or {@link YamlConfigLoader#DEFAULT_CONFIG_PATH}. */

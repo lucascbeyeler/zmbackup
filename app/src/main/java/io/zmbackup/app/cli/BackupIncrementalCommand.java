@@ -37,6 +37,11 @@ public final class BackupIncrementalCommand implements Callable<Integer> {
                 context,
                 spec.commandLine().getErr(),
                 () -> BackupRunner.run(
-                        context, spec.commandLine().getOut(), BackupType.INCREMENTAL, accounts, domain));
+                        context,
+                        spec.commandLine().getOut(),
+                        spec.commandLine().getErr(),
+                        BackupType.INCREMENTAL,
+                        accounts,
+                        domain));
     }
 }

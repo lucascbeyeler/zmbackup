@@ -139,13 +139,42 @@ class MainTest {
         StringWriter err = new StringWriter();
         CommandLine cmd = commandLine(new StringWriter(), err);
 
-        int exitCode = cmd.execute("--config", configFile.toString(), "delete", "--session", "does-not-exist");
+        int exitCode =
+                cmd.execute("--config", configFile.toString(), "delete", "--session", "full-20260101999999");
 
         assertEquals(1, exitCode);
-        assertTrue(err.toString().contains("does-not-exist not found in database"));
+        assertTrue(err.toString().contains("full-20260101999999 not found in database"));
+    }
+
+    @Test
+    void deleteRejectsMalformedSessionId() throws IOException {
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "delete", "--session", "does-not-exist");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid session ID: does-not-exist"));
+    }
+
+    @Test
+    void deniesAccessWhenBackupUserDoesNotMatchTheRunningUser() throws IOException {
+        Path configFile = writeConfig("not-the-real-user");
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "list");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("You need to be not-the-real-user to run this software."));
     }
 
     private Path writeConfig() throws IOException {
+        return writeConfig(System.getProperty("user.name"));
+    }
+
+    private Path writeConfig(String backupUser) throws IOException {
         Path configFile = tempDir.resolve("zmbackup.yaml");
         Files.writeString(
                 configFile,
@@ -155,7 +184,7 @@ class MainTest {
                   bindDn: uid=zimbra,cn=admins,cn=zimbra
                   bindPassword: secret
                 zimbraMailbox:
-                  backupUser: zimbra
+                  backupUser: %s
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
@@ -169,12 +198,15 @@ class MainTest {
                     sender: root@example.com
                 """
                         .formatted(
-                                tempDir, tempDir.resolve("zmbackup.log"), tempDir.resolve("blockedlist.conf")));
+                                backupUser,
+                                tempDir,
+                                tempDir.resolve("zmbackup.log"),
+                                tempDir.resolve("blockedlist.conf")));
         return configFile;
     }
 
     private static CommandLine commandLine(StringWriter out, StringWriter err) {
-        CommandLine cmd = new CommandLine(new Main());
+        CommandLine cmd = Main.commandLine();
         cmd.setOut(new PrintWriter(out));
         cmd.setErr(new PrintWriter(err));
         return cmd;

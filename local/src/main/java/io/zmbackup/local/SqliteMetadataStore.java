@@ -164,7 +164,18 @@ public class SqliteMetadataStore implements MetadataStore {
             }
             statement.execute("delete from backup_account");
             statement.execute("delete from backup_session");
+            statement.execute("VACUUM");
             return removed;
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
+    }
+
+    @Override
+    public void vacuum() throws IOException {
+        try (Connection connection = connect();
+                Statement statement = connection.createStatement()) {
+            statement.execute("VACUUM");
         } catch (SQLException e) {
             throw new IOException(e);
         }

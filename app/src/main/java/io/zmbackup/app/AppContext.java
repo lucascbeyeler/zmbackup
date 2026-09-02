@@ -52,6 +52,8 @@ public final class AppContext {
     /** Root logger name every zmbackup class logs under, so one appender pair covers all of them. */
     private static final String ROOT_LOGGER_NAME = "io.zmbackup";
 
+    private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(AppContext.class);
+
     private final AppConfig config;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
@@ -65,8 +67,18 @@ public final class AppContext {
     private final MigrationService migrationService;
 
     public AppContext(AppConfig config) throws IOException {
+        checkBackupUser(config);
         this.config = config;
         installLogging(config.backup().logFile());
+        if (!config.zimbraLdap().sslEnabled()) {
+            // Unlike the bash tool, whose ldapsearch/ldapadd/ldapdelete calls always upgraded with
+            // StartTLS (-Z) regardless of SSL_ENABLE (which there only chose http vs. https for the
+            // mailbox REST endpoint), zimbraLdap.sslEnabled here directly gates StartTLS on the LDAP
+            // admin bind - disabling it sends the bind password in cleartext.
+            LOG.warn(
+                    "zimbraLdap.sslEnabled is false: the LDAP admin bind will not use StartTLS and its"
+                            + " credentials will be sent in cleartext. The bash tool never allowed this.");
+        }
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
         UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
@@ -97,6 +109,20 @@ public final class AppContext {
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
         this.migrationService = new MigrationService(storageProvider, metadataStore);
+    }
+
+    /**
+     * Refuses to run when the OS user invoking the process doesn't match {@code
+     * zimbraMailbox.backupUser}, mirroring the bash tool's {@code validate_config}: {@code if [
+     * "$(whoami)" != "$BACKUPUSER" ]; then echo "You need to be $BACKUPUSER to run this
+     * software."; exit 2; fi}.
+     */
+    private static void checkBackupUser(AppConfig config) {
+        String expected = config.zimbraMailbox().backupUser();
+        String actual = System.getProperty("user.name");
+        if (!expected.equals(actual)) {
+            throw new PrivilegeException("You need to be " + expected + " to run this software.");
+        }
     }
 
     /**

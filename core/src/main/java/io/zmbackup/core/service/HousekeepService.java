@@ -25,7 +25,9 @@ public class HousekeepService {
 
     /**
      * Deletes every session that completed more than {@code days} days ago, mirroring
-     * {@code delete_old}'s {@code conclusion_date < datetime('now','-$ROTATE_TIME day')} cutoff.
+     * {@code delete_old}'s {@code conclusion_date < datetime('now','-$ROTATE_TIME day')} cutoff,
+     * then reclaims the freed space (mirroring {@code delete_old}'s trailing {@code sqlite3 ...
+     * VACUUM}).
      *
      * @param days how many days of backups to keep; sessions completed before this cutoff are removed
      * @return the sessions that were removed
@@ -39,6 +41,7 @@ public class HousekeepService {
         for (BackupSession session : old) {
             remove(session);
         }
+        metadataStore.vacuum();
         return old;
     }
 

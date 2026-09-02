@@ -6,6 +6,7 @@ import io.zmbackup.core.port.AccountDiscovery;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.concurrent.Callable;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
@@ -30,6 +31,9 @@ public final class AccountsListCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        if (!CliValidation.validateDomain(domain, spec.commandLine().getErr())) {
+            return CommandLine.ExitCode.USAGE;
+        }
         AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
         AccountDiscovery accountDiscovery = context.accountDiscovery();
         List<String> accounts =

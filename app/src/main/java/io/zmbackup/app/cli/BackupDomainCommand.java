@@ -30,6 +30,6 @@ public final class BackupDomainCommand implements Callable<Integer> {
         return LockedExecution.run(
                 context,
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), BackupType.DOMAIN, domains, null));
+                () -> BackupRunner.run(context, spec.commandLine().getOut(), spec.commandLine().getErr(), BackupType.DOMAIN, domains, null));
     }
 }

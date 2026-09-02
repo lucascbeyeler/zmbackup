@@ -75,7 +75,7 @@ class ShadowJarSmokeTest {
                   bindDn: uid=zimbra,cn=admins,cn=zimbra
                   bindPassword: secret
                 zimbraMailbox:
-                  backupUser: zimbra
+                  backupUser: %s
                   zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
@@ -89,7 +89,10 @@ class ShadowJarSmokeTest {
                     sender: root@example.com
                 """
                         .formatted(
-                                tempDir, tempDir.resolve("zmbackup.log"), tempDir.resolve("blockedlist.conf")));
+                                System.getProperty("user.name"),
+                                tempDir,
+                                tempDir.resolve("zmbackup.log"),
+                                tempDir.resolve("blockedlist.conf")));
         return configFile;
     }
 }
