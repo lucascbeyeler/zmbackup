@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -308,6 +309,7 @@ public class BackupService {
                 }
             }
         } catch (IOException e) {
+            LOG.log(Level.WARNING, "Backup failed for " + identifier, e);
             return false;
         }
         Instant completedAt = Instant.now();
