@@ -32,4 +32,20 @@ public record ZimbraMailboxConfig(
         Objects.requireNonNull(adminUser, "adminUser must not be null");
         Objects.requireNonNull(adminPassword, "adminPassword must not be null");
     }
+
+    /**
+     * Overrides the record's default {@code toString()} to redact {@link #adminPassword()}, since
+     * this value is logged (e.g. via an uncaught exception's stack trace) wherever a config record
+     * ends up in a message.
+     */
+    @Override
+    public String toString() {
+        return "ZimbraMailboxConfig[backupUser=" + backupUser
+                + ", zmmailboxPath=" + zmmailboxPath
+                + ", backupInactiveAccounts=" + backupInactiveAccounts
+                + ", restBaseUrl=" + restBaseUrl
+                + ", adminUser=" + adminUser
+                + ", adminPassword=***"
+                + "]";
+    }
 }
