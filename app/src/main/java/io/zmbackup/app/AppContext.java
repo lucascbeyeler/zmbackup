@@ -29,6 +29,7 @@ import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Locale;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
@@ -83,6 +84,17 @@ public final class AppContext {
                     "zimbraLdap.trustAllCertificates is true: the LDAP StartTLS connection will accept any"
                             + " server certificate, which does not protect against an active MITM attack."
                             + " Configure zimbraLdap.caCertificatePath instead for production use.");
+        }
+        if (!config.zimbraMailbox().restBaseUrl().toLowerCase(Locale.ROOT).startsWith("https://")) {
+            // The bash tool's SSL_ENABLE defaulted to (and warned toward) true, choosing https for the
+            // mailbox REST endpoint; nothing here stopped an operator from setting it false, but the
+            // default was safe. zimbraMailbox.restBaseUrl carries no equivalent toggle or default: it's
+            // an operator-supplied URL, and ZimbraRestMailboxExporter sends the admin Basic-auth
+            // credentials over whatever scheme it's given, without any warning of its own.
+            LOG.warn(
+                    "zimbraMailbox.restBaseUrl does not start with https://: mailbox REST requests,"
+                            + " including the admin Basic-auth credentials, will be sent in cleartext."
+                            + " Configure an https:// URL for production use.");
         }
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
