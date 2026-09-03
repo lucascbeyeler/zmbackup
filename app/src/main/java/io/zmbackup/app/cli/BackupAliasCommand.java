@@ -1,38 +1,25 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.BackupType;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParentCommand;
-import picocli.CommandLine.Spec;
 
 /** Backs up Zimbra aliases from LDAP, mirroring {@code zmbackup -f -alp} in the bash tool. */
 @Command(name = "alias", description = "Back up Zimbra aliases from LDAP.")
-public final class BackupAliasCommand implements Callable<Integer> {
-
-    @ParentCommand
-    private BackupCommand parent;
+public final class BackupAliasCommand extends AbstractAccountScopedBackupCommand {
 
     @Option(names = "--account", description = "Back up only this alias (repeatable); default: every alias.")
     private List<String> accounts = new ArrayList<>();
 
-    @Option(names = "--domain", description = "Restrict discovery to this Zimbra domain (e.g. example.com).")
-    private String domain;
-
-    @Spec
-    private CommandSpec spec;
+    @Override
+    BackupType type() {
+        return BackupType.ALIAS;
+    }
 
     @Override
-    public Integer call() throws Exception {
-        AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        return LockedExecution.run(
-                context,
-                spec.commandLine().getErr(),
-                () -> BackupRunner.run(context, spec.commandLine().getOut(), spec.commandLine().getErr(), BackupType.ALIAS, accounts, domain));
+    List<String> identifiers() {
+        return accounts;
     }
 }
