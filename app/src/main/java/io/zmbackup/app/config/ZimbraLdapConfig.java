@@ -32,4 +32,20 @@ public record ZimbraLdapConfig(
         Objects.requireNonNull(bindDn, "bindDn must not be null");
         Objects.requireNonNull(bindPassword, "bindPassword must not be null");
     }
+
+    /**
+     * Overrides the record's default {@code toString()} to redact {@link #bindPassword()}, since
+     * this value is logged (e.g. via an uncaught exception's stack trace) wherever a config record
+     * ends up in a message.
+     */
+    @Override
+    public String toString() {
+        return "ZimbraLdapConfig[url=" + url
+                + ", bindDn=" + bindDn
+                + ", bindPassword=***"
+                + ", sslEnabled=" + sslEnabled
+                + ", caCertificatePath=" + caCertificatePath
+                + ", trustAllCertificates=" + trustAllCertificates
+                + "]";
+    }
 }
