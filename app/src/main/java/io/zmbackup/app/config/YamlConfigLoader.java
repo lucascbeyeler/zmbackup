@@ -8,7 +8,9 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Parses {@code zmbackup.yaml} into an {@link AppConfig}, mirroring the fields of the bash tool's
@@ -21,6 +23,15 @@ public final class YamlConfigLoader {
 
     private YamlConfigLoader() {}
 
+    /**
+     * Restricted to plain maps/scalars: config content is operator-controlled but there is no
+     * reason to allow it to instantiate arbitrary Java types via {@code !!}-tagged values, which
+     * the default {@link Yaml} constructor otherwise permits.
+     */
+    private static Yaml newYaml() {
+        return new Yaml(new SafeConstructor(new LoaderOptions()));
+    }
+
     /** Reads and parses the config file at {@code configFile}. */
     public static AppConfig load(Path configFile) throws IOException {
         try (Reader reader = Files.newBufferedReader(configFile)) {
@@ -32,12 +43,12 @@ public final class YamlConfigLoader {
 
     /** Parses config content already available as a stream, e.g. a bundled resource. */
     public static AppConfig load(InputStream in) {
-        return load(new Yaml().<Map<String, Object>>load(in));
+        return load(newYaml().<Map<String, Object>>load(in));
     }
 
     /** Parses config content already available as a reader. */
     public static AppConfig load(Reader reader) {
-        return load(new Yaml().<Map<String, Object>>load(reader));
+        return load(newYaml().<Map<String, Object>>load(reader));
     }
 
     private static AppConfig load(Map<String, Object> root) {

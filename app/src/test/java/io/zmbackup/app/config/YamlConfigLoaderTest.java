@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.yaml.snakeyaml.error.YAMLException;
 
 class YamlConfigLoaderTest {
 
@@ -243,5 +244,15 @@ class YamlConfigLoaderTest {
         ConfigException exception =
                 assertThrows(ConfigException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
         assertTrue(exception.getMessage().contains("backup.emailNotify.level"));
+    }
+
+    @Test
+    void tagsThatWouldInstantiateArbitraryJavaTypesAreRejected() {
+        // A permissive Yaml() (the default constructor) would happily instantiate this into a
+        // java.net.URL; the config loader must reject it instead of executing an
+        // operator-uncontrolled type's constructor.
+        String yaml = "zimbraLdap: !!java.net.URL [\"http://example.com\"]";
+
+        assertThrows(YAMLException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
     }
 }

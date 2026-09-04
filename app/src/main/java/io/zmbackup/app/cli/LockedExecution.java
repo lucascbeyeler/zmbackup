@@ -14,7 +14,10 @@ final class LockedExecution {
 
     private LockedExecution() {}
 
-    /** Runs {@code body} while holding the lock, or prints an error and returns exit code 4 if it's already held. */
+    /**
+     * Runs {@code body} while holding the lock, or prints an error and returns {@link
+     * CommandLine.ExitCode#SOFTWARE} if it's already held.
+     */
     static Integer run(AppContext context, PrintWriter err, Callable<Integer> body) throws Exception {
         try (PidLock lock = PidLock.acquire(context.config().backup().workDir())) {
             return body.call();

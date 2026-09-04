@@ -143,6 +143,50 @@ class BackupServiceTest {
     }
 
     @Test
+    void discoveredAccountWithUnexpectedFormatIsSkipped() throws IOException {
+        accountDiscovery.wholeDirectory.put(
+                LdapObjectType.ACCOUNT, List.of("alice@example.com", "../../etc/passwd"));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void discoveredDomainWithUnexpectedFormatIsSkipped() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.DOMAIN, List.of("example.com", "not,a=domain"));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.DOMAIN);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void explicitlyRequestedAccountBypassesFormatValidation() throws IOException {
+        Optional<BackupSession> result = backupService.backup(BackupType.LDAP, List.of("not-an-email"));
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("not-an-email"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void discoveredSignatureNameIsNotFormatValidated() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.SIGNATURE, List.of("My Vacation Signature"));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.SIGNATURE);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("My Vacation Signature"),
+                namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
     void domainScopedDiscoveryRespectsBlocklist() throws IOException {
         accountDiscovery.byDomain.put(
                 Map.entry(LdapObjectType.ACCOUNT, "example.com"),
