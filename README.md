@@ -128,7 +128,11 @@ dependencies). Run `./install-java.sh --remove` to uninstall, or `./install-java
 to rebuild and redeploy the jar without touching your existing configuration. See
 `./install-java.sh --help` for details.
 
-## Usage
+## Usage (bash tool, 1.2.x)
+
+This section documents the bash tool's flag syntax. It's in maintenance mode - see
+[Usage (Java, 2.0)](#usage-java-20) below for the actively developed tool, which uses a different,
+subcommand-based syntax.
 
 To check all the options available to Zmbackup, just execute **zmbackup -h** or **zmbackup --help**. This will return for you a list with all the options, what each one of them does, and the syntax.
 
@@ -250,6 +254,62 @@ $ zmbackup -m
 ```
 
 **REMEMBER:** at this moment, this migration activity is a only one way road. There is no rollback, and, if you try to do a rollback, you will lost your sessions file.
+
+## Usage (Java, 2.0)
+
+The Java build's CLI is subcommand-based, unlike the bash tool's flags above. Run **zmbackup -h**
+or **zmbackup --help** for the full, current option list; a summary of the top-level commands:
+
+```
+$ zmbackup --help
+Usage: zmbackup [-hv] [--config=<configFile>]
+                 [COMMAND]
+Commands:
+  backup     Back up accounts, aliases, distribution lists, LDAP entries, or domains.
+  restore    Restore a backup session (LDAP + mailbox).
+  list       List stored backup sessions.
+  delete     Delete a stored backup session.
+  housekeep  Prune old and empty backup sessions.
+  accounts   List Zimbra accounts from LDAP (diagnostic; not a backup operation).
+  migrate    Import a bash-tool sessions.txt into the SQLite metadata store.
+  truncate   Empty the backup metadata database. TEST/DEV USE ONLY.
+```
+
+`backup` has one subcommand per object type - `full`, `incremental`, `mailbox`, `ldap`, `alias`,
+`distlist`, `signature`, `domain` - each taking a repeatable `--account` (or, for `domain`,
+`--domain`) to restrict which objects are backed up, and (except `domain`) a `--domain` to
+restrict discovery to one Zimbra domain. With no `--account`/`--domain`, every discovered object
+is backed up.
+
+```
+$ zmbackup backup full
+$ zmbackup backup full --account user@domain.com
+$ zmbackup backup mailbox --domain domain.com
+$ zmbackup backup ldap --account user@domain.com
+$ zmbackup backup incremental
+```
+
+`restore` takes `--session <sessionId>` (check available IDs with `zmbackup list` first) and,
+optionally, a repeatable `--account`/`--domain` to restrict which objects are restored; with no
+subcommand it restores both LDAP and mailbox content, or use the `ldap`, `domain`, or `mailbox`
+subcommands to restore one kind of content on its own. `--into <account>` restores a mailbox into
+a different destination account (requires exactly one `--account`).
+
+```
+$ zmbackup list
+$ zmbackup restore --session full-20170621201603
+$ zmbackup restore mailbox --session full-20170621201603 --account user@domain.com
+$ zmbackup restore mailbox --session full-20170621201603 --account origin@domain.com --into dest@domain.com
+```
+
+`delete` and `housekeep` mirror the bash tool's `-d`/`-hp`:
+
+```
+$ zmbackup delete --session full-20170621201603
+$ zmbackup housekeep
+```
+
+See [Installation (Java version)](#installation-java-version) above for `migrate` and `truncate`.
 
 ## Scheduling backups
 

@@ -48,6 +48,10 @@ public interface MetadataStore {
      * When {@code email} was last successfully backed up — the latest
      * {@link BackupAccountRecord#completedAt()} across all of its sessions — or empty if it was
      * never backed up. Used to compute the "after" cutoff for incremental mailbox backups.
+     * Considers accounts recorded under a {@code FAILED} session too - a session only fails
+     * overall because some other account in the same batch failed, and that doesn't undo this
+     * account's own already-recorded successful export; only sessions still {@code IN_PROGRESS}
+     * (whose outcome isn't durable yet) are excluded.
      */
     Optional<Instant> lastSuccessfulBackupTime(String email) throws IOException;
 

@@ -47,13 +47,13 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     private static final long CONNECT_TIMEOUT_MILLIS = 30_000;
 
     /**
-     * How long a single LDAP operation (bind, search, add, delete) is allowed to take once
-     * connected. Generous relative to {@link #CONNECT_TIMEOUT_MILLIS} since {@link
+     * Default for {@link #responseTimeoutMillis} when a caller uses the constructor that doesn't
+     * take one explicitly. Generous relative to {@link #CONNECT_TIMEOUT_MILLIS} since {@link
      * #discover(LdapObjectType)} can legitimately take a while to enumerate every object across a
      * large directory; the point is only to bound an otherwise-unbounded hang against a
      * connected-but-unresponsive server.
      */
-    private static final long RESPONSE_TIMEOUT_MILLIS = 600_000;
+    private static final long DEFAULT_RESPONSE_TIMEOUT_MILLIS = 600_000;
 
     private final String host;
     private final int port;
@@ -63,6 +63,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     private final String caCertificatePath;
     private final boolean trustAllCertificates;
     private final boolean backupInactiveAccounts;
+    private final long responseTimeoutMillis;
 
     /**
      * @param url                     the LDAP server URL, e.g. {@code "ldap://127.0.0.1:389"}
@@ -89,6 +90,35 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
             String caCertificatePath,
             boolean trustAllCertificates,
             boolean backupInactiveAccounts) {
+        this(
+                url,
+                bindDn,
+                bindPassword,
+                startTls,
+                caCertificatePath,
+                trustAllCertificates,
+                backupInactiveAccounts,
+                DEFAULT_RESPONSE_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Same as {@link #UnboundIdLdapAdapter(String, String, String, boolean, String, boolean,
+     * boolean)}, with an explicit {@code responseTimeoutMillis} instead of {@link
+     * #DEFAULT_RESPONSE_TIMEOUT_MILLIS} - how long a single LDAP operation (bind, search, add,
+     * delete) is allowed to take once connected, before it's abandoned as hung against a
+     * connected-but-unresponsive server. Exposed separately since {@link
+     * #discover(LdapObjectType)} searches the whole directory in one unpaginated request, so a
+     * very large directory may need more than the default budget.
+     */
+    public UnboundIdLdapAdapter(
+            String url,
+            String bindDn,
+            String bindPassword,
+            boolean startTls,
+            String caCertificatePath,
+            boolean trustAllCertificates,
+            boolean backupInactiveAccounts,
+            long responseTimeoutMillis) {
         LDAPURL parsedUrl;
         try {
             parsedUrl = new LDAPURL(url);
@@ -102,6 +132,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         this.startTls = startTls;
         this.caCertificatePath = caCertificatePath;
         this.trustAllCertificates = trustAllCertificates;
+        this.responseTimeoutMillis = responseTimeoutMillis;
         this.backupInactiveAccounts = backupInactiveAccounts;
     }
 
@@ -331,7 +362,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         try {
             LDAPConnectionOptions options = new LDAPConnectionOptions();
             options.setConnectTimeoutMillis((int) CONNECT_TIMEOUT_MILLIS);
-            options.setResponseTimeoutMillis(RESPONSE_TIMEOUT_MILLIS);
+            options.setResponseTimeoutMillis(responseTimeoutMillis);
             connection = new LDAPConnection(options, host, port);
             if (startTls) {
                 SSLContext sslContext = startTlsSslContext();

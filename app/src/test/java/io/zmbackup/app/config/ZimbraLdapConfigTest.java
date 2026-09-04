@@ -15,7 +15,8 @@ class ZimbraLdapConfigTest {
                 "s3cr3t",
                 true,
                 "/etc/zmbackup/ldap-ca.pem",
-                false);
+                false,
+                600);
 
         String result = config.toString();
 

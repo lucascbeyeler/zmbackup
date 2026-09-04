@@ -22,6 +22,10 @@ zimbraLdap:
   # NOT protect against an active MITM attack; only enable it for self-signed Zimbra certs in
   # dev/test environments. Optional, defaults to false.
   trustAllCertificates: false
+  # How long a single LDAP operation (bind, search, add, delete) may take once connected before
+  # it's abandoned as hung. Discovery searches the whole directory in one request, so a very
+  # large directory may need more than the default. Optional, defaults to 600 (10 minutes).
+  # responseTimeoutSeconds: 600
 
 zimbraMailbox:
   # Zimbra service account used to start/stop the service.

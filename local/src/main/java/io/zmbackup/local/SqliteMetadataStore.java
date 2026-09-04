@@ -288,20 +288,26 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         String prefixClause = mailboxPrefixes.stream()
                 .map(prefix -> "ba.sessionID like ?")
                 .collect(Collectors.joining(" or "));
+        // A backup_account row only exists once that account's own export completed, regardless
+        // of whether other accounts in the same batch later failed the session as a whole - so
+        // only IN_PROGRESS sessions (still running, outcome for this account not yet durable) are
+        // excluded here, not FAILED ones. Requiring FINISHED at the session level would make one
+        // account's failure silently discard every other account's successful cutoff, forcing
+        // them all back to a full re-export on the next incremental run.
         String sql =
                 """
                 select max(ba.conclusion_date) as last_backup
                 from backup_account ba
                 join backup_session bs on ba.sessionID = bs.sessionID
                 where ba.email = ?
-                  and bs.status = ?
+                  and bs.status != ?
                   and (%s)
                 """
                         .formatted(prefixClause);
         lock.lock();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, email);
-            statement.setString(2, SessionStatus.FINISHED.dbValue());
+            statement.setString(2, SessionStatus.IN_PROGRESS.dbValue());
             int paramIndex = 3;
             for (String prefix : mailboxPrefixes) {
                 statement.setString(paramIndex++, prefix + "%");

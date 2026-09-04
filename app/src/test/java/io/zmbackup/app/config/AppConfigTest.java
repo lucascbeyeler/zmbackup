@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class AppConfigTest {
 
     private static final ZimbraLdapConfig LDAP_CONFIG = new ZimbraLdapConfig(
-            "ldap://ldap.example.com:389", "uid=zimbra,cn=admins,cn=zimbra", "ldap-s3cr3t", true, null, false);
+            "ldap://ldap.example.com:389", "uid=zimbra,cn=admins,cn=zimbra", "ldap-s3cr3t", true, null, false, 600);
 
     private static final ZimbraMailboxConfig MAILBOX_CONFIG = new ZimbraMailboxConfig(
             "zimbra", true, "https://mail.example.com:7071", "zimbra", "mailbox-s3cr3t", null, false);
