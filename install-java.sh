@@ -1,9 +1,8 @@
 #!/bin/bash
 ################################################################################
-# install-java - Install script to help you install the Java build of zmbackup
-#                (zmbackup 2.0) in your server, the same way install.sh does
-#                for the bash build: it prepares the whole environment (Java
-#                runtime, jar, launcher, config, blocked list, cron) for you.
+# install-java - Install script to help you install zmbackup in your server:
+#                it prepares the whole environment (Java runtime, jar,
+#                launcher, config, blocked list, cron) for you.
 #
 ################################################################################
 # INSTALL MAIN CODE

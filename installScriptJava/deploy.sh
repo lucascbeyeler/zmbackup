@@ -44,10 +44,9 @@ function deploy_new_java() {
 
   # Thin launcher + jar - paths are fixed by app/src/main/scripts/zmbackup and
   # YamlConfigLoader.DEFAULT_CONFIG_PATH, so they must land exactly here.
-  # Owned by OSE_USER rather than root, matching the bash tool's own
-  # project/zmbackup and project/lib install (install.sh always runs as
-  # root, so this is just about who owns the files afterward, not who can
-  # deploy them).
+  # Owned by OSE_USER rather than root - install-java.sh itself always runs
+  # as root, so this is just about who owns the files afterward, not who
+  # can deploy them.
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
 
