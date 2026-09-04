@@ -1,6 +1,6 @@
 # Zmbackup - Backup Script for Zimbra OSE
 
-Zmbackup is a reliable Bash shell script developed to help you in your daily task to backup and restore mails and accounts from Zimbra Open Source Email Platform. This script is based on another project called [Zmbkpose](https://github.com/bggo/Zmbkpose), and completely compatible with the structure if you have plans on migrate from one to another.
+Zmbackup is a reliable tool developed to help you in your daily task to backup and restore mails and accounts from Zimbra Open Source Email Platform. It's based on another project called [Zmbkpose](https://github.com/bggo/Zmbkpose), and completely compatible with the structure if you have plans on migrate from one to another.
 
 ![Linux Distro](https://img.shields.io/badge/platform-Rocky%20Linux%20%7C%20Red%20Hat%20%7C%20Ubuntu-blue.svg)
 ![Branch](https://img.shields.io/badge/Branch-Stable-green.svg)
@@ -18,61 +18,41 @@ Zmbackup is a reliable Bash shell script developed to help you in your daily tas
 - Better internal garbage manager;
 - Filter the accounts that should not be execute with blocked lists;
 - Log management compatible with rsyslog;
-- Sessions stored in a relational database - SQLITE3 only - or TXT file;
+- Sessions stored in a SQLite3 database, with automatic one-time migration from the legacy TXT format;
 
 ## Backup & Restore Scope
 
 The table below documents what zmbackup covers and what falls outside its scope. Items marked **No** are not touched by zmbackup at all — you will need separate tooling (e.g. etckeeper, manual cert exports) to protect them.
 
-| Object                     | Scope                             | Backup | Restore | Command                                                                   |
-| -------------------------- | --------------------------------- | ------ | ------- | ------------------------------------------------------------------------- |
-| Mailbox                    | Per user                          | Yes    | Yes     | `zmbackup -f -m user@domain` / `zmbackup -r -m <session> user@domain`     |
-| Mailbox                    | All accounts                      | Yes    | Yes     | `zmbackup -f -m` / `zmbackup -r -m <session>`                             |
-| LDAP account entry         | Per user                          | Yes    | Yes     | `zmbackup -f -ldp user@domain` / `zmbackup -r -ldp <session> user@domain` |
-| LDAP account entry         | All accounts                      | Yes    | Yes     | `zmbackup -f -ldp` / `zmbackup -r -ldp <session>`                         |
-| Alias                      | Per alias                         | Yes    | Yes     | `zmbackup -f -al alias@domain` / `zmbackup -r -al <session> alias@domain` |
-| Distribution list          | Per list                          | Yes    | Yes     | `zmbackup -f -dl list@domain` / `zmbackup -r -dl <session> list@domain`   |
-| Signature                  | Per user                          | Yes    | Yes     | `zmbackup -f -sig user@domain` / `zmbackup -r -sig <session> user@domain` |
-| Zimbra component passwords | Internal services                 | No     | No      | —                                                                         |
-| SSL/TLS certificates       | Services                          | No     | No      | —                                                                         |
-| Java Keystores (JKS)       | Services                          | No     | No      | —                                                                         |
-| Zimbra server config       | `/opt/zimbra/conf`, `/etc/zimbra` | No     | No      | —                                                                         |
+| Object                     | Scope                             | Backup | Restore | Command                                                                                                |
+| -------------------------- | --------------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------- |
+| Mailbox                    | Per user                          | Yes    | Yes     | `zmbackup backup mailbox --account user@domain` / `zmbackup restore mailbox --session <id> --account user@domain` |
+| Mailbox                    | All accounts                      | Yes    | Yes     | `zmbackup backup mailbox` / `zmbackup restore mailbox --session <id>`                                    |
+| LDAP account entry         | Per user                          | Yes    | Yes     | `zmbackup backup ldap --account user@domain` / `zmbackup restore ldap --session <id> --account user@domain` |
+| LDAP account entry         | All accounts                      | Yes    | Yes     | `zmbackup backup ldap` / `zmbackup restore ldap --session <id>`                                          |
+| Alias                      | Per alias                         | Yes    | Yes     | `zmbackup backup alias --account alias@domain` / `zmbackup restore ldap --session <id> --account alias@domain` |
+| Distribution list          | Per list                          | Yes    | Yes     | `zmbackup backup distlist --account list@domain` / `zmbackup restore ldap --session <id> --account list@domain` |
+| Signature                  | Per user                          | Yes    | Yes     | `zmbackup backup signature --account user@domain` / `zmbackup restore ldap --session <id> --account user@domain` |
+| Zimbra domain LDAP config  | Per domain                        | Yes    | Yes     | `zmbackup backup domain --domain domain.com` / `zmbackup restore domain --session <id>`                  |
+| Zimbra component passwords | Internal services                 | No     | No      | —                                                                                                         |
+| SSL/TLS certificates       | Services                          | No     | No      | —                                                                                                         |
+| Java Keystores (JKS)       | Services                          | No     | No      | —                                                                                                         |
+| Zimbra server config       | `/opt/zimbra/conf`, `/etc/zimbra` | No     | No      | —                                                                                                         |
 
 **Notes:**
 
-- A full backup (`zmbackup -f`) includes both the mailbox and the LDAP entry for each account by default.
-- An incremental backup (`zmbackup -i`) also covers the mailbox and LDAP entry, but only captures changes since the last backup session.
-- Restore-on-account (`zmbackup -r -ro <session> origin@domain dest@domain`) dumps one account's backup into a different destination account.
-- Use `zmbackup -l` to list available session IDs before running a restore.
-- **LDAP restores include password hashes.** The LDAP backup dumps the full LDAP entry via `ldapsearch` as the LDAP admin, which includes the `userPassword` attribute (the hashed password). Restoring an LDAP entry with `zmbackup -r -ldp` (or `zmbackup -r full-*`) will therefore overwrite the account's current password with whatever hash was stored at backup time. Be aware of this before running a restore in production.
+- A full backup (`zmbackup backup full`) includes both the mailbox and the LDAP entry for each account by default.
+- An incremental backup (`zmbackup backup incremental`) also covers the mailbox, but only captures mail received since the last backup session.
+- `--into <account>` restores a mailbox into a different destination account (restore-on-account).
+- Use `zmbackup list` to list available session IDs before running a restore.
+- **LDAP restores include password hashes.** The LDAP backup dumps the full LDAP entry as the LDAP admin, which includes the `userPassword` attribute (the hashed password). Restoring an LDAP entry will therefore overwrite the account's current password with whatever hash was stored at backup time. Be aware of this before running a restore in production.
 - Server-level configuration, certificates, and Zimbra component passwords are **never read or written** by zmbackup. Back these up independently (e.g. etckeeper for `/etc` directories).
 
 ## Requirements
 
-- **GNU Parallel** - a shell tool for executing jobs in parallel using one or more CPU;
-- **GNU grep** - a command-line utility for searching plain-text data sets for lines matching a regular expression;
-- **date** - command used to print out, or change the value of, the system's time and date information;
-- **cron** - a time-based job scheduler in Unix-like computer operating systems;
-- **epel-release** - ONLY CentOS users! This package contains the repository epel, where we need to use to download GNU Parallel;
-- **ldap-utils** - a package that includes a number of utilities that can be used to perform queries on the LDAP server;
-- **mktemp** - make a temporary file or directory;
-- **SQLite3** - a relational database management system contained in a C programming library.
-- **Java 21 (JDK)** - required to build and run zmbackup 2.0, the Java rewrite currently under development; the Gradle toolchain will download it automatically if it isn't already installed.
+- **Java 21 (JDK)** - required to build and run zmbackup; the Gradle toolchain will download it automatically if it isn't already installed.
 
 ## Installation
-
-If you use CentOS, first install the package **[epel-release](https://fedoraproject.org/wiki/EPEL)**, as we will need this repository to download part of the dependencies.
-
-```
-# yum install epel-release
-```
-
-Now, install the packages **parallel**, **wget**, **sqlite3** and **curl** in your server. You don't need to install grep, date, mktemp and cron, because they are already part of all GNU/Linux distros. **ldap-utils** is need to be installed only if you do a separate server for Zmbackup, otherwise Zimbra OSE is already deployed with this package;
-
-```
-# apt-get install parallel wget curl sqlite3
-# yum install parallel wget curl sqlite3
-```
 
 Download the latest package with the BETA tag in "Release" section, or git clone the development branch:
 
@@ -80,40 +60,23 @@ Download the latest package with the BETA tag in "Release" section, or git clone
 git clone -b master https://github.com/lucascbeyeler/zmbackup.git
 ```
 
-Inside the project folder, execute the script **install.sh** and follow all the instructions to install the project. To validate if the script is installed, change to your server's zimbra user and execute zmbackup -v.
+Inside the project folder, execute the script **install-java.sh** and follow all the instructions
+to install the project. It checks for (and, if missing, installs) a Java 21 JDK, builds
+`zmbackup.jar` with the bundled Gradle wrapper, then installs the jar, a thin `zmbackup` launcher,
+`zmbackup.yaml`, the blocked list and a cron file.
 
-```
-# cd zmbackup
-# ./install.sh
-# su - zimbra
-$ zmbackup -v
-  zmbackup version: 1.2.9
-```
-
-### Installation (Java version)
-
-Zmbackup 2.0, the Java rewrite, has its own installer, **install-java.sh**, that prepares the
-environment the same way **install.sh** does for the bash tool: it checks for (and, if missing,
-installs) a Java 21 JDK, builds `zmbackup.jar` with the bundled Gradle wrapper, then installs the
-jar, a thin `zmbackup` launcher, `zmbackup.yaml`, the blocked list and a cron file. It does not
-require GNU Parallel, ldap-utils or the sqlite3 CLI - the Java tool talks to LDAP and SQLite
-directly, so those are only needed for the bash tool.
-
-Unlike the bash tool, the Java build only ever reads session metadata from SQLite - there's no
-TXT mode. If you're moving to it from the bash tool and its `WORKDIR` still has a `sessions.txt`,
+If you're moving from an older 1.2.x (bash) install and its `WORKDIR` still has a `sessions.txt`,
 `install-java.sh` migrates it into the SQLite metadata store automatically at the end of the
 install (or upgrade), via the `zmbackup migrate` command. That command is also safe to run by
 hand at any time - `$ zmbackup migrate` - and is a no-op once there's nothing left to import (it
 renames `sessions.txt` to `sessions.txt.migrated` after a successful import, so re-running it,
 e.g. after `install-java.sh --force-upgrade`, doesn't import the same sessions twice).
 
-The Java build also has `zmbackup truncate`, mirroring the bash tool's `-t`/`--truncate` in
-spirit but scoped to the database only - it does not delete any backup files. It permanently
-empties `sessions.sqlite3` (every session and account record) and, like the bash tool's own
-`--force-clean` guard, refuses to do anything unless run as `zmbackup truncate --force-clean`.
-**This is for test/development installs only - never run it against production**, since the
-deleted session/account history cannot be recovered afterward. `install-java.sh --remove` offers
-to run it for you (with the same warning) before it removes the rest of the install.
+`zmbackup truncate` permanently empties `sessions.sqlite3` (every session and account record) and
+refuses to do anything unless run as `zmbackup truncate --force-clean`. **This is for
+test/development installs only - never run it against production**, since the deleted
+session/account history cannot be recovered afterward. `install-java.sh --remove` offers to run
+it for you (with the same warning) before it removes the rest of the install.
 
 ```
 # cd zmbackup
@@ -128,137 +91,10 @@ dependencies). Run `./install-java.sh --remove` to uninstall, or `./install-java
 to rebuild and redeploy the jar without touching your existing configuration. See
 `./install-java.sh --help` for details.
 
-## Usage (bash tool, 1.2.x)
+## Usage
 
-This section documents the bash tool's flag syntax. It's in maintenance mode - see
-[Usage (Java, 2.0)](#usage-java-20) below for the actively developed tool, which uses a different,
-subcommand-based syntax.
-
-To check all the options available to Zmbackup, just execute **zmbackup -h** or **zmbackup --help**. This will return for you a list with all the options, what each one of them does, and the syntax.
-
-```
-$ zmbackup -h
-usage: zmbackup -f [-m,-dl,-al,-ldp, -sig] [-d,-a] <mail/domain>
-       zmbackup -i <mail>
-       zmbackup -r [-m,-dl,-al,-ldp, -sig] [-d,-a] <session> <mail>
-       zmbackup -r [-ro] <session> <mail_origin> <mail_destination>
-       zmbackup -d <session>
-       zmbackup -m
-
-Options:
-
- -f,  --full                      : Execute full backup of an account, a list of accounts, or all accounts.
- -i,  --incremental               : Execute incremental backup for an account, a list of accounts, or all accounts.
- -l,  --list                      : List all backup sessions that still exist in your disk.
- -r,  --restore                   : Restore the backup inside the users account.
- -d,  --delete                    : Delete a session of backup.
- -hp, --housekeep                 : Execute the Housekeep to remove old sessions - Zmbhousekeep
- -m,  --migrate                   : Migrate the database from TXT to SQLITE3 and vice versa.
- -v,  --version                   : Show the zmbackup version.
- -h,  --help                      : Show this help
-
-Full Backup Options:
-
- -m,   --mail                     : Execute a backup of an account, but only the mailbox.
- -dl,  --distributionlist         : Execute a backup of a distributionlist instead of an account.
- -al,  --alias                    : Execute a backup of an alias instead of an account.
- -ldp, --ldap                     : Execute a backup of an account, but only the ldap entry.
- -sig, --signature                : Execute a backup of a signature.
- -d,   --domain                   : Execute a backup of only a set of domains, comma separated
- -a,   --account                  : Execute a backup of only a set of accounts, comma separated
-
-Restore Backup Options:
-
- -m,   --mail                     : Execute a restore of an account,  but only the mailbox.
- -dl,  --distributionlist         : Execute a restore of a distributionlist instead of an account.
- -al,  --alias                    : Execute a restore of an alias instead of an account.
- -ldp, --ldap                     : Execute a restore of an account, but only the ldap entry.
- -ro,  --restoreOnAccount         : Execute a restore of an account inside another account.
- -sig, --signature                : Execute a restore of a signature.
- -d,   --domain                   : Execute a backup of only a set of domains, comma separated
- -a,   --account                  : Execute a backup of only a set of accounts, comma separated
-```
-
-To execute a full backup routine, which include by default the mailbox and the ldiff, just run the script with the option **-f** or **--full**. Depending of the ammount of accounts or the number of proccess you set in the option **MAX_PARALLEL_PROCESS**, this will take sometime before conclude.
-
-```
-$ zmbackup -f
-```
-
-You can filter for what you want using the options **-m** for Mailbox, **-ldp** for LDAP account entry only, **-al** for Alias, and **-dl** for Distribution List. REMEMBER - These options don't stack with each other, so don't try -dl and -al at the same time (the script will break if you do this).
-
-To back up **only the mailbox** (no LDAP entry):
-
-```
-$ zmbackup -f -m
-```
-
-To back up **only the LDAP account entry** (no mailbox — useful when you want account metadata without email data):
-
-```
-$ zmbackup -f -ldp
-```
-
-**INCORRECT** — options cannot be combined:
-
-```
-$ zmbackup -f -m -ldp
-```
-
-Aside from the full backup action, Zmbackup still have a option to do incremental backups. This works like this: before a incremental be executed, Zmbackup should check the date for the latest routine for each account, and execute a restore action based on that date. At the moment, the incremental will backup the ldap account and the mailbox, and accept no paramenter aside the list of accounts to be backed up.
-
-```
-$ zmbackup -i
-```
-
-To restore a backup, you use the option **-r** or **--restore**, but this time you should inform the ID session you want to restore. You can check the sessionID with the command zmbackup -l.
-
-```
-$ zmbackup -l
-+---------------------------+--------------+--------------+----------+----------------------------+
-|       Session Name        |    Start     |    Ending    |   Size   |        Description         |
-+---------------------------+--------------+--------------+----------+----------------------------+
-| full-20180408160227       |  04/08/2018  |  04/08/2018  | 76K      | Full Account               |
-| mbox-20180408160808       |  04/08/2018  |  04/08/2018  | 40K      | Mailbox                    |
-+---------------------------+--------------+--------------+----------+----------------------------+
-
-
-$ zmbackup -r full-20170621201603
-```
-
-The restoreOnAccount act different of the rest of the restore actions, as you should inform the account you want to restore, and the destination of that account, aside from the sessionID. This will dump all the content inside that account from that session in the destination account.
-
-```
-$ zmbackup -r -ro full-20170621201603 slayerofdemons@boletaria.com chosenundead@lordran.com
-```
-
-To remove a backup session, you only need to use the option **-d** or **--delete**, and inform the session you want to delete. Or, if you want to remove all the backups before X days, you can use the option **-hp** or **--housekeep** to execute the Housekeep process. **WARNING**: The housekeep can take sometime depending the ammount of data you want to remove.
-
-```
-$ zmbackup -d full-20170621201603
-$ zmbackup -hp
-```
-
-Zmbackup is capable to migrate from TXT to SQLite3, if you want to store you data inside a relational database. The advantage of doing this is more efficience when trying to list the sessions, and more details when you do this (like the beginning and conclusion of the session). To enable the SQLite3, first edit the option SESSION_TYPE insinde zmbackup.conf:
-
-```
-# vim /etc/zmbackup/zmbackup.conf
-...
-SESSION_TYPE=SQLITE3
-```
-
-With the SQLITE3 option enabled, now you need to migrate your entire sessions.txt to the relational database using the option **-m** or **--migrate**. After the end of the migration, you can run all zmbackup commands again.
-
-```
-$ zmbackup -m
-```
-
-**REMEMBER:** at this moment, this migration activity is a only one way road. There is no rollback, and, if you try to do a rollback, you will lost your sessions file.
-
-## Usage (Java, 2.0)
-
-The Java build's CLI is subcommand-based, unlike the bash tool's flags above. Run **zmbackup -h**
-or **zmbackup --help** for the full, current option list; a summary of the top-level commands:
+Run **zmbackup -h** or **zmbackup --help** for the full, current option list; a summary of the
+top-level commands:
 
 ```
 $ zmbackup --help
@@ -302,14 +138,14 @@ $ zmbackup restore mailbox --session full-20170621201603 --account user@domain.c
 $ zmbackup restore mailbox --session full-20170621201603 --account origin@domain.com --into dest@domain.com
 ```
 
-`delete` and `housekeep` mirror the bash tool's `-d`/`-hp`:
+`delete` removes a stored session; `housekeep` prunes old and empty sessions:
 
 ```
 $ zmbackup delete --session full-20170621201603
 $ zmbackup housekeep
 ```
 
-See [Installation (Java version)](#installation-java-version) above for `migrate` and `truncate`.
+See [Installation](#installation) above for `migrate` and `truncate`.
 
 ## Scheduling backups
 
@@ -317,9 +153,7 @@ The installer script automatically creates a cron config file in `/etc/cron.d/zm
 
 ## Want to contribute to the project?
 
-The bash tool (1.2.x) is in maintenance mode - it only receives bugfixes now. All new
-development happens on the Java rewrite (2.0, see [Installation (Java version)](#installation-java-version)
-above), which has full feature parity with the bash tool. Please target contributions there.
+Contributions are welcome - please open an issue or pull request.
 
 ## License
 

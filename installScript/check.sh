@@ -1,5 +1,9 @@
 #!/bin/bash
 ################################################################################
+# check_env is reused as-is by install-java.sh (see its top-level source line)
+# for root/OS/upgrade detection, which doesn't depend on which language
+# zmbackup itself is written in.
+################################################################################
 
 ################################################################################
 # check_env: Check the environment if everything is okay to begin the install
@@ -51,27 +55,4 @@ function check_env() {
     printf "[UNSUPPORTED]\n"
     exit 1
   fi
-}
-
-################################################################################
-# check_config: Check the environment for other configurations
-################################################################################
-function check_config() {
-  echo ""
-  echo "Here is a Summary of your settings:"
-  echo ""
-  echo "Zimbra User: $OSE_USER"
-  echo "Zimbra IP Address: $OSE_INSTALL_ADDRESS"
-  echo "Zimbra LDAP Password: $OSE_INSTALL_LDAPPASS"
-  echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
-  echo "Zimbra Backup Directory: $OSE_DEFAULT_BKP_DIR"
-  echo "Zmbackup Install Directory: $ZMBKP_SRC"
-  echo "Zmbackup Settings Directory: $ZMBKP_CONF"
-  echo "Zmbackup Backups Days Max: $ROTATE_TIME"
-  echo "Zmbackup Number of Threads: $MAX_PARALLEL_PROCESS"
-  echo "Zmbackup Backup Lock: $LOCK_BACKUP"
-  echo "Zmbackup Session Default Type: $SESSION_TYPE"
-  echo ""
-  echo "Press ENTER to continue or CTRL+C to cancel."
-  read -r
 }

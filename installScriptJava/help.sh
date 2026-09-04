@@ -10,11 +10,10 @@
 function show_help_java (){
   printf "usage: install-java.sh [options]"
 
-  printf "\n\nThis installs the Java build of zmbackup (2.0). It builds zmbackup.jar with"
-  printf "\nthe bundled Gradle wrapper (needs a Java %s JDK - installed automatically if" "$JAVA_MIN_VERSION"
-  printf "\nmissing - and internet access on first run), then installs it and a thin"
-  printf "\nlauncher, config, blocked list and cron file the same way install.sh does"
-  printf "\nfor the bash build."
+  printf "\n\nThis installs zmbackup. It builds zmbackup.jar with the bundled Gradle"
+  printf "\nwrapper (needs a Java %s JDK - installed automatically if missing - and" "$JAVA_MIN_VERSION"
+  printf "\ninternet access on first run), then installs it and a thin launcher,"
+  printf "\nconfig, blocked list and cron file."
 
   printf "\n\nOptions:\n"
 

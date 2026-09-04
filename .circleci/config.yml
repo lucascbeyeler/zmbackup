@@ -74,10 +74,8 @@ jobs:
           name: Install ShellCheck
           command: sudo apt-get update -qq && sudo apt-get install -y shellcheck
       - run:
-          name: Run ShellCheck on the bash tool's entrypoints
+          name: Run ShellCheck on the installer entrypoint
           command: |
-            shellcheck -x --check-sourced -P project project/zmbackup
-            shellcheck -x --check-sourced install.sh
             shellcheck -x --check-sourced install-java.sh
 
 workflows:
