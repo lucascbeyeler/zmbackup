@@ -83,7 +83,7 @@ it for you (with the same warning) before it removes the rest of the install.
 # ./install-java.sh
 # su - zimbra
 $ zmbackup --version
-  zmbackup version: 1.2.9
+  zmbackup version: 2.0.0-ALPHA
 ```
 
 Building the jar needs internet access on first run (to download Gradle and the project's Maven
