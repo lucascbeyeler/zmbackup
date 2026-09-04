@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
 
 /**
@@ -277,7 +278,21 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         return type.objectFilter();
     }
 
-    private static String domainBaseDn(String domain) {
+    /**
+     * Zimbra domain names are always dot-separated DNS labels. Enforcing that shape here (rather
+     * than relying solely on CLI-layer validation) guards {@link #domainBaseDn} against a {@code
+     * domain} value from an unvalidated source, e.g. explicit {@code --account}/{@code --domain}
+     * input reaching {@link io.zmbackup.core.service.BackupService}'s core, that contains a
+     * {@code ,} or {@code =} and could otherwise inject extra components into the base DN,
+     * redirecting the search to an unintended part of the directory - mirroring {@link
+     * ZimbraRestMailboxExporter}'s own {@code ACCOUNT_PATTERN} re-validation.
+     */
+    private static final Pattern DOMAIN_PATTERN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+
+    private static String domainBaseDn(String domain) throws IOException {
+        if (!DOMAIN_PATTERN.matcher(domain).matches()) {
+            throw new IOException("Invalid domain name: " + domain);
+        }
         StringBuilder baseDn = new StringBuilder();
         for (String label : domain.split("\\.")) {
             if (baseDn.length() > 0) {

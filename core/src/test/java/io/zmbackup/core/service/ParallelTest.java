@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -135,5 +136,53 @@ class ParallelTest {
 
         IOException exception = assertThrows(IOException.class, () -> Parallel.run(1, tasks));
         assertEquals(RuntimeException.class, exception.getCause().getClass());
+    }
+
+    @Test
+    void cancelsAndFailsATaskThatExceedsTheTimeout() throws IOException {
+        AtomicInteger interrupted = new AtomicInteger();
+        List<Callable<Void>> tasks = List.of(() -> {
+            try {
+                Thread.sleep(Duration.ofSeconds(30).toMillis());
+            } catch (InterruptedException e) {
+                interrupted.incrementAndGet();
+                Thread.currentThread().interrupt();
+            }
+            return null;
+        });
+
+        IOException exception = assertThrows(
+                IOException.class, () -> Parallel.run(1, tasks, Duration.ofMillis(50)));
+
+        assertTrue(exception.getMessage().contains("exceeded"));
+        // The cancelled task's thread is interrupted almost immediately; give it a moment to
+        // observe that before asserting, without depending on exact timing.
+        for (int attempt = 0; attempt < 100 && interrupted.get() == 0; attempt++) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        assertEquals(1, interrupted.get());
+    }
+
+    @Test
+    void stillRunsEveryOtherTaskToCompletionWhenOneTimesOut() throws IOException {
+        AtomicInteger completed = new AtomicInteger();
+        List<Callable<Integer>> tasks = List.of(
+                () -> {
+                    Thread.sleep(Duration.ofSeconds(30).toMillis());
+                    return 1;
+                },
+                () -> {
+                    completed.incrementAndGet();
+                    return 2;
+                });
+
+        assertThrows(IOException.class, () -> Parallel.run(2, tasks, Duration.ofMillis(50)));
+
+        assertEquals(1, completed.get());
     }
 }

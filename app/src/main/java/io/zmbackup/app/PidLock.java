@@ -39,21 +39,29 @@ public final class PidLock implements AutoCloseable {
         Path lockFile = workDir.resolve(LOCK_FILENAME);
         FileChannel channel = FileChannel.open(
                 lockFile, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-        FileLock lock;
         try {
-            lock = channel.tryLock();
-        } catch (OverlappingFileLockException e) {
-            lock = null;
-        }
-        if (lock == null) {
-            String heldBy = readPid(channel);
+            FileLock lock;
+            try {
+                lock = channel.tryLock();
+            } catch (OverlappingFileLockException e) {
+                lock = null;
+            }
+            if (lock == null) {
+                String heldBy = readPid(channel);
+                throw new AlreadyRunningException(
+                        "Another zmbackup process (pid " + heldBy + ") is already running against " + workDir);
+            }
+            channel.truncate(0);
+            channel.write(
+                    ByteBuffer.wrap(Long.toString(ProcessHandle.current().pid()).getBytes(StandardCharsets.UTF_8)));
+            return new PidLock(channel, lock);
+        } catch (IOException | RuntimeException e) {
+            // Every failure path above (a tryLock() IOException, readPid()/truncate()/write()
+            // failing, or the AlreadyRunningException just thrown) must still close the channel -
+            // otherwise it leaks, since there is no PidLock yet for the caller to close.
             channel.close();
-            throw new AlreadyRunningException(
-                    "Another zmbackup process (pid " + heldBy + ") is already running against " + workDir);
+            throw e;
         }
-        channel.truncate(0);
-        channel.write(ByteBuffer.wrap(Long.toString(ProcessHandle.current().pid()).getBytes(StandardCharsets.UTF_8)));
-        return new PidLock(channel, lock);
     }
 
     private static String readPid(FileChannel channel) throws IOException {

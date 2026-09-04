@@ -76,6 +76,13 @@ public class BackupService {
      */
     private static final Duration LOCK_BACKUP_WINDOW = Duration.ofHours(24);
 
+    /**
+     * How long {@link #uniqueSessionId} retries before giving up, bounding the pathological case
+     * where sessions of the same type are started back-to-back faster than {@link
+     * #SESSION_TIMESTAMP}'s second resolution can tell apart.
+     */
+    private static final Duration SESSION_ID_RETRY_BUDGET = Duration.ofSeconds(5);
+
     private final AccountDiscovery accountDiscovery;
     private final ZimbraLdapExporter ldapExporter;
     private final ZimbraMailboxExporter mailboxExporter;
@@ -243,7 +250,7 @@ public class BackupService {
             return Optional.empty();
         }
 
-        String sessionId = type.sessionPrefix() + "-" + SESSION_TIMESTAMP.format(Instant.now());
+        String sessionId = uniqueSessionId(type);
         Instant sessionStart = Instant.now();
         metadataStore.save(new BackupSession(sessionId, type, SessionStatus.IN_PROGRESS, sessionStart, null, null));
         notifySafely(() -> notifier.notifyBegin(sessionId, type));
@@ -274,6 +281,34 @@ public class BackupService {
     }
 
     /**
+     * A session ID for {@code type} that {@link #metadataStore} doesn't already have a session
+     * recorded under, retrying with a freshly captured timestamp when {@link #SESSION_TIMESTAMP}'s
+     * second-resolution clock hasn't ticked over yet. {@link MetadataStore#save} is an upsert
+     * keyed on session ID, so without this, two backups of the same type started within the same
+     * second would silently merge into a single session, each overwriting the other's metadata.
+     */
+    private String uniqueSessionId(BackupType type) throws IOException {
+        Instant deadline = Instant.now().plus(SESSION_ID_RETRY_BUDGET);
+        while (true) {
+            String sessionId = type.sessionPrefix() + "-" + SESSION_TIMESTAMP.format(Instant.now());
+            if (metadataStore.findSession(sessionId).isEmpty()) {
+                return sessionId;
+            }
+            if (Instant.now().isAfter(deadline)) {
+                throw new IOException(
+                        "Could not allocate a unique session ID for " + type + " within "
+                                + SESSION_ID_RETRY_BUDGET);
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while allocating a unique session ID for " + type, e);
+            }
+        }
+    }
+
+    /**
      * Records {@code sessionId} as {@code FAILED} when {@link Parallel#run} itself threw (e.g. the
      * calling thread was interrupted by SIGTERM/shutdown) rather than any individual task failing,
      * so the session is never left orphaned as {@code IN_PROGRESS} forever.
@@ -293,13 +328,19 @@ public class BackupService {
     /**
      * Runs a {@link Notifier} call, logging rather than propagating a failure: a notification
      * problem must never fail the backup itself, mirroring how the bash tool's {@code
-     * notify_begin}/{@code notify_finish} only log a warning when {@code sendmail} fails.
+     * notify_begin}/{@code notify_finish} only log a warning when {@code sendmail} fails. Catches
+     * {@link RuntimeException} as well as {@link IOException} - a {@link Notifier} implementation
+     * throwing unchecked (e.g. a bug, or a runtime dependency failure) is just as much "a
+     * notification problem" as a checked I/O failure, and must not be allowed to abort an
+     * otherwise-successful backup this late, after all the real work is already done.
      */
     private void notifySafely(NotifierCall call) {
         try {
             call.run();
         } catch (IOException e) {
             LOG.warning(() -> "Failed to send backup notification: " + e.getMessage());
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "Failed to send backup notification", e);
         }
     }
 
@@ -442,13 +483,15 @@ public class BackupService {
     }
 
     private static LdapObjectType objectTypeFor(BackupType type) {
+        // Deliberately exhaustive with no default arm: every BackupType constant must map to an
+        // LdapObjectType here, so adding a new constant without updating this switch is a compile
+        // error instead of a runtime IllegalArgumentException from a now-dead default case.
         return switch (type) {
             case LDAP, MAILBOX, FULL, INCREMENTAL -> LdapObjectType.ACCOUNT;
             case ALIAS -> LdapObjectType.ALIAS;
             case DISTRIBUTION_LIST -> LdapObjectType.DISTRIBUTION_LIST;
             case SIGNATURE -> LdapObjectType.SIGNATURE;
             case DOMAIN -> LdapObjectType.DOMAIN;
-            default -> throw new IllegalArgumentException("No LdapObjectType mapping for " + type);
         };
     }
 }

@@ -34,9 +34,11 @@ public class SessionService {
      * Deletes the session with the given ID, mirroring {@code delete_one}: removes its stored
      * content and metadata.
      *
-     * <p>Deletes the metadata record before the stored files, so that if file deletion fails
-     * partway through, the DB is never left with a "ghost" row pointing at content that no longer
-     * exists.
+     * <p>Deletes the stored files before the metadata record, so that if file deletion fails
+     * partway through, the metadata row survives to make the leftover files discoverable and the
+     * deletion retriable - a "ghost" row briefly pointing at content that's already gone (the
+     * failure mode on the other ordering) is far preferable to backup content silently leaking on
+     * disk forever with nothing left to point at it.
      *
      * @return {@code true} if the session existed and was removed, {@code false} if no session
      *     with that ID was found
@@ -45,8 +47,8 @@ public class SessionService {
         if (metadataStore.findSession(sessionId).isEmpty()) {
             return false;
         }
-        metadataStore.deleteSession(sessionId);
         storageProvider.deleteSession(sessionId);
+        metadataStore.deleteSession(sessionId);
         return true;
     }
 

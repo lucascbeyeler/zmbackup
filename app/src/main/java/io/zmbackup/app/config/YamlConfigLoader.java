@@ -8,6 +8,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -147,7 +148,25 @@ public final class YamlConfigLoader {
         if (value instanceof Boolean bool) {
             return bool;
         }
+        // SnakeYAML only ever produces a Boolean for an unquoted true/false (or YAML 1.1's
+        // yes/no/on/off); a quoted "true"/"yes" comes through as a String instead. Accepting that
+        // too - common when a config is templated or hand-quoted - avoids a confusing type error
+        // for what is otherwise an unambiguous value.
+        if (value instanceof String text) {
+            Optional<Boolean> parsed = parseBoolean(text);
+            if (parsed.isPresent()) {
+                return parsed.get();
+            }
+        }
         throw new ConfigException("Expected a boolean at '" + dottedPath + "', got: " + value);
+    }
+
+    private static Optional<Boolean> parseBoolean(String text) {
+        return switch (text.strip().toLowerCase(Locale.ROOT)) {
+            case "true", "yes", "on" -> Optional.of(Boolean.TRUE);
+            case "false", "no", "off" -> Optional.of(Boolean.FALSE);
+            default -> Optional.empty();
+        };
     }
 
     private static int optionalInt(Map<String, Object> root, String dottedPath, int defaultValue) {
@@ -155,8 +174,17 @@ public final class YamlConfigLoader {
         if (value == null) {
             return defaultValue;
         }
-        if (value instanceof Integer intValue) {
-            return intValue;
+        // SnakeYAML parses a YAML integer as an Integer only while it fits in one; a larger value
+        // (e.g. a stray extra digit from a typo) comes through as a Long or BigInteger instead of
+        // failing to parse, so those must be handled too - and rejected with a clear "out of
+        // range" message rather than the generic type error below, which would otherwise be
+        // confusing for a value that IS an integer, just not one an int can hold.
+        if (value instanceof Number number) {
+            long asLong = number.longValue();
+            if (asLong < Integer.MIN_VALUE || asLong > Integer.MAX_VALUE) {
+                throw new ConfigException("Value at '" + dottedPath + "' is out of range: " + value);
+            }
+            return (int) asLong;
         }
         throw new ConfigException("Expected an integer at '" + dottedPath + "', got: " + value);
     }

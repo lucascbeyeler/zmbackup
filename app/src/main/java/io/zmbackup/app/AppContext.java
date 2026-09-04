@@ -74,35 +74,49 @@ public final class AppContext {
         installLogging(config.backup().logFile());
         checkInsecureSettings(config);
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
-        this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
-        UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
-                config.zimbraLdap().url(),
-                config.zimbraLdap().bindDn(),
-                config.zimbraLdap().bindPassword(),
-                config.zimbraLdap().sslEnabled(),
-                config.zimbraLdap().caCertificatePath(),
-                config.zimbraLdap().trustAllCertificates(),
-                config.zimbraMailbox().backupInactiveAccounts());
-        this.accountDiscovery = ldapAdapter;
-        this.ldapExporter = ldapAdapter;
-        this.mailboxExporter = new ZimbraRestMailboxExporter(
-                config.zimbraMailbox().restBaseUrl(),
-                config.zimbraMailbox().adminUser(),
-                config.zimbraMailbox().adminPassword());
-        Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
-        Notifier notifier = emailNotifier(config);
-        this.sessionService = new SessionService(storageProvider, metadataStore);
-        this.backupService = BackupService.builder(
-                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
-                .blocklist(blocklist)
-                .notifier(notifier)
-                .maxParallelProcesses(config.backup().maxParallelProcesses())
-                .lockBackup(config.backup().lockBackup())
-                .build();
-        this.restoreService = new RestoreService(
-                ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
-        this.housekeepService = new HousekeepService(storageProvider, metadataStore);
-        this.migrationService = new MigrationService(storageProvider, metadataStore);
+        SqliteMetadataStore sqliteMetadataStore =
+                new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
+        this.metadataStore = sqliteMetadataStore;
+        // metadataStore holds a live JDBC connection from here on; if anything below fails, this
+        // constructor never returns a PidLock-style handle the caller could close, so it must
+        // close the connection itself rather than leaking it.
+        try {
+            UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
+                    config.zimbraLdap().url(),
+                    config.zimbraLdap().bindDn(),
+                    config.zimbraLdap().bindPassword(),
+                    config.zimbraLdap().sslEnabled(),
+                    config.zimbraLdap().caCertificatePath(),
+                    config.zimbraLdap().trustAllCertificates(),
+                    config.zimbraMailbox().backupInactiveAccounts());
+            this.accountDiscovery = ldapAdapter;
+            this.ldapExporter = ldapAdapter;
+            this.mailboxExporter = new ZimbraRestMailboxExporter(
+                    config.zimbraMailbox().restBaseUrl(),
+                    config.zimbraMailbox().adminUser(),
+                    config.zimbraMailbox().adminPassword());
+            Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
+            Notifier notifier = emailNotifier(config);
+            this.sessionService = new SessionService(storageProvider, metadataStore);
+            this.backupService = BackupService.builder(
+                            accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                    .blocklist(blocklist)
+                    .notifier(notifier)
+                    .maxParallelProcesses(config.backup().maxParallelProcesses())
+                    .lockBackup(config.backup().lockBackup())
+                    .build();
+            this.restoreService = new RestoreService(
+                    ldapExporter,
+                    mailboxExporter,
+                    storageProvider,
+                    metadataStore,
+                    config.backup().maxParallelProcesses());
+            this.housekeepService = new HousekeepService(storageProvider, metadataStore);
+            this.migrationService = new MigrationService(storageProvider, metadataStore);
+        } catch (IOException | RuntimeException e) {
+            sqliteMetadataStore.close();
+            throw e;
+        }
     }
 
     /**

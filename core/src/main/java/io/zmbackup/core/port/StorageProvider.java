@@ -9,6 +9,14 @@ import java.io.OutputStream;
  * {@code .tgz} archives) produced for a session, mirroring the bash tool's
  * {@code {WORKDIR}/{sessionId}/{account}.{suffix}} file layout without committing callers to a
  * particular storage backend.
+ *
+ * <p><b>Implementations must treat {@code sessionId} and {@code account} as untrusted.</b> Core
+ * only format-validates <i>discovered</i> identifiers (see {@code BackupService.filterMalformed})
+ * - an explicit {@code --account}/{@code --domain}/{@code --session} value, or a session ID
+ * imported via {@code migrate}, reaches these methods exactly as supplied, by design (it mirrors
+ * the bash tool's own behavior of trusting explicit CLI input). An implementation backed by a
+ * filesystem or other path-like resource must independently reject any value that would escape
+ * its intended storage location (e.g. one containing a path separator or {@code ..} segment).
  */
 public interface StorageProvider {
 

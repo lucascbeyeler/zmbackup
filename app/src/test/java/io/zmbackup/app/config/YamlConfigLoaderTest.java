@@ -215,6 +215,65 @@ class YamlConfigLoaderTest {
     }
 
     @Test
+    void quotedBooleanTextIsAccepted() {
+        String yaml =
+                """
+                zimbraLdap:
+                  url: ldap://127.0.0.1:389
+                  bindDn: uid=zimbra,cn=admins,cn=zimbra
+                  bindPassword: secret
+                  sslEnabled: "false"
+                zimbraMailbox:
+                  backupUser: zimbra
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
+                backup:
+                  workDir: /opt/zimbra/backup
+                  logFile: /opt/zimbra/log/zmbackup.log
+                  blockedListFile: /etc/zmbackup/blockedlist.conf
+                  lockBackup: "YES"
+                  emailNotify:
+                    recipient: admin@example.com
+                    sender: root@example.com
+                """;
+
+        AppConfig config = YamlConfigLoader.load(new StringReader(yaml));
+
+        assertEquals(false, config.zimbraLdap().sslEnabled());
+        assertEquals(true, config.backup().lockBackup());
+    }
+
+    @Test
+    void outOfRangeIntegerThrowsConfigExceptionWithClearMessage() {
+        String yaml =
+                """
+                zimbraLdap:
+                  url: ldap://127.0.0.1:389
+                  bindDn: uid=zimbra,cn=admins,cn=zimbra
+                  bindPassword: secret
+                zimbraMailbox:
+                  backupUser: zimbra
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
+                backup:
+                  workDir: /opt/zimbra/backup
+                  logFile: /opt/zimbra/log/zmbackup.log
+                  blockedListFile: /etc/zmbackup/blockedlist.conf
+                  rotateDays: 99999999999
+                  emailNotify:
+                    recipient: admin@example.com
+                    sender: root@example.com
+                """;
+
+        ConfigException exception =
+                assertThrows(ConfigException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+        assertTrue(exception.getMessage().contains("backup.rotateDays"));
+        assertTrue(exception.getMessage().contains("out of range"));
+    }
+
+    @Test
     void invalidEmailNotifyLevelThrowsConfigException() {
         String yaml =
                 """

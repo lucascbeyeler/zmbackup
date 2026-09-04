@@ -28,6 +28,36 @@ class BackupConfigTest {
     }
 
     @Test
+    void rejectsMaxParallelProcessesAboveCeiling() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> new BackupConfig(
+                        Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/log/zmbackup.log"),
+                        Path.of("/etc/zmbackup/blockedlist.conf"),
+                        257,
+                        30,
+                        true,
+                        EMAIL_NOTIFY));
+
+        assertEquals("maxParallelProcesses must be at most 256", exception.getMessage());
+    }
+
+    @Test
+    void acceptsMaxParallelProcessesAtTheCeiling() {
+        BackupConfig config = new BackupConfig(
+                Path.of("/opt/zimbra/backup"),
+                Path.of("/opt/zimbra/log/zmbackup.log"),
+                Path.of("/etc/zmbackup/blockedlist.conf"),
+                256,
+                30,
+                true,
+                EMAIL_NOTIFY);
+
+        assertEquals(256, config.maxParallelProcesses());
+    }
+
+    @Test
     void rejectsNegativeRotateDays() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,

@@ -2,6 +2,7 @@ package io.zmbackup.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
@@ -71,6 +72,22 @@ class SessionServiceTest {
     }
 
     @Test
+    void deleteSessionLeavesMetadataInPlaceWhenStorageDeletionFails() {
+        BackupSession session = session("ldap-20260701120000", Instant.now());
+        metadataStore.save(session);
+        storageProvider.content.put("ldap-20260701120000/alice@example.com.ldiff", new byte[0]);
+        storageProvider.failOnDelete.add("ldap-20260701120000");
+
+        // Files are deleted before metadata, so a storage failure must leave the metadata row in
+        // place: the session stays discoverable (via listSessions/findSession) and the deletion
+        // can be retried, rather than the leftover file silently leaking with no DB row left
+        // pointing at it.
+        assertThrows(IOException.class, () -> sessionService.deleteSession("ldap-20260701120000"));
+        assertTrue(metadataStore.findSession("ldap-20260701120000").isPresent());
+        assertTrue(storageProvider.content.containsKey("ldap-20260701120000/alice@example.com.ldiff"));
+    }
+
+    @Test
     void truncateDatabaseRemovesEverySessionAndAccountRecordButLeavesStorageAlone() throws IOException {
         metadataStore.save(session("ldap-1", Instant.now()));
         metadataStore.save(session("ldap-2", Instant.now()));
@@ -98,6 +115,7 @@ class SessionServiceTest {
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new LinkedHashMap<>();
         final Set<String> deletedSessions = new java.util.HashSet<>();
+        final Set<String> failOnDelete = new java.util.HashSet<>();
 
         @Override
         public OutputStream openWrite(String sessionId, String account, String suffix) {
@@ -125,7 +143,10 @@ class SessionServiceTest {
         }
 
         @Override
-        public void deleteSession(String sessionId) {
+        public void deleteSession(String sessionId) throws IOException {
+            if (failOnDelete.contains(sessionId)) {
+                throw new IOException("simulated storage failure for " + sessionId);
+            }
             deletedSessions.add(sessionId);
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
         }

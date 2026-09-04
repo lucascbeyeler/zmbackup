@@ -84,6 +84,14 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(CONNECT_TIMEOUT)
+                // restore()'s request body is a single-use InputStream wrapped in
+                // BodyPublishers.ofInputStream(() -> source): if the client ever resent the
+                // request (e.g. following a redirect), it would replay that same
+                // already-exhausted stream and silently POST an empty body, truncating the
+                // restore. HttpClient.Redirect.NEVER is already the JDK default, but pinning it
+                // explicitly turns "the client happens not to resend" into a guarantee this class
+                // relies on, rather than something a future default change could silently break.
+                .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
     }
 
