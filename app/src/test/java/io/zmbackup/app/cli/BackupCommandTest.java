@@ -148,7 +148,7 @@ class BackupCommandTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
-        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -170,7 +170,7 @@ class BackupCommandTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
-        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -191,7 +191,7 @@ class BackupCommandTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
-        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -213,7 +213,7 @@ class BackupCommandTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
-        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -234,7 +234,7 @@ class BackupCommandTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
-        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -256,7 +256,7 @@ class BackupCommandTest {
                 new Attribute("uid", "alice"),
                 new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
                 new Attribute("mail", "alice@example.com"));
-        startMailboxServer("/home/alice@example.com/", 200, "tgz-content".getBytes());
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
         Path configFile = writeConfig();
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());

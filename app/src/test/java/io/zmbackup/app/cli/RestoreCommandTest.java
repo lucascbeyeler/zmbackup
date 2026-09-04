@@ -181,7 +181,7 @@ class RestoreCommandTest {
                         "alice@example.com");
 
         assertEquals(0, restoreExit);
-        assertEquals(List.of("POST /home/alice@example.com/"), mailboxRestorePosts);
+        assertEquals(List.of("POST /service/home/alice@example.com/"), mailboxRestorePosts);
     }
 
     @Test
@@ -207,7 +207,7 @@ class RestoreCommandTest {
                         "alice@example.com", "--into", "bob@example.com");
 
         assertEquals(0, restoreExit);
-        assertEquals(List.of("POST /home/bob@example.com/"), mailboxRestorePosts);
+        assertEquals(List.of("POST /service/home/bob@example.com/"), mailboxRestorePosts);
     }
 
     @Test
@@ -249,7 +249,7 @@ class RestoreCommandTest {
                         "alice@example.com", "--into", "bob@example.com");
 
         assertEquals(0, restoreExit);
-        assertEquals(List.of("POST /home/bob@example.com/"), mailboxRestorePosts);
+        assertEquals(List.of("POST /service/home/bob@example.com/"), mailboxRestorePosts);
     }
 
     @Test
@@ -298,7 +298,7 @@ class RestoreCommandTest {
                 .execute("--config", configFile.toString(), "restore", "--session", sessionId);
 
         assertEquals(0, restoreExit);
-        assertEquals(List.of("POST /home/alice@example.com/"), mailboxRestorePosts);
+        assertEquals(List.of("POST /service/home/alice@example.com/"), mailboxRestorePosts);
     }
 
     private static String sessionIdOf(StringWriter out, String prefix) {

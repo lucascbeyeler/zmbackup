@@ -68,6 +68,8 @@ function deploy_new_java() {
   fi
   sed -i "s|{OSE_INSTALL_ADDRESS}|${LDAP_ADDRESS}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" "$ZMBKP_CONF"/zmbackup.yaml
+  sed -i "s|{ZMBKP_REST_ADMIN}|${ZMBKP_REST_ADMIN}|g" "$ZMBKP_CONF"/zmbackup.yaml
+  sed -i "s|{ZMBKP_REST_ADMIN_PASS}|${ZMBKP_REST_ADMIN_PASS}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{OSE_INSTALL_DIR}|${OSE_INSTALL_DIR}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{ZMBKP_CONF}|${ZMBKP_CONF}|g" "$ZMBKP_CONF"/zmbackup.yaml

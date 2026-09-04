@@ -34,10 +34,13 @@ zimbraMailbox:
   backupInactiveAccounts: true
   # Zimbra server's REST base URL, used to export mailbox content.
   restBaseUrl: https://{OSE_INSTALL_ADDRESS}:7071
-  # Zimbra admin account used for REST HTTP Basic authentication.
-  adminUser: {OSE_USER}
-  # The admin account's password.
-  adminPassword: {OSE_INSTALL_LDAPPASS}
+  # Zimbra admin account used for REST HTTP Basic authentication. Must be a real Zimbra login
+  # (e.g. admin@yourdomain.com), not the OS service account - Zimbra's REST servlet rejects the
+  # latter with a 401 regardless of password.
+  adminUser: {ZMBKP_REST_ADMIN}
+  # The admin account's own Zimbra password - not the LDAP bind password above; Zimbra
+  # provisions these as separate credentials even when zmbackup runs on the mailbox host itself.
+  adminPassword: {ZMBKP_REST_ADMIN_PASS}
   # Path to a PEM-encoded CA certificate (bundle) used to verify the mailbox REST server's
   # certificate, e.g. Zimbra's self-signed CA at /opt/zimbra/ssl/zimbra/ca/ca.pem. Optional; if
   # unset, the JVM's default trust manager is used (or, if trustAllCertificates is true, any
