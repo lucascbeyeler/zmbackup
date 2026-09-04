@@ -12,8 +12,8 @@ class AppConfigTest {
     private static final ZimbraLdapConfig LDAP_CONFIG = new ZimbraLdapConfig(
             "ldap://ldap.example.com:389", "uid=zimbra,cn=admins,cn=zimbra", "ldap-s3cr3t", true, null, false);
 
-    private static final ZimbraMailboxConfig MAILBOX_CONFIG =
-            new ZimbraMailboxConfig("zimbra", true, "https://mail.example.com:7071", "zimbra", "mailbox-s3cr3t");
+    private static final ZimbraMailboxConfig MAILBOX_CONFIG = new ZimbraMailboxConfig(
+            "zimbra", true, "https://mail.example.com:7071", "zimbra", "mailbox-s3cr3t", null, false);
 
     private static final BackupConfig BACKUP_CONFIG = new BackupConfig(
             Path.of("/opt/zimbra/backup"),

@@ -1,6 +1,7 @@
 package io.zmbackup.app.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupSession;
@@ -168,6 +169,55 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.USAGE, exitCode);
         assertTrue(err.toString().contains("You need to be not-the-real-user to run this software."));
+    }
+
+    @Test
+    void reportsConciseErrorByDefaultAndFullStackTraceWithStacktraceFlag() throws IOException {
+        // Not a PrivilegeException/ConfigException - an unrelated, generic failure: workDir's
+        // parent is an existing regular file, so PosixFileHardening.createDirectories() fails
+        // with a plain IOException, exercising the executionExceptionHandler's default branch.
+        Path notADirectory = tempDir.resolve("not-a-directory");
+        Files.writeString(notADirectory, "not a directory");
+        Path configFile = tempDir.resolve("zmbackup.yaml");
+        Files.writeString(
+                configFile,
+                """
+                zimbraLdap:
+                  url: ldap://127.0.0.1:389
+                  bindDn: uid=zimbra,cn=admins,cn=zimbra
+                  bindPassword: secret
+                zimbraMailbox:
+                  backupUser: %s
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
+                backup:
+                  workDir: %s
+                  logFile: %s
+                  blockedListFile: %s
+                  emailNotify:
+                    recipient: admin@example.com
+                    sender: root@example.com
+                """
+                        .formatted(
+                                System.getProperty("user.name"),
+                                notADirectory.resolve("subdir"),
+                                tempDir.resolve("zmbackup.log"),
+                                tempDir.resolve("blockedlist.conf")));
+
+        StringWriter err = new StringWriter();
+        int exitCode = commandLine(new StringWriter(), err).execute("--config", configFile.toString(), "list");
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
+        assertTrue(err.toString().contains("(Run with --stacktrace to get the full stack trace.)"));
+        assertFalse(err.toString().contains("\tat io.zmbackup"), "default output must not include stack frames");
+
+        StringWriter verboseErr = new StringWriter();
+        int verboseExitCode = commandLine(new StringWriter(), verboseErr)
+                .execute("--stacktrace", "--config", configFile.toString(), "list");
+
+        assertEquals(CommandLine.ExitCode.SOFTWARE, verboseExitCode);
+        assertTrue(verboseErr.toString().contains("\tat io.zmbackup"), "verbose output must include stack frames");
     }
 
     private Path writeConfig() throws IOException {

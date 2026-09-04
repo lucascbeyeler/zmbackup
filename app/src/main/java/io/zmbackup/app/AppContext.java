@@ -94,7 +94,9 @@ public final class AppContext {
             this.mailboxExporter = new ZimbraRestMailboxExporter(
                     config.zimbraMailbox().restBaseUrl(),
                     config.zimbraMailbox().adminUser(),
-                    config.zimbraMailbox().adminPassword());
+                    config.zimbraMailbox().adminPassword(),
+                    config.zimbraMailbox().caCertificatePath(),
+                    config.zimbraMailbox().trustAllCertificates());
             Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
             Notifier notifier = emailNotifier(config);
             this.sessionService = new SessionService(storageProvider, metadataStore);
@@ -161,6 +163,13 @@ public final class AppContext {
                     "zimbraMailbox.restBaseUrl does not start with https://: mailbox REST requests,"
                             + " including the admin Basic-auth credentials, will be sent in cleartext."
                             + " Configure an https:// URL for production use.");
+        } else if (config.zimbraMailbox().caCertificatePath() == null
+                && config.zimbraMailbox().trustAllCertificates()) {
+            refuseUnlessAllowInsecure(
+                    config,
+                    "zimbraMailbox.trustAllCertificates is true: the mailbox REST connection will accept any"
+                            + " server certificate, which does not protect against an active MITM attack."
+                            + " Configure zimbraMailbox.caCertificatePath instead for production use.");
         }
     }
 

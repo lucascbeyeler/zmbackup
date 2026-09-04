@@ -32,6 +32,8 @@ class YamlConfigLoaderTest {
               adminUser: zimbra
               adminPassword: secret
               backupInactiveAccounts: false
+              caCertificatePath: /etc/zmbackup/rest-ca.pem
+              trustAllCertificates: true
             backup:
               workDir: /opt/zimbra/backup
               logFile: /opt/zimbra/log/zmbackup.log
@@ -82,6 +84,8 @@ class YamlConfigLoaderTest {
         assertEquals("https://127.0.0.1:7071", config.zimbraMailbox().restBaseUrl());
         assertEquals("zimbra", config.zimbraMailbox().adminUser());
         assertEquals("secret", config.zimbraMailbox().adminPassword());
+        assertEquals("/etc/zmbackup/rest-ca.pem", config.zimbraMailbox().caCertificatePath());
+        assertEquals(true, config.zimbraMailbox().trustAllCertificates());
 
         assertEquals(Path.of("/opt/zimbra/backup"), config.backup().workDir());
         assertEquals(Path.of("/opt/zimbra/log/zmbackup.log"), config.backup().logFile());
@@ -107,6 +111,8 @@ class YamlConfigLoaderTest {
         assertEquals(null, config.zimbraLdap().caCertificatePath());
         assertEquals(false, config.zimbraLdap().trustAllCertificates());
         assertTrue(config.zimbraMailbox().backupInactiveAccounts());
+        assertEquals(null, config.zimbraMailbox().caCertificatePath());
+        assertEquals(false, config.zimbraMailbox().trustAllCertificates());
         assertEquals(3, config.backup().maxParallelProcesses());
         assertEquals(30, config.backup().rotateDays());
         assertTrue(config.backup().lockBackup());

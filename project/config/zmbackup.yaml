@@ -34,6 +34,15 @@ zimbraMailbox:
   adminUser: {OSE_USER}
   # The admin account's password.
   adminPassword: {OSE_INSTALL_LDAPPASS}
+  # Path to a PEM-encoded CA certificate (bundle) used to verify the mailbox REST server's
+  # certificate, e.g. Zimbra's self-signed CA at /opt/zimbra/ssl/zimbra/ca/ca.pem. Optional; if
+  # unset, the JVM's default trust manager is used (or, if trustAllCertificates is true, any
+  # certificate is trusted).
+  # caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem
+  # Whether to accept any mailbox REST server certificate when caCertificatePath is not set. This
+  # does NOT protect against an active MITM attack; only enable it for self-signed Zimbra certs in
+  # dev/test environments. Optional, defaults to false.
+  trustAllCertificates: false
 
 backup:
   # Directory backups and session metadata are stored under.
