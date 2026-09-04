@@ -150,6 +150,42 @@ class LocalStorageProviderTest {
                 IllegalArgumentException.class, () -> provider.exists("session1", "../../etc/passwd", "tgz"));
     }
 
+    @Test
+    void openWriteRejectsASessionIdThatWouldEscapeWorkDir() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> provider.openWrite("../../etc/cron.d", "evil", "tgz"));
+        assertFalse(Files.exists(workDir.getParent().resolve("etc")));
+    }
+
+    @Test
+    void openWriteRejectsASessionIdContainingAPathSeparator() {
+        assertThrows(IllegalArgumentException.class, () -> provider.openWrite("foo/bar", "user@example.com", "tgz"));
+    }
+
+    @Test
+    void deleteSessionRejectsASessionIdThatWouldEscapeWorkDir() {
+        assertThrows(IllegalArgumentException.class, () -> provider.deleteSession("../../etc"));
+    }
+
+    @Test
+    void sizeOfSessionRejectsASessionIdThatWouldEscapeWorkDir() {
+        assertThrows(IllegalArgumentException.class, () -> provider.sizeOfSession("../../etc"));
+    }
+
+    @Test
+    void sizeOfAccountRejectsASessionIdThatWouldEscapeWorkDir() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> provider.sizeOfAccount("../../etc", "user@example.com"));
+    }
+
+    @Test
+    void existsRejectsASessionIdThatWouldEscapeWorkDir() {
+        assertThrows(
+                IllegalArgumentException.class, () -> provider.exists("../../etc", "user@example.com", "tgz"));
+    }
+
     private void write(String sessionId, String account, String suffix, String content) throws IOException {
         try (OutputStream out = provider.openWrite(sessionId, account, suffix)) {
             out.write(content.getBytes(StandardCharsets.UTF_8));

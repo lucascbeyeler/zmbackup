@@ -70,9 +70,10 @@ class HousekeepServiceTest {
         assertEquals(List.of(ok), removed);
         assertTrue(storageProvider.content.containsKey("ldap-fail/alice@example.com.ldiff"));
         assertTrue(storageProvider.deletedSessions.contains("ldap-ok"));
-        // Metadata is deleted before files, so a storage failure never leaves a ghost DB row
-        // pointing at content that's still there.
-        assertEquals(Optional.empty(), metadataStore.findSession("ldap-fail"));
+        // Files are deleted before metadata, so a storage failure leaves the metadata row in
+        // place - the session stays discoverable and the removal can be retried, rather than the
+        // leftover files silently leaking with nothing left pointing at them.
+        assertTrue(metadataStore.findSession("ldap-fail").isPresent());
         assertEquals(1, metadataStore.vacuumCalls);
     }
 

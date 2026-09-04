@@ -45,6 +45,18 @@ class FileBlocklistTest {
     }
 
     @Test
+    void isBlockedMatchesRegardlessOfCase() throws IOException {
+        Path blockedListFile = tempDir.resolve("blockedlist.conf");
+        Files.writeString(blockedListFile, "Alice@Example.com\n");
+
+        FileBlocklist blocklist = new FileBlocklist(blockedListFile);
+
+        assertTrue(blocklist.isBlocked("alice@example.com"));
+        assertTrue(blocklist.isBlocked("ALICE@EXAMPLE.COM"));
+        assertTrue(blocklist.isBlocked("Alice@Example.com"));
+    }
+
+    @Test
     void doesNotMatchPartialLines() throws IOException {
         Path blockedListFile = tempDir.resolve("blockedlist.conf");
         Files.writeString(blockedListFile, "alice@example.com\n");

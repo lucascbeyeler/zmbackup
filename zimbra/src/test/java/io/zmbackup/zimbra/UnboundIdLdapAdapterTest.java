@@ -229,6 +229,17 @@ class UnboundIdLdapAdapterTest {
     }
 
     @Test
+    void discoverForDomainRejectsADomainThatWouldInjectExtraDnComponents() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false, true);
+
+        assertThrows(
+                IOException.class,
+                () -> adapter.discoverForDomain(LdapObjectType.ACCOUNT, "example.com,dc=evil"));
+    }
+
+    @Test
     void listDomainsReturnsEveryDomainInTheDirectory() throws Exception {
         directoryServer = startDirectoryServer(null);
         directoryServer.add(
@@ -353,6 +364,16 @@ class UnboundIdLdapAdapterTest {
                 "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false, true);
 
         assertThrows(IOException.class, () -> adapter.exportDomain("nowhere.invalid", new ByteArrayOutputStream()));
+    }
+
+    @Test
+    void exportDomainRejectsADomainThatWouldInjectExtraDnComponents() throws Exception {
+        directoryServer = startDirectoryServer(null);
+        UnboundIdLdapAdapter adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false, true);
+
+        assertThrows(
+                IOException.class, () -> adapter.exportDomain("other.com,dc=evil", new ByteArrayOutputStream()));
     }
 
     @Test

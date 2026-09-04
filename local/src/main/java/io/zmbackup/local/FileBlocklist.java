@@ -6,12 +6,17 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 /**
  * Reads a one-identifier-per-line blocklist file into memory, mirroring {@code grep -Fxq "$1"
  * "$blockedlist"} in the bash tool's {@code ldap_filter}. A missing file is treated as an empty
  * blocklist, the same as {@code grep} against a nonexistent file failing to match.
+ *
+ * <p>Matching is case-insensitive: Zimbra account addresses and domain names are themselves
+ * case-insensitive, so a blocklist entry must not be bypassable simply by backing up an
+ * identifier under different casing than the one written to the blocklist file.
  */
 public class FileBlocklist implements Blocklist {
 
@@ -23,7 +28,7 @@ public class FileBlocklist implements Blocklist {
             for (String line : Files.readAllLines(blockedListFile)) {
                 String trimmed = line.strip();
                 if (!trimmed.isEmpty()) {
-                    loaded.add(trimmed);
+                    loaded.add(normalize(trimmed));
                 }
             }
         } catch (NoSuchFileException e) {
@@ -34,6 +39,10 @@ public class FileBlocklist implements Blocklist {
 
     @Override
     public boolean isBlocked(String identifier) {
-        return blocked.contains(identifier);
+        return blocked.contains(normalize(identifier));
+    }
+
+    private static String normalize(String identifier) {
+        return identifier.toLowerCase(Locale.ROOT);
     }
 }

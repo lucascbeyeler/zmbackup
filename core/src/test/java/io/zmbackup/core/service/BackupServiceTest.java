@@ -2,6 +2,7 @@ package io.zmbackup.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,6 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -62,6 +65,24 @@ class BackupServiceTest {
         assertEquals(
                 Set.of(LdapObjectType.ACCOUNT),
                 ldapExporter.exportedTypesFor("alice@example.com", "bob@example.com"));
+    }
+
+    @Test
+    void avoidsSessionIdCollisionWhenAnotherSessionOfTheSameTypeStartedThisSameSecond() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        DateTimeFormatter timestamp =
+                DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
+        String collidingSessionId = "ldap-" + timestamp.format(Instant.now());
+        metadataStore.save(new BackupSession(
+                collidingSessionId, BackupType.LDAP, SessionStatus.IN_PROGRESS, Instant.now(), null, null));
+
+        Optional<BackupSession> result = backupService.backup(BackupType.LDAP);
+
+        assertTrue(result.isPresent());
+        // MetadataStore.save() is an upsert keyed on session ID, so reusing collidingSessionId
+        // here would have silently merged the two sessions instead of keeping them apart.
+        assertNotEquals(collidingSessionId, result.get().sessionId());
+        assertEquals(SessionStatus.IN_PROGRESS, metadataStore.findSession(collidingSessionId).get().status());
     }
 
     @Test
@@ -372,6 +393,33 @@ class BackupServiceTest {
                 "finish:" + result.get().sessionId() + ":LDAP:" + result.get().status() + ":" + result.get().size()
                         + ":1",
                 notifier.calls.get(1));
+    }
+
+    @Test
+    void aNotifierThrowingUncheckedDoesNotFailTheBackup() throws IOException {
+        Notifier notifier = new Notifier() {
+            @Override
+            public void notifyBegin(String sessionId, BackupType type) {
+                throw new RuntimeException("simulated notifier bug on begin");
+            }
+
+            @Override
+            public void notifyFinish(
+                    String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {
+                throw new RuntimeException("simulated notifier bug on finish");
+            }
+        };
+        BackupService notified = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(notifier)
+                .maxParallelProcesses(1)
+                .build();
+
+        Optional<BackupSession> result = notified.backup(BackupType.LDAP, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FINISHED, result.get().status());
     }
 
     @Test

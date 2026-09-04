@@ -69,15 +69,18 @@ public class HousekeepService {
     }
 
     /**
-     * Deletes the metadata record before the stored files, so that if file deletion fails partway
-     * through, the DB is never left with a "ghost" row pointing at content that no longer exists.
+     * Deletes the stored files before the metadata record, so that if file deletion fails partway
+     * through, the metadata row survives to make the leftover files discoverable and the removal
+     * retriable - a "ghost" row briefly pointing at content that's already gone (the failure mode
+     * on the other ordering) is far preferable to backup content silently leaking on disk forever
+     * with nothing left to point at it.
      *
      * @return whether the session was fully removed
      */
     private boolean remove(BackupSession session) {
         try {
-            metadataStore.deleteSession(session.sessionId());
             storageProvider.deleteSession(session.sessionId());
+            metadataStore.deleteSession(session.sessionId());
             return true;
         } catch (IOException e) {
             LOG.log(Level.WARNING, "Failed to remove backup session " + session.sessionId(), e);

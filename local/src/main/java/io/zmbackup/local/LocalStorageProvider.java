@@ -23,7 +23,7 @@ public class LocalStorageProvider implements StorageProvider {
     private final Path workDir;
 
     public LocalStorageProvider(Path workDir) {
-        this.workDir = workDir;
+        this.workDir = workDir.normalize();
     }
 
     @Override
@@ -133,8 +133,18 @@ public class LocalStorageProvider implements StorageProvider {
         return removed[0];
     }
 
+    /**
+     * Resolves {@code sessionId}'s directory under {@code workDir}, rejecting any {@code
+     * sessionId} (e.g. one carrying a path separator or {@code ..} segment - whether from a
+     * malformed CLI argument or an unvalidated session ID imported via {@code migrate}) that
+     * would resolve outside {@code workDir}.
+     */
     private Path sessionDir(String sessionId) {
-        return workDir.resolve(sessionId);
+        Path dir = workDir.resolve(sessionId).normalize();
+        if (!workDir.equals(dir.getParent())) {
+            throw new IllegalArgumentException("Invalid session identifier: " + sessionId);
+        }
+        return dir;
     }
 
     /**
@@ -144,7 +154,7 @@ public class LocalStorageProvider implements StorageProvider {
      * validated against an email/domain shape) that would resolve outside that directory.
      */
     private Path accountFile(String sessionId, String account, String suffix) {
-        Path sessionDir = sessionDir(sessionId).normalize();
+        Path sessionDir = sessionDir(sessionId);
         Path file = sessionDir.resolve(account + "." + suffix).normalize();
         if (!sessionDir.equals(file.getParent())) {
             throw new IllegalArgumentException("Invalid backup identifier: " + account);
