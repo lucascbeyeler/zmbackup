@@ -24,10 +24,10 @@ final class HumanReadableSize {
             value /= 1024;
             unitIndex++;
         }
-        double rounded = Math.round(value * 10) / 10.0;
-        if (rounded == Math.floor(rounded)) {
-            return (long) rounded + UNITS[unitIndex];
+        long tenths = Math.round(value * 10);
+        if (tenths % 10 == 0) {
+            return (tenths / 10) + UNITS[unitIndex];
         }
-        return rounded + UNITS[unitIndex];
+        return (tenths / 10.0) + UNITS[unitIndex];
     }
 }

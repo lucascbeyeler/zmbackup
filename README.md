@@ -257,7 +257,9 @@ The installer script automatically creates a cron config file in `/etc/cron.d/zm
 
 ## Want to contribute to the project?
 
-- Please help us contributing the Waddles project instead - Zmbackup will be deprecated and the only thing we will do here will be bugfixes.
+The bash tool (1.2.x) is in maintenance mode - it only receives bugfixes now. All new
+development happens on the Java rewrite (2.0, see [Installation (Java version)](#installation-java-version)
+above), which has full feature parity with the bash tool. Please target contributions there.
 
 ## License
 

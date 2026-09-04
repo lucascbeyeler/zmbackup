@@ -5,7 +5,6 @@ load '../../setup'
 setup() {
   setup_mock_path
   # vars.sh runs commands at source time; mocks suppress failures
-  # Disable OSE_INSTALL_PORT which reads a Zimbra config file
   source "${INSTALLER_DIR}/vars.sh" 2>/dev/null || true
 }
 

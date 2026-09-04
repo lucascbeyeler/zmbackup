@@ -47,15 +47,25 @@
 ################################################################################
 # LOADING ZMBACKUP LIBRARIES
 ################################################################################
+# shellcheck source=lib/bash/HelpAction.sh
 source /usr/local/lib/zmbackup/bash/HelpAction.sh
+# shellcheck source=lib/bash/MiscAction.sh
 source /usr/local/lib/zmbackup/bash/MiscAction.sh
+# shellcheck source=lib/bash/NotifyAction.sh
 source /usr/local/lib/zmbackup/bash/NotifyAction.sh
+# shellcheck source=lib/bash/ParallelAction.sh
 source /usr/local/lib/zmbackup/bash/ParallelAction.sh
+# shellcheck source=lib/bash/ListAction.sh
 source /usr/local/lib/zmbackup/bash/ListAction.sh
+# shellcheck source=lib/bash/BackupAction.sh
 source /usr/local/lib/zmbackup/bash/BackupAction.sh
+# shellcheck source=lib/bash/RestoreAction.sh
 source /usr/local/lib/zmbackup/bash/RestoreAction.sh
+# shellcheck source=lib/bash/DeleteAction.sh
 source /usr/local/lib/zmbackup/bash/DeleteAction.sh
+# shellcheck source=lib/bash/MigrationAction.sh
 source /usr/local/lib/zmbackup/bash/MigrationAction.sh
+# shellcheck source=lib/bash/SessionAction.sh
 source /usr/local/lib/zmbackup/bash/SessionAction.sh
 
 ################################################################################
@@ -198,7 +208,8 @@ case "$1" in
           restore_main_ldap "$2" "$3" "$4"
           ERRCODE=$?
           restore_main_mailbox "$2" "$3" "$4"
-          [[ $? -ne 0 ]] && ERRCODE=$?
+          MAILBOX_ERRCODE=$?
+          [[ $MAILBOX_ERRCODE -ne 0 ]] && ERRCODE=$MAILBOX_ERRCODE
           rm -rf "$PID"
         else
           show_help

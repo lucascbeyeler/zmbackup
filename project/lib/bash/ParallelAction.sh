@@ -152,7 +152,7 @@ function ldap_restore()
     printf "\n%s: %s" "$2" "$ERR"
     [[ -n "${LDAP_FAILFILE:-}" ]] && echo "$2" >> "$LDAP_FAILFILE"
   fi
-  return $BASHERRCODE
+  return "$BASHERRCODE"
 }
 
 ###############################################################################
@@ -190,7 +190,7 @@ function mailbox_restore()
     [[ -n "${MAIL_FAILFILE:-}" ]] && echo "$2" >> "$MAIL_FAILFILE"
   fi
   rm -rf "${TEMP_CLI_OUTPUT:?}"
-  return $BASHERRCODE
+  return "$BASHERRCODE"
 }
 
 
@@ -244,7 +244,7 @@ function domain_restore()
     printf "\nError during the restore process for domain %s. Error message below:" "$2"
     printf "\n%s: %s" "$2" "$ERR"
   fi
-  return $BASHERRCODE
+  return "$BASHERRCODE"
 }
 
 

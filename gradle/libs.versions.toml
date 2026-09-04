@@ -1,0 +1,36 @@
+[versions]
+junit = "5.11.4"
+junit-platform = "1.11.4"
+unboundid-ldapsdk = "7.0.5"
+wiremock = "3.13.1"
+snakeyaml = "2.6"
+picocli = "4.7.6"
+logback = "1.5.16"
+slf4j = "2.0.16"
+sqlite-jdbc = "3.49.1.0"
+cucumber = "7.34.7"
+shadow = "8.3.6"
+foojay-resolver = "1.0.0"
+spotbugs-plugin = "6.0.26"
+spotbugs-annotations = "4.8.6"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+junit-platform-suite = { module = "org.junit.platform:junit-platform-suite", version.ref = "junit-platform" }
+unboundid-ldapsdk = { module = "com.unboundid:unboundid-ldapsdk", version.ref = "unboundid-ldapsdk" }
+wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+slf4j-jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+cucumber-java = { module = "io.cucumber:cucumber-java", version.ref = "cucumber" }
+cucumber-junit-platform-engine = { module = "io.cucumber:cucumber-junit-platform-engine", version.ref = "cucumber" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs-annotations" }
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay-resolver" }
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }

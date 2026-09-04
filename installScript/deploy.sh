@@ -136,6 +136,7 @@ function deploy_upgrade(){
 ################################################################################
 function uninstall() {
   echo "Removing... Please wait while we made some changes."
+  # shellcheck disable=SC1091  # install-time config path, not resolvable statically
   source "$ZMBKP_CONF"/zmbackup.conf
   echo -ne '                     (0%)\r'
   rm -rf "$ZMBKP_SHARE" "$ZMBKP_SRC"/zmbhousekeep > /dev/null 2>&1

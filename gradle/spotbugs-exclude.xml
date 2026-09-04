@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Findings excluded here were reviewed and judged not to be bugs for this codebase - each entry
+  says why. Everything else SpotBugs reports at MEDIUM+ confidence is expected to fail the build.
+-->
+<FindBugsFilter>
+
+  <!--
+    This codebase deliberately validates constructor arguments and throws (e.g. Objects.requireNonNull
+    in BackupService, port adapters, SqliteMetadataStore) to fail fast on misconfiguration. None of
+    the flagged classes override finalize() (finalizers are deprecated for removal since Java 18),
+    so the "finalizer attack" this check guards against does not apply.
+  -->
+  <Match>
+    <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+  </Match>
+
+  <!--
+    AppContext is the app's composition root: its accessors intentionally hand out the shared
+    service/port instances (MetadataStore, StorageProvider, SessionService, HousekeepService) it
+    wires up once at startup. They are stateless collaborators, not mutable data to defensively
+    copy - exposing them is the whole point of the class.
+  -->
+  <Match>
+    <Class name="io.zmbackup.app.AppContext"/>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+
+  <!--
+    Flags String.formatted()/String.format() calls whose format string embeds a literal "\n"
+    instead of "%n". That distinction matters for user-facing text, not for programmatically
+    composed SQL (SqliteMetadataStore's multi-line text-block queries): SQL needs a plain '\n',
+    and swapping in %n would risk injecting a platform-specific "\r\n" into the statement instead.
+  -->
+  <Match>
+    <Class name="io.zmbackup.local.SqliteMetadataStore"/>
+    <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
+  </Match>
+
+</FindBugsFilter>
