@@ -97,4 +97,38 @@ final class CliValidation {
         }
         return true;
     }
+
+    /**
+     * Validates that {@code --into} (mailbox restore-on-account) is only given alongside exactly
+     * one {@code --account}, printing {@code "<commandName>: --into requires exactly one
+     * --account"} to {@code err} and returning {@code false} otherwise. A {@code null} destination
+     * (the common case: no {@code --into}) is always valid, regardless of {@code accounts}' size.
+     * Shared by {@code restore} and {@code restore mailbox}, the two commands that accept {@code
+     * --into}, so the two can't drift on this check the way separately duplicated copies could.
+     */
+    static boolean validateIntoRequiresSingleAccount(
+            String commandName, String destination, List<String> accounts, PrintWriter err) {
+        if (destination != null && accounts.size() != 1) {
+            err.println(commandName + ": --into requires exactly one --account");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Validates that {@code sessionId} is a full or incremental session, the only kind the
+     * top-level {@code restore} command (as opposed to its {@code ldap}/{@code domain}/{@code
+     * mailbox} subcommands) can restore. Prints a message pointing at the matching subcommand and
+     * returns {@code false} otherwise.
+     */
+    static boolean validateFullOrIncrementalSessionPrefix(String sessionId, PrintWriter err) {
+        if (!(sessionId.startsWith("full") || sessionId.startsWith("inc"))) {
+            err.println(
+                    "restore: '--session=" + sessionId
+                            + "' is not a full/incremental session; use 'restore ldap', 'restore domain', or"
+                            + " 'restore mailbox' to restore one kind of content on its own.");
+            return false;
+        }
+        return true;
+    }
 }

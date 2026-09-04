@@ -97,7 +97,8 @@ public class BackupIntegrationSteps {
                 "dc=example,dc=com", new Attribute("objectClass", "domain"), new Attribute("dc", "example"));
 
         UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
-                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false);
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false,
+                true);
 
         mailboxServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         mailboxServer.start();
@@ -113,7 +114,9 @@ public class BackupIntegrationSteps {
 
         storageProvider = new LocalStorageProvider(tempDir);
 
-        backupService = new BackupService(ldapAdapter, ldapAdapter, mailboxExporter, storageProvider, metadataStore);
+        backupService =
+                BackupService.builder(ldapAdapter, ldapAdapter, mailboxExporter, storageProvider, metadataStore)
+                        .build();
         restoreService = new RestoreService(ldapAdapter, mailboxExporter, storageProvider, metadataStore);
         housekeepService = new HousekeepService(storageProvider, metadataStore);
         sessionService = new SessionService(storageProvider, metadataStore);

@@ -28,7 +28,6 @@ class YamlConfigLoaderTest {
               trustAllCertificates: true
             zimbraMailbox:
               backupUser: zimbra
-              zmmailboxPath: /opt/zimbra/bin/zmmailbox
               restBaseUrl: https://127.0.0.1:7071
               adminUser: zimbra
               adminPassword: secret
@@ -44,6 +43,7 @@ class YamlConfigLoaderTest {
                 level: ERROR
                 recipient: admin@example.com
                 sender: root@example.com
+            allowInsecure: true
             """;
 
     private static final String MINIMAL_YAML =
@@ -54,7 +54,6 @@ class YamlConfigLoaderTest {
               bindPassword: secret
             zimbraMailbox:
               backupUser: zimbra
-              zmmailboxPath: /opt/zimbra/bin/zmmailbox
               restBaseUrl: https://127.0.0.1:7071
               adminUser: zimbra
               adminPassword: secret
@@ -79,7 +78,6 @@ class YamlConfigLoaderTest {
         assertEquals(true, config.zimbraLdap().trustAllCertificates());
 
         assertEquals("zimbra", config.zimbraMailbox().backupUser());
-        assertEquals(Path.of("/opt/zimbra/bin/zmmailbox"), config.zimbraMailbox().zmmailboxPath());
         assertEquals(false, config.zimbraMailbox().backupInactiveAccounts());
         assertEquals("https://127.0.0.1:7071", config.zimbraMailbox().restBaseUrl());
         assertEquals("zimbra", config.zimbraMailbox().adminUser());
@@ -94,6 +92,7 @@ class YamlConfigLoaderTest {
         assertEquals(EmailNotifyLevel.ERROR, config.backup().emailNotify().level());
         assertEquals("admin@example.com", config.backup().emailNotify().recipient());
         assertEquals("root@example.com", config.backup().emailNotify().sender());
+        assertEquals(true, config.allowInsecure());
     }
 
     private static void assertFalseSsl(AppConfig config) {
@@ -112,6 +111,7 @@ class YamlConfigLoaderTest {
         assertEquals(30, config.backup().rotateDays());
         assertTrue(config.backup().lockBackup());
         assertEquals(EmailNotifyLevel.ALL, config.backup().emailNotify().level());
+        assertEquals(false, config.allowInsecure());
     }
 
     @Test
@@ -145,7 +145,6 @@ class YamlConfigLoaderTest {
                 """
                 zimbraMailbox:
                   backupUser: zimbra
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret
@@ -170,7 +169,6 @@ class YamlConfigLoaderTest {
                 zimbraLdap: not-a-mapping
                 zimbraMailbox:
                   backupUser: zimbra
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret
@@ -199,7 +197,6 @@ class YamlConfigLoaderTest {
                   sslEnabled: not-a-boolean
                 zimbraMailbox:
                   backupUser: zimbra
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret
@@ -227,7 +224,6 @@ class YamlConfigLoaderTest {
                   bindPassword: secret
                 zimbraMailbox:
                   backupUser: zimbra
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret

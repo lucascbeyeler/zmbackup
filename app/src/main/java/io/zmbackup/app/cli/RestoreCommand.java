@@ -61,15 +61,10 @@ public final class RestoreCommand implements Callable<Integer> {
         if (!(CliValidation.validateEmails(accounts, err) && CliValidation.validateEmail(destination, err))) {
             return CommandLine.ExitCode.USAGE;
         }
-        if (destination != null && accounts.size() != 1) {
-            err.println("restore: --into requires exactly one --account");
+        if (!CliValidation.validateIntoRequiresSingleAccount("restore", destination, accounts, err)) {
             return CommandLine.ExitCode.USAGE;
         }
-        if (destination == null && !(sessionId.startsWith("full") || sessionId.startsWith("inc"))) {
-            err.println(
-                    "restore: '--session=" + sessionId
-                            + "' is not a full/incremental session; use 'restore ldap', 'restore domain', or"
-                            + " 'restore mailbox' to restore one kind of content on its own.");
+        if (destination == null && !CliValidation.validateFullOrIncrementalSessionPrefix(sessionId, err)) {
             return CommandLine.ExitCode.USAGE;
         }
 

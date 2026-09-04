@@ -1,6 +1,7 @@
 package io.zmbackup.core.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
@@ -96,6 +97,27 @@ class MigrationServiceTest {
         assertEquals(0, imported);
     }
 
+    @Test
+    void retryingAfterAPartialFailureDoesNotDuplicateAlreadyImportedAccounts() throws IOException {
+        List<String> lines = List.of(
+                "SESSION: full-20260101120000 started on Thu Jan  1 12:00:00 UTC 2026",
+                "full-20260101120000:alice@example.com:01/01/26",
+                "full-20260101120000:bob@example.com:01/01/26",
+                "SESSION: full-20260101120000 completed in Thu Jan  1 12:05:00 UTC 2026");
+
+        metadataStore.failNextRecordFor("bob@example.com");
+        assertThrows(IOException.class, () -> migrationService.importSessionsText(lines));
+        assertEquals(1, metadataStore.accounts.get("full-20260101120000").size());
+
+        int imported = migrationService.importSessionsText(lines);
+
+        assertEquals(1, imported);
+        List<BackupAccountRecord> accounts = metadataStore.accounts.get("full-20260101120000");
+        assertEquals(2, accounts.size());
+        assertEquals("alice@example.com", accounts.get(0).email());
+        assertEquals("bob@example.com", accounts.get(1).email());
+    }
+
     /** In-memory {@link StorageProvider} fake returning canned sizes, keyed like the real dir layout. */
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, String> sessionSizes = new LinkedHashMap<>();
@@ -141,6 +163,12 @@ class MigrationServiceTest {
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();
+        private String failNextRecordForEmail;
+
+        /** Makes the next {@link #recordAccountBackup} for {@code email} throw, to simulate a mid-import failure. */
+        void failNextRecordFor(String email) {
+            failNextRecordForEmail = email;
+        }
 
         @Override
         public void save(BackupSession session) {
@@ -173,7 +201,11 @@ class MigrationServiceTest {
         }
 
         @Override
-        public void recordAccountBackup(BackupAccountRecord record) {
+        public void recordAccountBackup(BackupAccountRecord record) throws IOException {
+            if (record.email().equals(failNextRecordForEmail)) {
+                failNextRecordForEmail = null;
+                throw new IOException("simulated failure recording " + record.email());
+            }
             accounts.computeIfAbsent(record.sessionId(), key -> new ArrayList<>()).add(record);
         }
 

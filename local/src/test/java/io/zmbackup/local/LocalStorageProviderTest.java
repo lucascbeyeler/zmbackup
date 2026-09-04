@@ -91,6 +91,14 @@ class LocalStorageProviderTest {
     }
 
     @Test
+    void sizeOfAccountDoesNotCountAnUnrelatedAccountWhoseAddressExtendsIt() throws IOException {
+        write("session1", "alice@example.com", "ldiff", "a".repeat(1024));
+        write("session1", "alice@example.com.au", "tgz", "b".repeat(4096));
+
+        assertEquals("1K", provider.sizeOfAccount("session1", "alice@example.com"));
+    }
+
+    @Test
     void sizeOfAccountIsZeroWhenSessionDoesNotExist() throws IOException {
         assertEquals("0B", provider.sizeOfAccount("missing-session", "user@example.com"));
     }

@@ -107,7 +107,6 @@ class MigrateCommandTest {
                   bindPassword: secret
                 zimbraMailbox:
                   backupUser: %s
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret

@@ -55,7 +55,11 @@ public final class YamlConfigLoader {
         if (root == null) {
             throw new ConfigException("Config file is empty");
         }
-        return new AppConfig(parseZimbraLdap(root), parseZimbraMailbox(root), parseBackup(root));
+        return new AppConfig(
+                parseZimbraLdap(root),
+                parseZimbraMailbox(root),
+                parseBackup(root),
+                optionalBoolean(root, "allowInsecure", false));
     }
 
     private static ZimbraLdapConfig parseZimbraLdap(Map<String, Object> root) {
@@ -71,7 +75,6 @@ public final class YamlConfigLoader {
     private static ZimbraMailboxConfig parseZimbraMailbox(Map<String, Object> root) {
         return new ZimbraMailboxConfig(
                 requireString(root, "zimbraMailbox.backupUser"),
-                requirePath(root, "zimbraMailbox.zmmailboxPath"),
                 optionalBoolean(root, "zimbraMailbox.backupInactiveAccounts", true),
                 requireString(root, "zimbraMailbox.restBaseUrl"),
                 requireString(root, "zimbraMailbox.adminUser"),

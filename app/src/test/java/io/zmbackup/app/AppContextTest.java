@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.BackupConfig;
+import io.zmbackup.app.config.ConfigException;
 import io.zmbackup.app.config.EmailNotifyConfig;
 import io.zmbackup.app.config.EmailNotifyLevel;
 import io.zmbackup.app.config.ZimbraLdapConfig;
@@ -52,7 +53,6 @@ class AppContextTest {
                   bindPassword: secret
                 zimbraMailbox:
                   backupUser: %s
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret
@@ -85,6 +85,24 @@ class AppContextTest {
         assertEquals("You need to be not-the-real-user to run this software.", exception.getMessage());
     }
 
+    @Test
+    void constructorRefusesInsecureLdapSslWithoutAllowInsecure() {
+        AppConfig config = configWithSslEnabled(tempDir, false, false);
+
+        ConfigException exception = assertThrows(ConfigException.class, () -> new AppContext(config));
+
+        assertTrue(exception.getMessage().startsWith("zimbraLdap.sslEnabled is false"));
+    }
+
+    @Test
+    void constructorAllowsInsecureLdapSslWhenAllowInsecureIsSet() throws IOException {
+        AppConfig config = configWithSslEnabled(tempDir, false, true);
+
+        AppContext context = new AppContext(config);
+
+        assertEquals(config, context.config());
+    }
+
     private static AppConfig configWithWorkDir(Path workDir) {
         return configWithWorkDir(workDir, System.getProperty("user.name"));
     }
@@ -93,13 +111,7 @@ class AppContextTest {
         return new AppConfig(
                 new ZimbraLdapConfig(
                         "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false),
-                new ZimbraMailboxConfig(
-                        backupUser,
-                        Path.of("/opt/zimbra/bin/zmmailbox"),
-                        true,
-                        "https://127.0.0.1:7071",
-                        "zimbra",
-                        "secret"),
+                new ZimbraMailboxConfig(backupUser, true, "https://127.0.0.1:7071", "zimbra", "secret"),
                 new BackupConfig(
                         workDir,
                         workDir.resolve("zmbackup.log"),
@@ -107,6 +119,29 @@ class AppContextTest {
                         3,
                         30,
                         true,
-                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")));
+                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                false);
+    }
+
+    private static AppConfig configWithSslEnabled(Path workDir, boolean sslEnabled, boolean allowInsecure) {
+        return new AppConfig(
+                new ZimbraLdapConfig(
+                        "ldap://127.0.0.1:389",
+                        "uid=zimbra,cn=admins,cn=zimbra",
+                        "secret",
+                        sslEnabled,
+                        null,
+                        false),
+                new ZimbraMailboxConfig(
+                        System.getProperty("user.name"), true, "https://127.0.0.1:7071", "zimbra", "secret"),
+                new BackupConfig(
+                        workDir,
+                        workDir.resolve("zmbackup.log"),
+                        workDir.resolve("blockedlist.conf"),
+                        3,
+                        30,
+                        true,
+                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                allowInsecure);
     }
 }

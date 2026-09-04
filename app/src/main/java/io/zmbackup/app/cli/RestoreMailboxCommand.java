@@ -42,8 +42,7 @@ public final class RestoreMailboxCommand implements Callable<Integer> {
                 || !CliValidation.validateEmail(destination, err)) {
             return CommandLine.ExitCode.USAGE;
         }
-        if (destination != null && accounts.size() != 1) {
-            err.println("restore mailbox: --into requires exactly one --account");
+        if (!CliValidation.validateIntoRequiresSingleAccount("restore mailbox", destination, accounts, err)) {
             return CommandLine.ExitCode.USAGE;
         }
 

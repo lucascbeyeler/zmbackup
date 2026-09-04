@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class BackupTypeTest {
@@ -46,5 +47,10 @@ class BackupTypeTest {
         assertEquals("distlist", BackupType.DISTRIBUTION_LIST.sessionPrefix());
         assertEquals("signature", BackupType.SIGNATURE.sessionPrefix());
         assertEquals("domain", BackupType.DOMAIN.sessionPrefix());
+    }
+
+    @Test
+    void mailboxSessionPrefixesListsOnlyTypesThatIncludeMailbox() {
+        assertEquals(List.of("full", "inc", "mbox"), BackupType.mailboxSessionPrefixes());
     }
 }

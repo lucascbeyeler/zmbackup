@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * JDBC-backed {@link MetadataStore} using SQLite, with DDL identical to the bash tool's
@@ -248,6 +249,10 @@ public class SqliteMetadataStore implements MetadataStore {
 
     @Override
     public Optional<Instant> lastSuccessfulBackupTime(String email) throws IOException {
+        List<String> mailboxPrefixes = BackupType.mailboxSessionPrefixes();
+        String prefixClause = mailboxPrefixes.stream()
+                .map(prefix -> "ba.sessionID like ?")
+                .collect(Collectors.joining(" or "));
         String sql =
                 """
                 select max(ba.conclusion_date) as last_backup
@@ -255,12 +260,17 @@ public class SqliteMetadataStore implements MetadataStore {
                 join backup_session bs on ba.sessionID = bs.sessionID
                 where ba.email = ?
                   and bs.status = ?
-                  and (ba.sessionID like 'full%' or ba.sessionID like 'inc%' or ba.sessionID like 'mbox%')
-                """;
+                  and (%s)
+                """
+                        .formatted(prefixClause);
         try (Connection connection = connect();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, email);
             statement.setString(2, SessionStatus.FINISHED.dbValue());
+            int paramIndex = 3;
+            for (String prefix : mailboxPrefixes) {
+                statement.setString(paramIndex++, prefix + "%");
+            }
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next() ? Optional.ofNullable(fromDb(rs.getString("last_backup"))) : Optional.empty();
             }

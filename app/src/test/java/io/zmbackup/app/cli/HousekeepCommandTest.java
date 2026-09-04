@@ -103,7 +103,6 @@ class HousekeepCommandTest {
                   sslEnabled: false
                 zimbraMailbox:
                   backupUser: %s
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret
@@ -115,6 +114,7 @@ class HousekeepCommandTest {
                   emailNotify:
                     recipient: admin@example.com
                     sender: root@example.com
+                allowInsecure: true
                 """
                         .formatted(
                                 System.getProperty("user.name"),
