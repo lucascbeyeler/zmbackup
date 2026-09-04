@@ -105,6 +105,24 @@ class EmailNotifierTest {
         assertThrows(IOException.class, () -> notifier.notifyBegin("full-1", BackupType.FULL));
     }
 
+    @Test
+    void rejectsSenderContainingCrlf() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new EmailNotifier(
+                        "127.0.0.1", 25, "root@example.com\r\nRCPT TO:<hacked@evil.com>", "admin@example.com",
+                        true, true, true));
+    }
+
+    @Test
+    void rejectsRecipientContainingCrlf() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new EmailNotifier(
+                        "127.0.0.1", 25, "root@example.com", "admin@example.com\r\nRCPT TO:<hacked@evil.com>",
+                        true, true, true));
+    }
+
     /** A minimal single-connection SMTP server that accepts one submission and records it. */
     private static final class FakeSmtpServer implements AutoCloseable {
         private final ServerSocket serverSocket;
