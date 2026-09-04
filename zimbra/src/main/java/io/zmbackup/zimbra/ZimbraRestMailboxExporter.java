@@ -32,46 +32,16 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 
-/**
- * Exports a single account's mailbox content as a {@code .tgz} archive over Zimbra's REST
- * interface, mirroring {@code mailbox_backup} in the bash tool's {@code ParallelAction.sh}: {@code
- * getRestURL "/?fmt=tgz&resolve=skip[&query=after:"<date>"]"}.
- *
- * <p>Uses the JDK's {@link HttpClient} directly, with an HTTP Basic {@code Authorization} header
- * built from the configured admin credentials.
- */
 public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
 
-    /**
-     * Matches the bash tool's {@code date +%m/%d/%Y} formatting of the incremental cutoff passed
-     * to Zimbra's {@code query=after:"<date>"} REST parameter.
-     */
     private static final DateTimeFormatter AFTER_DATE_FORMAT =
             DateTimeFormatter.ofPattern("MM/dd/yyyy").withZone(ZoneId.systemDefault());
 
-    /**
-     * Zimbra account identifiers are always email addresses. Enforcing that shape here (rather
-     * than relying solely on CLI-layer validation) guards {@link #restUri} against identifiers
-     * from unvalidated sources, e.g. LDAP discovery, that contain {@code /}, {@code ?}, or {@code
-     * #} and could otherwise redirect the REST request to an unintended path or query.
-     */
     private static final Pattern ACCOUNT_PATTERN =
             Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
-    /**
-     * How long {@link #httpClient} waits to establish the TCP/TLS connection before giving up.
-     * Without this, a Zimbra host that accepts the connection but never responds would hang
-     * {@link #export}/{@link #restore} - and, since a single account's export/restore runs
-     * synchronously inside a {@code Parallel.run} worker, that worker - indefinitely.
-     */
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
 
-    /**
-     * How long a single export/restore request is allowed to run end-to-end, once connected.
-     * Generous relative to {@link #CONNECT_TIMEOUT} since a mailbox archive can legitimately take
-     * a long time to transfer; the point is only to bound an otherwise-unbounded hang against a
-     * connected-but-unresponsive peer.
-     */
     private static final Duration REQUEST_TIMEOUT = Duration.ofHours(6);
 
     private final URI baseUri;
@@ -79,30 +49,10 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     private final String adminPassword;
     private final HttpClient httpClient;
 
-    /**
-     * @param baseUrl       the Zimbra server's REST base URL, e.g. {@code
-     *                      "https://mail.example.com:7071"}
-     * @param adminUser     the Zimbra admin account used for HTTP Basic authentication
-     * @param adminPassword the admin account's password
-     */
     public ZimbraRestMailboxExporter(String baseUrl, String adminUser, String adminPassword) {
         this(baseUrl, adminUser, adminPassword, null, false);
     }
 
-    /**
-     * @param baseUrl               the Zimbra server's REST base URL, e.g. {@code
-     *                              "https://mail.example.com:7071"}
-     * @param adminUser             the Zimbra admin account used for HTTP Basic authentication
-     * @param adminPassword         the admin account's password
-     * @param caCertificatePath     path to a PEM-encoded CA certificate (bundle) used to verify
-     *                              the server's certificate, or {@code null} to fall back to the
-     *                              JVM's default trust manager (or, if {@code
-     *                              trustAllCertificates} is set, to trusting any certificate)
-     * @param trustAllCertificates  whether to accept any server certificate when {@code
-     *                              caCertificatePath} is not set; must be explicitly enabled, e.g.
-     *                              for self-signed Zimbra certificates in dev/test environments,
-     *                              since it offers no protection against an active MITM attack
-     */
     public ZimbraRestMailboxExporter(
             String baseUrl,
             String adminUser,
@@ -113,19 +63,9 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         this.baseUri = URI.create(baseUrl);
         this.adminUser = Objects.requireNonNull(adminUser, "adminUser must not be null");
         this.adminPassword = Objects.requireNonNull(adminPassword, "adminPassword must not be null");
-        // WireMock (used in tests) and most Zimbra REST deployments only speak HTTP/1.1; pinning
-        // the version avoids the client's default h2 upgrade attempt hitting an RST_STREAM/EOF on
-        // unknown-length POST bodies (see restore()).
         HttpClient.Builder builder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(CONNECT_TIMEOUT)
-                // restore()'s request body is a single-use InputStream wrapped in
-                // BodyPublishers.ofInputStream(() -> source): if the client ever resent the
-                // request (e.g. following a redirect), it would replay that same
-                // already-exhausted stream and silently POST an empty body, truncating the
-                // restore. HttpClient.Redirect.NEVER is already the JDK default, but pinning it
-                // explicitly turns "the client happens not to resend" into a guarantee this class
-                // relies on, rather than something a future default change could silently break.
                 .followRedirects(HttpClient.Redirect.NEVER);
         SSLContext sslContext = restSslContext(caCertificatePath, trustAllCertificates);
         if (sslContext != null) {
@@ -134,15 +74,6 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         this.httpClient = builder.build();
     }
 
-    /**
-     * Builds the {@link SSLContext} used to verify the server's certificate, mirroring {@link
-     * io.zmbackup.zimbra.UnboundIdLdapAdapter}'s own {@code startTlsSslContext()}: a configured CA
-     * certificate takes precedence, then an explicit opt-in to trust any certificate (e.g. for
-     * self-signed Zimbra certs in dev/test environments). Returns {@code null} when neither is
-     * set, so the caller leaves {@link HttpClient.Builder#sslContext} unset and the JVM's default
-     * trust manager - which validates against real CAs and protects against an active MITM attack
-     * - applies instead.
-     */
     private static SSLContext restSslContext(String caCertificatePath, boolean trustAllCertificates) {
         try {
             if (caCertificatePath != null) {
@@ -157,21 +88,6 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         }
     }
 
-    /**
-     * Wraps a plain {@link X509TrustManager} as an {@link X509ExtendedTrustManager}, working
-     * around a JDK compatibility behavior that would otherwise defeat {@link
-     * TrustAllTrustManager}'s purpose here: since JDK 8u31/9, {@link HttpClient} (like other JSSE
-     * consumers) automatically performs its own hostname verification against the peer certificate
-     * whenever the configured trust manager is a legacy {@link X509TrustManager} rather than an
-     * {@link X509ExtendedTrustManager} - a safety net for callers who can't otherwise access
-     * connection/hostname context from a plain {@code X509TrustManager}. That safety net is exactly
-     * what {@code trustAllCertificates} (mirroring {@code curl -k}: accept any certificate, for a
-     * self-signed Zimbra REST cert in dev/test) is opting out of, so without this wrapper the
-     * setting would still fail the handshake on a hostname mismatch against such a certificate,
-     * silently defeating the point of enabling it. {@link #caCertificatePath}'s {@link
-     * PEMFileTrustManager} path is unaffected and keeps real hostname verification: trusting a
-     * custom CA is not the same as trusting any hostname.
-     */
     private static final class NoHostnameCheckTrustManager extends X509ExtendedTrustManager {
         private final X509TrustManager delegate;
 
@@ -219,14 +135,6 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Issues an HTTP GET against {@code {baseUrl}/home/{account}/?fmt=tgz&resolve=skip},
-     * appending {@code &query=after:"<date>"} when {@code since} is non-null. HTTP 204 (no new
-     * content) returns {@code false} without writing to {@code destination}; any other non-200
-     * response is reported as an {@link IOException}.
-     */
     @Override
     public boolean export(String account, OutputStream destination, Instant since) throws IOException {
         HttpRequest request = HttpRequest.newBuilder(exportUri(account, since))
@@ -256,15 +164,6 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Issues an HTTP POST of {@code source} against {@code
-     * {baseUrl}/home/{account}/?fmt=tgz&resolve=skip}, mirroring {@code mailbox_restore} in the
-     * bash tool's {@code ParallelAction.sh}: {@code postRestURL '//?fmt=tgz&resolve=skip'
-     * <file>.tgz}. {@code account} is whichever account the caller wants the content restored
-     * into, which may differ from the account it was originally exported from (restore-on-account).
-     */
     @Override
     public void restore(String account, InputStream source) throws IOException {
         HttpRequest request = HttpRequest.newBuilder(restoreUri(account))
@@ -302,11 +201,6 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         if (!ACCOUNT_PATTERN.matcher(account).matches()) {
             throw new IOException("Invalid Zimbra account identifier: " + account);
         }
-        // Zimbra's UserServlet only accepts admin-delegated HTTP Basic auth (an admin account's
-        // own credentials fetching a *different* account's mailbox) under the /service prefix;
-        // the bare /home/{account}/ path returns 401 even with correct admin credentials, since
-        // it is routed to a servlet instance that expects the requester to *be* the target
-        // account. Confirmed against a live Zimbra 10.1 instance during #303's validation.
         String path = (baseUri.getRawPath() == null ? "" : baseUri.getRawPath()) + "/service/home/" + account + "/";
         try {
             return new URI(baseUri.getScheme(), baseUri.getAuthority(), path, query, null);

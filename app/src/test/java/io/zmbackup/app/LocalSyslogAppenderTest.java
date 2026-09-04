@@ -16,10 +16,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Exercises {@link LocalSyslogAppender} against a stub {@code logger} script that records the
- * arguments it was invoked with, standing in for the real syslog {@code logger} command.
- */
 class LocalSyslogAppenderTest {
 
     @TempDir
@@ -70,7 +66,6 @@ class LocalSyslogAppenderTest {
         return event;
     }
 
-    /** Writes an executable script that appends every argument it receives, one per line, to {@code receivedArgs}. */
     private List<String> stubLoggerCommand(Path receivedArgs) throws IOException {
         Path script = tempDir.resolve("stub-logger-" + System.nanoTime() + ".sh");
         Files.writeString(

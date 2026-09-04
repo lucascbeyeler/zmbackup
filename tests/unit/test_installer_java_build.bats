@@ -1,7 +1,4 @@
 #!/usr/bin/env bats
-# Unit tests for build_jar. These stub out ./gradlew entirely so the suite
-# stays fast and offline - a real Gradle build is exercised by the
-# `test-java` CircleCI job, not here.
 
 load '../setup'
 

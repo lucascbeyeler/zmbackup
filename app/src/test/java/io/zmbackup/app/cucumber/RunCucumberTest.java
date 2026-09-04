@@ -6,7 +6,6 @@ import org.junit.platform.suite.api.IncludeEngines;
 import org.junit.platform.suite.api.SelectClasspathResource;
 import org.junit.platform.suite.api.Suite;
 
-/** Entry point that runs {@code backup_integration.feature} via the JUnit Platform. */
 @Suite
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")

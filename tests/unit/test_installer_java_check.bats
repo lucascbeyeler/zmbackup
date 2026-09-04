@@ -10,10 +10,6 @@ setup() {
   source "${INSTALLER_JAVA_DIR}/check.sh"
 }
 
-# ---------------------------------------------------------------------------
-# check_java_runtime
-# ---------------------------------------------------------------------------
-
 @test "check_java_runtime: sets NEED_JAVA=Y and reports NOT FOUND when java is missing" {
   local old_path="$PATH"
   PATH="/nonexistent"

@@ -6,10 +6,6 @@ import java.util.List;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/**
- * Backs up mail received since each account's last successful backup, mirroring {@code zmbackup
- * -i -a} in the bash tool.
- */
 @Command(name = "incremental", description = "Back up mail received since each account's last successful backup.")
 public final class BackupIncrementalCommand extends AbstractAccountScopedBackupCommand {
 

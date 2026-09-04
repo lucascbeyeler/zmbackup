@@ -27,10 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/**
- * Unit tests for {@link RestoreService} against hand-rolled fakes of its ports, mirroring the
- * style of {@link BackupServiceTest}.
- */
 class RestoreServiceTest {
 
     private final FakeZimbraLdapExporter ldapExporter = new FakeZimbraLdapExporter();
@@ -218,7 +214,6 @@ class RestoreServiceTest {
         return new BackupAccountRecord(null, sessionId, email, "1K", now, now);
     }
 
-    /** In-memory {@link ZimbraLdapExporter} fake that records what was restored. */
     private static final class FakeZimbraLdapExporter implements ZimbraLdapExporter {
         final Map<String, List<String>> restored = new LinkedHashMap<>();
         final Map<String, List<String>> restoredDomains = new LinkedHashMap<>();
@@ -255,7 +250,6 @@ class RestoreServiceTest {
         }
     }
 
-    /** In-memory {@link ZimbraMailboxExporter} fake that records the destination each restore went to. */
     private static final class FakeZimbraMailboxExporter implements ZimbraMailboxExporter {
         final Map<String, List<String>> restoredInto = new LinkedHashMap<>();
         final Set<String> failing = new HashSet<>();
@@ -275,7 +269,6 @@ class RestoreServiceTest {
         }
     }
 
-    /** In-memory {@link StorageProvider} fake backed by a byte-array map. */
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new LinkedHashMap<>();
 
@@ -334,7 +327,6 @@ class RestoreServiceTest {
         }
     }
 
-    /** In-memory {@link MetadataStore} fake backed by simple maps. */
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();
 

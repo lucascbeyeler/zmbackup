@@ -10,19 +10,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Empties the SQLite metadata store, mirroring the bash tool's {@code -t}/{@code --truncate}
- * ({@code leeroy_jenkins} in {@code DeleteAction.sh}) in spirit - including its confirmation
- * guard - but scoped to the database only: unlike the bash tool, this does not delete the backup
- * files on disk (use {@code zmbackup delete}/{@code housekeep}, or clear the work directory by
- * hand, for that).
- *
- * <p>This is destructive and irreversible: it permanently deletes every backup session and
- * account record, with no way to recover them afterward. It is intended only for resetting a
- * test/development installation - never run it against a production zmbackup deployment. Like
- * the bash tool's own {@code --force-clean} guard, it refuses to do anything unless
- * {@code --force-clean} is passed explicitly.
- */
 @Command(
         name = "truncate",
         description = "Empty the backup metadata database. TEST/DEV USE ONLY - never run this against production.")

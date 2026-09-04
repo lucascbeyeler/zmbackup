@@ -10,10 +10,6 @@ setup() {
   source "${INSTALLER_JAVA_DIR}/depDownload.sh"
 }
 
-# ---------------------------------------------------------------------------
-# install_java_ubuntu
-# ---------------------------------------------------------------------------
-
 @test "install_java_ubuntu: succeeds when apt succeeds" {
   export MOCK_APT_FAIL=0
   run install_java_ubuntu
@@ -33,10 +29,6 @@ setup() {
   run install_java_ubuntu
   [[ "$output" == *"openjdk-21-jdk"* ]]
 }
-
-# ---------------------------------------------------------------------------
-# install_java_redhat
-# ---------------------------------------------------------------------------
 
 @test "install_java_redhat: succeeds when yum succeeds" {
   export MOCK_YUM_FAIL=0

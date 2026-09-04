@@ -4,59 +4,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/**
- * Stores and retrieves the raw backup content (LDAP {@code .ldiff} exports and mailbox
- * {@code .tgz} archives) produced for a session, mirroring the bash tool's
- * {@code {WORKDIR}/{sessionId}/{account}.{suffix}} file layout without committing callers to a
- * particular storage backend.
- *
- * <p><b>Implementations must treat {@code sessionId} and {@code account} as untrusted.</b> Core
- * only format-validates <i>discovered</i> identifiers (see {@code BackupService.filterMalformed})
- * - an explicit {@code --account}/{@code --domain}/{@code --session} value, or a session ID
- * imported via {@code migrate}, reaches these methods exactly as supplied, by design (it mirrors
- * the bash tool's own behavior of trusting explicit CLI input). An implementation backed by a
- * filesystem or other path-like resource must independently reject any value that would escape
- * its intended storage location (e.g. one containing a path separator or {@code ..} segment).
- */
 public interface StorageProvider {
 
-    /**
-     * Opens a stream to write the content identified by {@code account} and {@code suffix}
-     * (e.g. {@code "ldiff"}, {@code "tgz"}) within {@code sessionId}. Any existing content at
-     * the same location is replaced.
-     */
     OutputStream openWrite(String sessionId, String account, String suffix) throws IOException;
 
-    /** Opens a stream to read back content previously written with {@link #openWrite}. */
     InputStream openRead(String sessionId, String account, String suffix) throws IOException;
 
-    /** Whether content was written for {@code account} and {@code suffix} within {@code sessionId}. */
     boolean exists(String sessionId, String account, String suffix);
 
-    /**
-     * The human-readable total size of the content stored for {@code account} within
-     * {@code sessionId} (e.g. {@code "10M"}), for
-     * {@link io.zmbackup.core.domain.BackupAccountRecord#size()}.
-     */
     String sizeOfAccount(String sessionId, String account) throws IOException;
 
-    /**
-     * The human-readable total size of all content stored for {@code sessionId} (e.g.
-     * {@code "10M"}), for {@link io.zmbackup.core.domain.BackupSession#size()}.
-     */
     String sizeOfSession(String sessionId) throws IOException;
 
-    /** Permanently removes all stored content for {@code sessionId}. */
     void deleteSession(String sessionId) throws IOException;
 
-    /**
-     * Deletes every zero-byte file stored across every session, mirroring the bash tool's
-     * {@code clean_empty} ({@code find "$WORKDIR" -type f -size 0 -delete}): a stray leftover
-     * from an interrupted or failed export, left behind alongside an otherwise-successful
-     * session's content. Unlike {@link #deleteSession}, this never removes a whole session or its
-     * metadata - only individual empty files.
-     *
-     * @return how many files were removed
-     */
     int deleteEmptyFiles() throws IOException;
 }

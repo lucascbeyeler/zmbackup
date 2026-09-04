@@ -31,11 +31,6 @@ class SqliteMetadataStoreTest {
         store = new SqliteMetadataStore(Path.of("file::memory:?cache=shared"));
     }
 
-    /**
-     * A shared-cache in-memory SQLite database is destroyed once its last connection closes;
-     * {@link SqliteMetadataStore} now holds a single connection for its lifetime, so closing it
-     * here is what resets the database between tests.
-     */
     @AfterEach
     void tearDown() throws IOException {
         store.close();

@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import picocli.CommandLine.IVersionProvider;
 
-/** Reads the version string from the {@code VERSION} file bundled into the jar's resources. */
 public final class VersionProvider implements IVersionProvider {
 
     @Override

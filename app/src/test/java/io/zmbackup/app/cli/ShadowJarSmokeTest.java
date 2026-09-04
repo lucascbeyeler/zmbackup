@@ -12,12 +12,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Runs the actual shaded jar as a subprocess, the way the thin bash launcher does
- * ({@code java -jar zmbackup.jar}). Tests that invoke {@link Main} in-process exercise its logic
- * but can't catch packaging problems (missing Main-Class, unbundled dependencies), since they run
- * against compiled classes on the test classpath rather than the built artifact.
- */
 class ShadowJarSmokeTest {
 
     private static final int TIMEOUT_SECONDS = 30;

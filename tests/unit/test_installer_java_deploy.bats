@@ -7,7 +7,7 @@ INSTALLER_JAVA_DIR="${PROJECT_ROOT}/installScriptJava"
 setup() {
   setup_mock_path
   source "${INSTALLER_JAVA_DIR}/vars.sh" 2>/dev/null || true
-  source "${PROJECT_ROOT}/installScript/deploy.sh"   # blocklist_gen
+  source "${PROJECT_ROOT}/installScript/deploy.sh"
   source "${INSTALLER_JAVA_DIR}/deploy.sh"
 
   DEPLOY_ROOT="$(mktemp -d)"
@@ -33,8 +33,6 @@ setup() {
 
   mkdir -p "${DEPLOY_ROOT}/etc/cron.d"
 
-  # A synthetic "source tree" so deploy_new_java/deploy_upgrade_java never
-  # touch the real repo checkout or a real Gradle build.
   MYDIR="${DEPLOY_ROOT}/src"
   mkdir -p "${MYDIR}/app/src/main/scripts" "${MYDIR}/app/build/libs" "${MYDIR}/project/config"
   cp "${PROJECT_ROOT}/app/src/main/scripts/zmbackup" "${MYDIR}/app/src/main/scripts/zmbackup"
@@ -48,10 +46,6 @@ setup() {
 teardown() {
   rm -rf "${DEPLOY_ROOT:-}"
 }
-
-# ---------------------------------------------------------------------------
-# deploy_new_java
-# ---------------------------------------------------------------------------
 
 @test "deploy_new_java: creates backup directory" {
   MOCK_SU_OUTPUT=""
@@ -153,10 +147,6 @@ user@example.com"
   ! grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
 }
 
-# ---------------------------------------------------------------------------
-# deploy_upgrade_java
-# ---------------------------------------------------------------------------
-
 @test "deploy_upgrade_java: reinstalls the launcher" {
   run deploy_upgrade_java
   [ -f "${ZMBKP_SRC}/zmbackup" ]
@@ -182,10 +172,6 @@ user@example.com"
   deploy_upgrade_java
   ! grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
 }
-
-# ---------------------------------------------------------------------------
-# uninstall_java
-# ---------------------------------------------------------------------------
 
 @test "uninstall_java: removes the launcher" {
   mkdir -p "$ZMBKP_SRC" "$ZMBKP_CONF" "$ZMBKP_LIB"
@@ -242,10 +228,6 @@ user@example.com"
   [ ! -f "${OSE_DEFAULT_BKP_DIR}/sessions.sqlite3" ]
 }
 
-# ---------------------------------------------------------------------------
-# uninstall_java: truncate_database prompt
-# ---------------------------------------------------------------------------
-
 @test "uninstall_java: does not offer to truncate the database when there is no jar/config to run it against" {
   mkdir -p "$ZMBKP_SRC" "$ZMBKP_CONF" "$ZMBKP_LIB"
   echo "backup:" > "${ZMBKP_CONF}/zmbackup.yaml"
@@ -253,8 +235,6 @@ user@example.com"
   mkdir -p "${DEPLOY_ROOT}/backup"
   MOCK_SUDO_LOG="$(mktemp)"
   export MOCK_SUDO_LOG
-  # Only one answer is needed ("Preserve Backup Storage?") since the truncate
-  # prompt must not run without an installed jar/config to invoke it against.
   echo "N" | uninstall_java
   [ ! -s "$MOCK_SUDO_LOG" ]
 }

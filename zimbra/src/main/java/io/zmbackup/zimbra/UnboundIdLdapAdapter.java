@@ -32,27 +32,10 @@ import java.util.List;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
 
-/**
- * Connects to Zimbra's LDAP directory via the UnboundID LDAP SDK, mirroring the {@code
- * ldapsearch} invocations in the bash tool's {@code MiscAction.sh} and {@code ParallelAction.sh}.
- */
 public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporter {
 
-    /**
-     * How long {@link #connect} waits to establish the TCP connection before giving up. Without
-     * this, an unresponsive directory would hang the calling {@code Parallel.run} worker
-     * indefinitely, mirroring the timeout already applied to {@link
-     * io.zmbackup.local.EmailNotifier}'s SMTP connection for the same reason.
-     */
     private static final long CONNECT_TIMEOUT_MILLIS = 30_000;
 
-    /**
-     * Default for {@link #responseTimeoutMillis} when a caller uses the constructor that doesn't
-     * take one explicitly. Generous relative to {@link #CONNECT_TIMEOUT_MILLIS} since {@link
-     * #discover(LdapObjectType)} can legitimately take a while to enumerate every object across a
-     * large directory; the point is only to bound an otherwise-unbounded hang against a
-     * connected-but-unresponsive server.
-     */
     private static final long DEFAULT_RESPONSE_TIMEOUT_MILLIS = 600_000;
 
     private final String host;
@@ -65,23 +48,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     private final boolean backupInactiveAccounts;
     private final long responseTimeoutMillis;
 
-    /**
-     * @param url                     the LDAP server URL, e.g. {@code "ldap://127.0.0.1:389"}
-     * @param bindDn                  the admin distinguished name used to bind
-     * @param bindPassword            the admin password used to bind
-     * @param startTls                whether to upgrade the connection with StartTLS before binding
-     * @param caCertificatePath       path to a PEM-encoded CA certificate (bundle) used to verify the server's
-     *                                certificate during StartTLS negotiation, or {@code null} to fall back to
-     *                                the JVM's default trust manager (or, if {@code trustAllCertificates} is
-     *                                set, to trusting any certificate)
-     * @param trustAllCertificates    whether to accept any server certificate during StartTLS negotiation when
-     *                                {@code caCertificatePath} is not set; must be explicitly enabled, e.g. for
-     *                                self-signed Zimbra certificates in dev/test environments, since it offers
-     *                                no protection against an active MITM attack
-     * @param backupInactiveAccounts  whether {@link LdapObjectType#ACCOUNT} discovery includes disabled
-     *                                accounts, mirroring the bash tool's {@code BACKUP_INACTIVE_ACCOUNTS}:
-     *                                when {@code false}, discovery is narrowed to {@code zimbraAccountStatus=active}
-     */
     public UnboundIdLdapAdapter(
             String url,
             String bindDn,
@@ -101,15 +67,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
                 DEFAULT_RESPONSE_TIMEOUT_MILLIS);
     }
 
-    /**
-     * Same as {@link #UnboundIdLdapAdapter(String, String, String, boolean, String, boolean,
-     * boolean)}, with an explicit {@code responseTimeoutMillis} instead of {@link
-     * #DEFAULT_RESPONSE_TIMEOUT_MILLIS} - how long a single LDAP operation (bind, search, add,
-     * delete) is allowed to take once connected, before it's abandoned as hung against a
-     * connected-but-unresponsive server. Exposed separately since {@link
-     * #discover(LdapObjectType)} searches the whole directory in one unpaginated request, so a
-     * very large directory may need more than the default budget.
-     */
     public UnboundIdLdapAdapter(
             String url,
             String bindDn,
@@ -136,39 +93,16 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         this.backupInactiveAccounts = backupInactiveAccounts;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mirrors {@code build_listBKP}'s whole-directory search in the bash tool: {@code
-     * ldapsearch -b '' <objectFilter> <attributeName>}.
-     */
     @Override
     public List<String> discover(LdapObjectType type) throws IOException {
         return search("", type);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mirrors {@code build_listBKP}'s per-domain search in the bash tool: {@code ldapsearch -b
-     * "dc=<label>,dc=<label>,..." <objectFilter> <attributeName>}, with the base DN built from the
-     * domain's dot-separated labels.
-     */
     @Override
     public List<String> discoverForDomain(LdapObjectType type, String domain) throws IOException {
         return search(domainBaseDn(domain), type);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mirrors {@code ldap_backup} in the bash tool's {@code ParallelAction.sh}: {@code
-     * ldapsearch -b '' -LLL "(&(|(mail=<identifier>)(uid=<identifier>))<objectFilter>)"}, with the
-     * matching entries serialised to LDIF.
-     *
-     * <p>Domain entries have no {@code mail}/{@code uid} attribute to match against, so {@link
-     * LdapObjectType#DOMAIN} is not supported here; domain export has its own base-scoped search.
-     */
     @Override
     public void export(String identifier, LdapObjectType type, OutputStream destination) throws IOException {
         if (type == LdapObjectType.DOMAIN) {
@@ -199,13 +133,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mirrors {@code domain_backup} in the bash tool's {@code ParallelAction.sh}: {@code
-     * ldapsearch -b "dc=<label>,dc=<label>,..." -s base <objectFilter>}, with the matching entry
-     * serialised to LDIF.
-     */
     @Override
     public void exportDomain(String domain, OutputStream destination) throws IOException {
         try (LDAPConnection connection = connect()) {
@@ -223,14 +150,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mirrors {@code ldap_restore} in the bash tool's {@code ParallelAction.sh}: {@code
-     * ldapdelete -Z -r ...} on the entry's DN (result discarded, exactly as the bash tool does),
-     * followed by {@code ldapadd -Z ...} to re-add it from the LDIF. The DN is read from the LDIF
-     * itself, so {@code type} is not otherwise used here.
-     */
     @Override
     public void restore(LdapObjectType type, InputStream source) throws IOException {
         Entry entry = readEntry(source);
@@ -243,13 +162,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Mirrors {@code domain_restore} in the bash tool's {@code ParallelAction.sh}: {@code
-     * ldapadd -Z ...} only (no preceding delete), treating a {@code ldapadd} "Already exists"
-     * failure as success.
-     */
     @Override
     public void restoreDomain(InputStream source) throws IOException {
         Entry entry = readEntry(source);
@@ -276,12 +188,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    /**
-     * Best-effort recursive delete of {@code dn} and its children, mirroring {@code ldapdelete
-     * -r}: the bash tool discards this command's result entirely (redirected to {@code
-     * /dev/null}), relying on the following {@code ldapadd} to report any real failure, so
-     * failures here are swallowed the same way.
-     */
     private static void deleteRecursively(LDAPConnection connection, String dn) {
         try {
             SearchResult children =
@@ -291,17 +197,9 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
             }
             connection.delete(dn);
         } catch (LDAPException ignored) {
-            // Best-effort, exactly like the bash tool's `ldapdelete -r ... > /dev/null 2>&1`.
         }
     }
 
-    /**
-     * {@code type}'s object filter, narrowed to active accounts only when {@code type} is
-     * {@link LdapObjectType#ACCOUNT} and {@link #backupInactiveAccounts} is disabled - mirroring
-     * the bash tool's {@code constant()}, which swaps {@code ACOBJECT} to {@code
-     * (&(objectclass=zimbraAccount)(zimbraAccountStatus=active))} when {@code
-     * BACKUP_INACTIVE_ACCOUNTS} is not {@code true}.
-     */
     private String searchFilter(LdapObjectType type) {
         if (type == LdapObjectType.ACCOUNT && !backupInactiveAccounts) {
             return "(&" + type.objectFilter() + "(zimbraAccountStatus=active))";
@@ -309,15 +207,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         return type.objectFilter();
     }
 
-    /**
-     * Zimbra domain names are always dot-separated DNS labels. Enforcing that shape here (rather
-     * than relying solely on CLI-layer validation) guards {@link #domainBaseDn} against a {@code
-     * domain} value from an unvalidated source, e.g. explicit {@code --account}/{@code --domain}
-     * input reaching {@link io.zmbackup.core.service.BackupService}'s core, that contains a
-     * {@code ,} or {@code =} and could otherwise inject extra components into the base DN,
-     * redirecting the search to an unintended part of the directory - mirroring {@link
-     * ZimbraRestMailboxExporter}'s own {@code ACCOUNT_PATTERN} re-validation.
-     */
     private static final Pattern DOMAIN_PATTERN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
     private static String domainBaseDn(String domain) throws IOException {
@@ -352,11 +241,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    /**
-     * Opens a new connection to the configured server, upgrading it with StartTLS first when
-     * configured, then binds as the admin account. Callers are responsible for closing the
-     * returned connection.
-     */
     LDAPConnection connect() throws IOException {
         LDAPConnection connection = null;
         try {
@@ -384,13 +268,6 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    /**
-     * Builds the {@link SSLContext} used to verify the server's certificate during StartTLS
-     * negotiation: a configured CA certificate takes precedence, then an explicit opt-in to trust
-     * any certificate (e.g. for self-signed Zimbra certs in dev/test environments), and otherwise
-     * the JVM's default trust manager, which validates against real CAs and protects against an
-     * active MITM attack.
-     */
     private SSLContext startTlsSslContext() throws GeneralSecurityException {
         if (caCertificatePath != null) {
             return new SSLUtil(new PEMFileTrustManager(new File(caCertificatePath))).createSSLContext();

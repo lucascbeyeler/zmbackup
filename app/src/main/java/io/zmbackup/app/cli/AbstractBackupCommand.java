@@ -8,11 +8,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Shared body for every {@code backup} subcommand: resolves the {@link AppContext}, takes the
- * backup work-dir lock, and delegates to {@link BackupRunner} with the concrete subcommand's
- * {@link BackupType}, identifiers, and domain filter.
- */
 abstract class AbstractBackupCommand implements Callable<Integer> {
 
     @ParentCommand
@@ -23,10 +18,8 @@ abstract class AbstractBackupCommand implements Callable<Integer> {
 
     abstract BackupType type();
 
-    /** The account/alias/distribution-list/domain identifiers to restrict this backup to. */
     abstract List<String> identifiers();
 
-    /** The Zimbra domain to restrict discovery to, or {@code null} for no restriction. */
     abstract String domain();
 
     @Override

@@ -13,12 +13,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Restores a backup session, mirroring {@code zmbackup -r full-*}/{@code -r mbox-*} usage in the
- * bash tool. With no subcommand, restores both LDAP and mailbox content (or, with {@code --into},
- * restores the mailbox alone into a different destination account); the {@code ldap}, {@code
- * domain}, and {@code mailbox} subcommands restore one kind of content on its own.
- */
 @Command(
         name = "restore",
         description = "Restore a backup session (LDAP + mailbox).",
@@ -28,8 +22,6 @@ public final class RestoreCommand implements Callable<Integer> {
     @ParentCommand
     private Main parent;
 
-    // Not required=true: picocli would enforce that even when a subcommand (which declares its
-    // own --session) is invoked instead of this command's own call().
     @Option(names = "--session", description = "ID of the session to restore.")
     private String sessionId;
 

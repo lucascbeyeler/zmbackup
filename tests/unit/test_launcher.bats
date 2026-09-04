@@ -1,5 +1,4 @@
 #!/usr/bin/env bats
-# Unit tests for the thin bash launcher installed at /usr/local/bin/zmbackup.
 
 load '../setup'
 

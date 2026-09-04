@@ -3,10 +3,6 @@ package io.zmbackup.core.domain;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * The kind of backup a session performs, mirroring the bash tool's session-name prefixes
- * (e.g. {@code full-20260101120000}) so existing session IDs stay parseable.
- */
 public enum BackupType {
     FULL("full", true, true),
     INCREMENTAL("inc", true, true),
@@ -27,26 +23,18 @@ public enum BackupType {
         this.includesMailbox = includesMailbox;
     }
 
-    /** The prefix used to build session IDs for this backup type, e.g. {@code "full"}. */
     public String sessionPrefix() {
         return sessionPrefix;
     }
 
-    /** Whether this backup type exports LDAP objects (accounts, aliases, lists, signatures, domains). */
     public boolean includesLdap() {
         return includesLdap;
     }
 
-    /** Whether this backup type exports mailbox content. */
     public boolean includesMailbox() {
         return includesMailbox;
     }
 
-    /**
-     * The {@link #sessionPrefix()} of every type with {@link #includesMailbox()}, for callers
-     * (e.g. incremental-cutoff queries) that need to recognize a session ID as one that could
-     * carry a mailbox-account backup without hardcoding the current set of prefixes.
-     */
     public static List<String> mailboxSessionPrefixes() {
         return Arrays.stream(values())
                 .filter(BackupType::includesMailbox)
@@ -54,7 +42,6 @@ public enum BackupType {
                 .toList();
     }
 
-    /** Resolves the type matching a value previously produced by {@link #sessionPrefix()}. */
     public static BackupType fromSessionPrefix(String sessionPrefix) {
         for (BackupType type : values()) {
             if (type.sessionPrefix.equals(sessionPrefix)) {

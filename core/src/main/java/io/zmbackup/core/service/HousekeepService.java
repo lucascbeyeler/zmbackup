@@ -12,10 +12,6 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Housekeeping over stored backup sessions, mirroring the bash tool's {@code delete_old} and
- * {@code clean_empty} functions in {@code DeleteAction.sh}, driven by {@code zmbackup housekeep}.
- */
 public class HousekeepService {
 
     private static final Logger LOG = Logger.getLogger(HousekeepService.class.getName());
@@ -28,19 +24,6 @@ public class HousekeepService {
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
     }
 
-    /**
-     * Deletes every session that completed more than {@code days} days ago, mirroring
-     * {@code delete_old}'s {@code conclusion_date < datetime('now','-$ROTATE_TIME day')} cutoff,
-     * then reclaims the freed space (mirroring {@code delete_old}'s trailing {@code sqlite3 ...
-     * VACUUM}).
-     *
-     * A session that fails to be removed (e.g. a permission error deleting one of its files) is
-     * logged and skipped rather than aborting the rest of the batch; {@link MetadataStore#vacuum()}
-     * still runs afterward over whatever was successfully removed.
-     *
-     * @param days how many days of backups to keep; sessions completed before this cutoff are removed
-     * @return the sessions that were successfully removed
-     */
     public List<BackupSession> rotateOldSessions(int days) throws IOException {
         if (days < 0) {
             throw new IllegalArgumentException("days must not be negative");
@@ -57,26 +40,10 @@ public class HousekeepService {
         return removed;
     }
 
-    /**
-     * Deletes every zero-byte file left under storage, mirroring {@code clean_empty}'s removal of
-     * empty leftovers (e.g. a partial export) from an interrupted or failed backup. Unlike {@link
-     * #rotateOldSessions}, this never removes a whole session or its metadata.
-     *
-     * @return how many empty files were removed
-     */
     public int cleanEmpty() throws IOException {
         return storageProvider.deleteEmptyFiles();
     }
 
-    /**
-     * Deletes the stored files before the metadata record, so that if file deletion fails partway
-     * through, the metadata row survives to make the leftover files discoverable and the removal
-     * retriable - a "ghost" row briefly pointing at content that's already gone (the failure mode
-     * on the other ordering) is far preferable to backup content silently leaking on disk forever
-     * with nothing left to point at it.
-     *
-     * @return whether the session was fully removed
-     */
     private boolean remove(BackupSession session) {
         try {
             storageProvider.deleteSession(session.sessionId());

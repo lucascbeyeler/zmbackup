@@ -510,7 +510,6 @@ class UnboundIdLdapAdapterTest {
         return server;
     }
 
-    /** A throwaway self-signed cert/key so the in-memory server can negotiate StartTLS. */
     private SSLSocketFactory serverStartTlsSocketFactory() throws Exception {
         ObjectPair<X509Certificate, KeyPair> certAndKey = X509Certificate.generateSelfSignedCertificate(
                 SignatureAlgorithmIdentifier.SHA_256_WITH_RSA,

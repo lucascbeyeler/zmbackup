@@ -79,8 +79,6 @@ class BackupServiceTest {
         Optional<BackupSession> result = backupService.backup(BackupType.LDAP);
 
         assertTrue(result.isPresent());
-        // MetadataStore.save() is an upsert keyed on session ID, so reusing collidingSessionId
-        // here would have silently merged the two sessions instead of keeping them apart.
         assertNotEquals(collidingSessionId, result.get().sessionId());
         assertEquals(SessionStatus.IN_PROGRESS, metadataStore.findSession(collidingSessionId).get().status());
     }
@@ -465,10 +463,6 @@ class BackupServiceTest {
         ZimbraLdapExporter interruptingExporter = new ZimbraLdapExporter() {
             @Override
             public void export(String identifier, LdapObjectType type, OutputStream destination) {
-                // An unchecked exception escapes backupOne's IOException handling, propagating out
-                // of the task and forcing Parallel.run itself to throw - mirroring the interrupted
-                // shutdown scenario from the bug report, where Parallel.run throws before the
-                // session can be marked FINISHED/FAILED.
                 throw new RuntimeException("simulated interruption for " + identifier);
             }
 
@@ -616,7 +610,6 @@ class BackupServiceTest {
         return names;
     }
 
-    /** In-memory {@link AccountDiscovery} fake returning preconfigured results. */
     private static final class FakeAccountDiscovery implements AccountDiscovery {
         final Map<LdapObjectType, List<String>> wholeDirectory = new EnumMap<>(LdapObjectType.class);
         final Map<Map.Entry<LdapObjectType, String>, List<String>> byDomain = new HashMap<>();
@@ -634,7 +627,6 @@ class BackupServiceTest {
         }
     }
 
-    /** In-memory {@link ZimbraLdapExporter} fake that records what was exported. */
     private static final class FakeZimbraLdapExporter implements ZimbraLdapExporter {
         final Map<String, List<LdapObjectType>> exportedTypes = new LinkedHashMap<>();
         final Set<String> domainExports = new HashSet<>();
@@ -677,7 +669,6 @@ class BackupServiceTest {
         }
     }
 
-    /** In-memory {@link ZimbraMailboxExporter} fake that records what was exported. */
     private static final class FakeZimbraMailboxExporter implements ZimbraMailboxExporter {
         final Map<String, Instant> exported = new LinkedHashMap<>();
         final Set<String> noNewContent = new HashSet<>();
@@ -702,11 +693,6 @@ class BackupServiceTest {
         }
     }
 
-    /**
-     * In-memory {@link StorageProvider} fake backed by a byte-array map. Uses a {@link
-     * ConcurrentHashMap} since {@link #backupNeverRunsMoreThanMaxParallelProcessesAccountsConcurrently}
-     * exercises it from multiple threads at once.
-     */
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -771,8 +757,6 @@ class BackupServiceTest {
         }
     }
 
-    /** In-memory {@link MetadataStore} fake backed by simple maps. */
-    /** {@link Notifier} fake that records every call it receives. */
     private static final class RecordingNotifier implements Notifier {
         final List<String> calls = new ArrayList<>();
 

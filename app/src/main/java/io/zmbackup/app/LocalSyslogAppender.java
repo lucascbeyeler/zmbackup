@@ -10,20 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A Logback appender that sends each record to the local {@code local7} syslog facility the same
- * way the bash tool's {@code zmlog} (in {@code MiscAction.sh}) does: by invoking {@code logger -i
- * -p local7.<severity> <message>} (the exact command {@code zmlog} runs).
- *
- * <p>Java has no public API for {@code AF_UNIX} datagram sockets — {@link
- * java.nio.channels.DatagramChannel} only supports {@link java.net.StandardProtocolFamily#UNIX}
- * for {@link java.nio.channels.SocketChannel}/{@link java.nio.channels.ServerSocketChannel} (i.e.
- * stream sockets), and Linux's {@code /dev/log} is a datagram socket — so shelling out to {@code
- * logger} is the only way to reach syslog the way {@code zmlog} does.
- *
- * <p>A failure to invoke {@code logger} is reported via {@link #addError} rather than propagated:
- * a logging failure should never abort a backup or restore run.
- */
 public final class LocalSyslogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
 
     private static final String FACILITY = "local7";

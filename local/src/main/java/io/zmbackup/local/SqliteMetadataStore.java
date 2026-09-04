@@ -22,22 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-/**
- * JDBC-backed {@link MetadataStore} using SQLite, with DDL identical to the bash tool's
- * {@code sessions.sqlite3} schema so existing backup databases remain readable.
- *
- * <p>Holds a single JDBC connection for the process's lifetime rather than opening and closing
- * one per call: backup and restore sessions run accounts through a thread pool (see {@link
- * io.zmbackup.core.service.Parallel}), so a fresh connection per call meant many short-lived
- * connections all contending for SQLite's single-writer file lock. All access is serialized
- * through {@link #lock} instead, since a JDBC {@link Connection} isn't safe for concurrent use
- * from multiple threads.
- *
- * <p>Implements {@link Closeable} for tests (e.g. against a shared-cache in-memory database,
- * which is only destroyed once its last connection closes); the CLI itself is a short-lived
- * process and relies on the JVM closing the connection at exit rather than calling {@link
- * #close()} itself.
- */
 public class SqliteMetadataStore implements MetadataStore, Closeable {
 
     private static final String CREATE_BACKUP_SESSION =
@@ -65,10 +49,6 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             )
             """;
 
-    /**
-     * Prefix identifying a SQLite JDBC connection string (e.g. an in-memory or shared-cache URI)
-     * rather than a real filesystem path, so permission hardening is skipped for it.
-     */
     private static final String SQLITE_URI_PREFIX = "file:";
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -89,11 +69,6 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         }
     }
 
-    /**
-     * Ensures the database's parent directory and the database file itself are restricted to
-     * owner-only access, whether this is the first run (nothing exists yet) or a later one
-     * against a database file that already exists.
-     */
     private static void hardenDatabaseFile(Path databaseFile) throws IOException {
         Path parent = databaseFile.toAbsolutePath().getParent();
         if (parent != null) {
@@ -288,12 +263,6 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         String prefixClause = mailboxPrefixes.stream()
                 .map(prefix -> "ba.sessionID like ?")
                 .collect(Collectors.joining(" or "));
-        // A backup_account row only exists once that account's own export completed, regardless
-        // of whether other accounts in the same batch later failed the session as a whole - so
-        // only IN_PROGRESS sessions (still running, outcome for this account not yet durable) are
-        // excluded here, not FAILED ones. Requiring FINISHED at the session level would make one
-        // account's failure silently discard every other account's successful cutoff, forcing
-        // them all back to a full re-export on the next incremental run.
         String sql =
                 """
                 select max(ba.conclusion_date) as last_backup
@@ -351,12 +320,6 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         }
     }
 
-    /**
-     * Opens the single connection this store uses for its lifetime, with {@code busy_timeout} set
-     * so a write from another zmbackup process (a separate JVM, or the bash tool) is retried
-     * instead of failing immediately with {@code SQLITE_BUSY}, and WAL journaling enabled so
-     * readers (e.g. {@code zmbackup -l} while a backup is running) don't block on it.
-     */
     private static Connection openConnection(String jdbcUrl) throws SQLException {
         Connection connection = DriverManager.getConnection(jdbcUrl);
         try (Statement statement = connection.createStatement()) {

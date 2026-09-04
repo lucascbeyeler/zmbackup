@@ -6,7 +6,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.LoggingEvent;
 import org.junit.jupiter.api.Test;
 
-/** Exercises {@link ZmlogLayout} against the bash tool's {@code zmlog} log-line format. */
 class ZmlogLayoutTest {
 
     @Test

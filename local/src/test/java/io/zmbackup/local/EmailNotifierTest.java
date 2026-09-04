@@ -20,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/** Exercises {@link EmailNotifier} against a minimal hand-rolled fake SMTP server. */
 class EmailNotifierTest {
 
     private FakeSmtpServer smtpServer;
@@ -123,7 +122,6 @@ class EmailNotifierTest {
                         true, true, true));
     }
 
-    /** A minimal single-connection SMTP server that accepts one submission and records it. */
     private static final class FakeSmtpServer implements AutoCloseable {
         private final ServerSocket serverSocket;
         private final CompletableFuture<Message> received = new CompletableFuture<>();
@@ -193,7 +191,6 @@ class EmailNotifierTest {
                     }
                 }
             } catch (IOException ignored) {
-                // Best-effort fake server; test assertions will fail on their own if nothing arrived.
             }
         }
 

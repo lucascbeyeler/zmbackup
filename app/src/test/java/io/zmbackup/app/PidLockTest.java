@@ -49,7 +49,6 @@ class PidLockTest {
     @Test
     void acquireSucceedsAgainAfterTheFirstLockIsClosed() throws Exception {
         try (PidLock first = PidLock.acquire(tempDir)) {
-            // held
         }
 
         try (PidLock second = PidLock.acquire(tempDir)) {
@@ -58,13 +57,6 @@ class PidLockTest {
         }
     }
 
-    /**
-     * Exercises the cross-process branch of {@link PidLock#acquire}, where {@code tryLock()}
-     * returns {@code null} because a <em>different process</em> holds the lock, rather than the
-     * same-JVM {@link java.nio.channels.OverlappingFileLockException} path already covered above.
-     * A real subprocess is used since the JVM only raises that exception for locks it holds
-     * itself; a lock held by another process is invisible to that same-JVM tracking.
-     */
     @Test
     void secondAcquireWhileAnotherProcessHoldsTheLockFailsWithTheHoldingPid() throws Exception {
         holderProcess = startLockHolderProcess(tempDir);
@@ -91,16 +83,12 @@ class PidLockTest {
     private static void awaitReady(Process process) throws IOException, InterruptedException {
         BufferedReader out =
                 new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-        // Skip any launcher diagnostics (e.g. a "Picked up JAVA_TOOL_OPTIONS" notice on stderr,
-        // merged into this stream) that can precede the holder's own readiness line.
         String line;
         while ((line = out.readLine()) != null && !"LOCKED".equals(line)) {
-            // keep reading
         }
         if (!"LOCKED".equals(line)) {
             throw new IllegalStateException("Lock holder process exited without signaling readiness");
         }
-        // Give the OS a brief moment to fully register the lock before the test tries to acquire it.
         TimeUnit.MILLISECONDS.sleep(100);
     }
 }

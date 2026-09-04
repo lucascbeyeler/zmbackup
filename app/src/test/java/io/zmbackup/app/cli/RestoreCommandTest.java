@@ -26,12 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-/**
- * Exercises the {@code restore}/{@code restore ldap}/{@code restore domain}/{@code restore
- * mailbox} commands end to end: a real backup is taken first (against an in-memory LDAP directory
- * and a plain {@link HttpServer} standing in for Zimbra's REST mailbox endpoint), the underlying
- * data is then mutated, and the restore command's effect is verified.
- */
 class RestoreCommandTest {
 
     private static final String BIND_DN = "uid=zimbra,cn=admins,cn=zimbra";

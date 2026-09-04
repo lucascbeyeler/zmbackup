@@ -341,9 +341,6 @@ class YamlConfigLoaderTest {
 
     @Test
     void tagsThatWouldInstantiateArbitraryJavaTypesAreRejected() {
-        // A permissive Yaml() (the default constructor) would happily instantiate this into a
-        // java.net.URL; the config loader must reject it instead of executing an
-        // operator-uncontrolled type's constructor.
         String yaml = "zimbraLdap: !!java.net.URL [\"http://example.com\"]";
 
         assertThrows(YAMLException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));

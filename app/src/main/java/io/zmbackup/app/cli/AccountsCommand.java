@@ -7,7 +7,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** Groups diagnostic LDAP account/domain enumeration subcommands. */
 @Command(name = "accounts", subcommands = AccountsListCommand.class)
 public final class AccountsCommand implements Callable<Integer> {
 
@@ -21,7 +20,6 @@ public final class AccountsCommand implements Callable<Integer> {
         return parent;
     }
 
-    /** No subcommand given: show usage instead of doing nothing silently. */
     @Override
     public Integer call() {
         spec.commandLine().usage(spec.commandLine().getOut());

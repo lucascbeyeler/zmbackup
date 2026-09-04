@@ -78,10 +78,6 @@ class SessionServiceTest {
         storageProvider.content.put("ldap-20260701120000/alice@example.com.ldiff", new byte[0]);
         storageProvider.failOnDelete.add("ldap-20260701120000");
 
-        // Files are deleted before metadata, so a storage failure must leave the metadata row in
-        // place: the session stays discoverable (via listSessions/findSession) and the deletion
-        // can be retried, rather than the leftover file silently leaking with no DB row left
-        // pointing at it.
         assertThrows(IOException.class, () -> sessionService.deleteSession("ldap-20260701120000"));
         assertTrue(metadataStore.findSession("ldap-20260701120000").isPresent());
         assertTrue(storageProvider.content.containsKey("ldap-20260701120000/alice@example.com.ldiff"));
@@ -111,7 +107,6 @@ class SessionServiceTest {
         return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, startedAt, startedAt, "1K");
     }
 
-    /** In-memory {@link StorageProvider} fake that records which sessions were deleted. */
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new LinkedHashMap<>();
         final Set<String> deletedSessions = new java.util.HashSet<>();
@@ -157,7 +152,6 @@ class SessionServiceTest {
         }
     }
 
-    /** In-memory {@link MetadataStore} fake backed by simple maps. */
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();

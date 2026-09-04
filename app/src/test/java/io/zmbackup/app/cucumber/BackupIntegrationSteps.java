@@ -52,12 +52,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Step definitions backing {@code backup_integration.feature} and {@code
- * restore_integration.feature}: wires {@link BackupService}, {@link RestoreService}, {@link
- * HousekeepService}, and {@link SessionService} against real port implementations rather than the
- * mocked ports used by {@code BackupServiceTest}/{@code RestoreServiceTest}.
- */
 public class BackupIntegrationSteps {
 
     private static final String BIND_DN = "uid=zimbra,cn=admins,cn=zimbra";
@@ -102,7 +96,6 @@ public class BackupIntegrationSteps {
 
         mailboxServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         mailboxServer.start();
-        // Restore POSTs succeed by default; scenarios only need to stub the GET export endpoint.
         mailboxServer.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(200)));
         ZimbraRestMailboxExporter mailboxExporter =
                 new ZimbraRestMailboxExporter(mailboxServer.baseUrl(), MAILBOX_ADMIN_USER, MAILBOX_ADMIN_PASSWORD);
@@ -140,7 +133,6 @@ public class BackupIntegrationSteps {
 
     @Given("an in-memory LDAP directory with no data")
     public void anInMemoryLdapDirectoryWithNoData() {
-        // The directory is already running and empty from @Before.
     }
 
     @Given("an in-memory LDAP directory with accounts:")
