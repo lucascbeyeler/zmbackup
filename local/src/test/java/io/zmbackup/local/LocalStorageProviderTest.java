@@ -3,6 +3,7 @@ package io.zmbackup.local;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.port.StorageProvider;
@@ -120,6 +121,25 @@ class LocalStorageProviderTest {
     @Test
     void deleteSessionOnMissingSessionIsANoop() {
         assertDoesNotThrow(() -> provider.deleteSession("missing-session"));
+    }
+
+    @Test
+    void openWriteRejectsAnAccountThatWouldEscapeTheSessionDirectory() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> provider.openWrite("session1", "../../etc/cron.d/evil", "tgz"));
+        assertFalse(Files.exists(workDir.resolve("etc").resolve("cron.d")));
+    }
+
+    @Test
+    void openWriteRejectsAnAccountContainingAPathSeparator() {
+        assertThrows(IllegalArgumentException.class, () -> provider.openWrite("session1", "foo/bar", "tgz"));
+    }
+
+    @Test
+    void existsRejectsAnAccountThatWouldEscapeTheSessionDirectory() {
+        assertThrows(
+                IllegalArgumentException.class, () -> provider.exists("session1", "../../etc/passwd", "tgz"));
     }
 
     private void write(String sessionId, String account, String suffix, String content) throws IOException {

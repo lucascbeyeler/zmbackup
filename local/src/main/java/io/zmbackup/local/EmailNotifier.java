@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -26,6 +27,15 @@ public class EmailNotifier implements Notifier {
     private final boolean notifyOnBegin;
     private final boolean notifyOnFinishSuccess;
     private final boolean notifyOnFinishError;
+
+    /**
+     * How long {@link #send} waits to connect to the relay, or to read its next response line,
+     * before giving up. Without this, a relay that accepts the TCP connection but never responds
+     * (or stops responding mid-conversation) would hang {@link #send} - and, since {@code
+     * notifyBegin}/{@code notifyFinish} run synchronously inside {@code BackupService.backup()},
+     * the whole backup run - indefinitely.
+     */
+    private static final int SMTP_TIMEOUT_MILLIS = 30_000;
 
     /**
      * @param smtpHost              host of the local SMTP relay to submit through
@@ -91,8 +101,15 @@ public class EmailNotifier implements Notifier {
     }
 
     private void send(String subject, String body) throws IOException {
-        try (Socket socket = new Socket(smtpHost, smtpPort);
-                BufferedReader in = new BufferedReader(
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(smtpHost, smtpPort), SMTP_TIMEOUT_MILLIS);
+            socket.setSoTimeout(SMTP_TIMEOUT_MILLIS);
+            sendOver(socket, subject, body);
+        }
+    }
+
+    private void sendOver(Socket socket, String subject, String body) throws IOException {
+        try (BufferedReader in = new BufferedReader(
                         new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
                 OutputStream out = socket.getOutputStream()) {
             readResponse(in, 220);

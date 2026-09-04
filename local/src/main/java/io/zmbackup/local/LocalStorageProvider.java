@@ -122,7 +122,18 @@ public class LocalStorageProvider implements StorageProvider {
         return workDir.resolve(sessionId);
     }
 
+    /**
+     * Resolves {@code account}'s file within {@code sessionId}'s directory, rejecting any
+     * {@code account} value (e.g. one carrying a path separator or {@code ..} segment, whether
+     * from a malformed {@code --account} argument or an LDAP-discovered identifier that was never
+     * validated against an email/domain shape) that would resolve outside that directory.
+     */
     private Path accountFile(String sessionId, String account, String suffix) {
-        return sessionDir(sessionId).resolve(account + "." + suffix);
+        Path sessionDir = sessionDir(sessionId).normalize();
+        Path file = sessionDir.resolve(account + "." + suffix).normalize();
+        if (!sessionDir.equals(file.getParent())) {
+            throw new IllegalArgumentException("Invalid backup identifier: " + account);
+        }
+        return file;
     }
 }

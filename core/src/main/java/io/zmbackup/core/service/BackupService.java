@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
@@ -50,6 +51,18 @@ public class BackupService {
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
+
+    /**
+     * Format guards applied to LDAP-discovered identifiers before they reach a storage path, LDAP
+     * base DN, or REST URL - mirroring the CLI layer's own email/domain checks (the bash tool's
+     * {@code validate_email}/{@code validate_domain}), which only cover explicit {@code --account}/
+     * {@code --domain} arguments and never see identifiers found via directory discovery. {@link
+     * LdapObjectType#SIGNATURE} is exempt: its identifying attribute is a free-text signature name,
+     * not an email address.
+     */
+    private static final Pattern DISCOVERED_EMAIL = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+
+    private static final Pattern DISCOVERED_DOMAIN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
     /**
      * Mirrors the bash tool's {@code YESTERDAY} variable: how far back of the last successful
@@ -364,15 +377,39 @@ public class BackupService {
             return identifiers;
         }
         List<String> discovered;
+        LdapObjectType objectType;
         if (type == BackupType.DOMAIN) {
+            objectType = LdapObjectType.DOMAIN;
             discovered = accountDiscovery.listDomains();
         } else {
-            LdapObjectType objectType = objectTypeFor(type);
+            objectType = objectTypeFor(type);
             discovered = domain == null
                     ? accountDiscovery.discover(objectType)
                     : accountDiscovery.discoverForDomain(objectType, domain);
         }
-        return filterAlreadyBackedUpToday(filterBlocked(discovered));
+        return filterAlreadyBackedUpToday(filterBlocked(filterMalformed(objectType, discovered)));
+    }
+
+    /**
+     * Drops discovered identifiers that don't match the expected email/domain shape (see {@link
+     * #DISCOVERED_EMAIL}/{@link #DISCOVERED_DOMAIN}) before they reach a storage path, LDAP base
+     * DN, or REST URL - a malformed or hostile LDAP attribute value should never get that far. A
+     * no-op for {@link LdapObjectType#SIGNATURE}, whose identifier is a free-text name.
+     */
+    private List<String> filterMalformed(LdapObjectType objectType, List<String> identifiers) {
+        if (objectType == LdapObjectType.SIGNATURE) {
+            return identifiers;
+        }
+        Pattern pattern = objectType == LdapObjectType.DOMAIN ? DISCOVERED_DOMAIN : DISCOVERED_EMAIL;
+        List<String> allowed = new ArrayList<>(identifiers.size());
+        for (String identifier : identifiers) {
+            if (pattern.matcher(identifier).matches()) {
+                allowed.add(identifier);
+            } else {
+                LOG.warning(() -> "Discovered identifier has an unexpected format - skipping: " + identifier);
+            }
+        }
+        return allowed;
     }
 
     private List<String> filterBlocked(List<String> identifiers) {
