@@ -84,6 +84,33 @@ class MainTest {
     }
 
     @Test
+    void listKeepsTableAlignedForSubSecondPrecisionTimestamps() throws IOException {
+        Path configFile = writeConfig();
+        new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
+                .save(
+                        new BackupSession(
+                                "full-20260904221623",
+                                BackupType.FULL,
+                                SessionStatus.FINISHED,
+                                Instant.parse("2026-09-04T22:16:23.305397329Z"),
+                                Instant.parse("2026-09-04T22:17:34.609010890Z"),
+                                "1.7G"));
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "list");
+
+        assertEquals(0, exitCode);
+        String[] lines = out.toString().split("\\R");
+        int borderLength = lines[0].length();
+        for (String line : lines) {
+            assertEquals(borderLength, line.length(), "table line misaligned: " + line);
+        }
+        assertTrue(out.toString().contains("2026-09-04 22:16:23"));
+        assertTrue(out.toString().contains("2026-09-04 22:17:34"));
+    }
+
+    @Test
     void housekeepRemovesOldSessions() throws IOException {
         Path configFile = writeConfig();
         new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
