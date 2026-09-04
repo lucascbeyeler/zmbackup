@@ -19,7 +19,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf '\n\n\n\n\n\n\n\n')
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n')
     echo \"OSE_USER=\$OSE_USER\"
     echo \"MAX_PARALLEL_PROCESS=\$MAX_PARALLEL_PROCESS\"
   "
@@ -32,7 +32,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf 'myuser\n\n\n\n\n\n\n\n')
+    set_values_java < <(printf 'myuser\n\n\n\n\n\n\n\n\n\n')
     echo \"OSE_USER=\$OSE_USER\"
   "
   [[ "$output" == *"OSE_USER=myuser"* ]]
@@ -43,7 +43,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf '\n\n\n\n\n8\n\n\n')
+    set_values_java < <(printf '\n\n\n\n\n\n\n8\n\n\n')
     echo \"MAX_PARALLEL_PROCESS=\$MAX_PARALLEL_PROCESS\"
   "
   [[ "$output" == *"MAX_PARALLEL_PROCESS=8"* ]]
@@ -54,7 +54,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf '\n\n\n\n\n\n\n\n')
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n')
   "
   [[ "$output" == *"CONFIGURATION COMPLETED"* ]]
 }
@@ -67,6 +67,8 @@ setup() {
   OSE_USER="zimbra"
   OSE_INSTALL_ADDRESS="192.168.1.1"
   OSE_INSTALL_LDAPPASS="secret"
+  ZMBKP_REST_ADMIN="admin@example.com"
+  ZMBKP_REST_ADMIN_PASS="secret2"
   OSE_INSTALL_DIR="/opt/zimbra"
   OSE_DEFAULT_BKP_DIR="/opt/zimbra/backup"
   ZMBKP_SRC="/usr/local/bin"

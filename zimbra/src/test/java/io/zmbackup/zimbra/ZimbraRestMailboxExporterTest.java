@@ -41,7 +41,7 @@ class ZimbraRestMailboxExporterTest {
     private static final String ADMIN_USER = "zimbra";
     private static final String ADMIN_PASSWORD = "secret";
     private static final String ACCOUNT = "alice@example.com";
-    private static final String EXPORT_PATH = "/home/" + ACCOUNT + "/";
+    private static final String EXPORT_PATH = "/service/home/" + ACCOUNT + "/";
 
     private WireMockServer wireMockServer;
 
@@ -134,13 +134,13 @@ class ZimbraRestMailboxExporterTest {
     @Test
     void restorePostsIntoDestinationAccountForRestoreOnAccount() throws Exception {
         String destination = "bob@example.com";
-        wireMockServer.stubFor(post(urlPathEqualTo("/home/" + destination + "/"))
+        wireMockServer.stubFor(post(urlPathEqualTo("/service/home/" + destination + "/"))
                 .willReturn(aResponse().withStatus(200)));
         ZimbraRestMailboxExporter exporter = exporter();
 
         exporter.restore(destination, new ByteArrayInputStream("tgz-content".getBytes(StandardCharsets.UTF_8)));
 
-        wireMockServer.verify(postRequestedFor(urlPathEqualTo("/home/" + destination + "/")));
+        wireMockServer.verify(postRequestedFor(urlPathEqualTo("/service/home/" + destination + "/")));
     }
 
     @Test

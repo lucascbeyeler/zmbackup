@@ -190,14 +190,14 @@ public class BackupIntegrationSteps {
 
     @Given("the mailbox export endpoint for {string} returns tgz content {string}")
     public void theMailboxExportEndpointForReturnsTgzContent(String account, String tgzContent) {
-        mailboxServer.stubFor(get(urlPathEqualTo("/home/" + account + "/"))
+        mailboxServer.stubFor(get(urlPathEqualTo("/service/home/" + account + "/"))
                 .willReturn(aResponse().withStatus(200).withBody(tgzContent)));
     }
 
     @Given("the mailbox export endpoint for {string} returns HTTP {int}")
     public void theMailboxExportEndpointForReturnsHttp(String account, int status) {
         mailboxServer.stubFor(
-                get(urlPathEqualTo("/home/" + account + "/")).willReturn(aResponse().withStatus(status)));
+                get(urlPathEqualTo("/service/home/" + account + "/")).willReturn(aResponse().withStatus(status)));
     }
 
     @When("I run a full backup")
@@ -345,7 +345,7 @@ public class BackupIntegrationSteps {
 
     @Then("the WireMock server received a mailbox restore POST for {string} with body {string}")
     public void theWireMockServerReceivedAMailboxRestorePostForWithBody(String account, String expectedBody) {
-        mailboxServer.verify(postRequestedFor(urlPathEqualTo("/home/" + account + "/"))
+        mailboxServer.verify(postRequestedFor(urlPathEqualTo("/service/home/" + account + "/"))
                 .withRequestBody(equalTo(expectedBody)));
     }
 

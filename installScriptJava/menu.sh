@@ -32,6 +32,18 @@ function set_values_java() {
   read -r TMP
   OSE_DEFAULT_BKP_DIR=${TMP:-$OSE_DEFAULT_BKP_DIR}
 
+  # Configure the Zimbra admin account used for mailbox REST auth
+  printf "\nInform the Zimbra admin account Zmbackup should use for mailbox REST auth - DEFAULT [%s]:" "$ZMBKP_REST_ADMIN"
+  read -r TMP
+  ZMBKP_REST_ADMIN=${TMP:-$ZMBKP_REST_ADMIN}
+
+  # Configure that account's own password - this is its Zimbra login password,
+  # a separate credential from the LDAP bind password above; Zimbra's REST
+  # servlet 401s a mailbox export/restore if the two are conflated.
+  printf "\nInform %s's own Zimbra password (not the LDAP password above):" "$ZMBKP_REST_ADMIN"
+  read -r TMP
+  ZMBKP_REST_ADMIN_PASS=${TMP:-$ZMBKP_REST_ADMIN_PASS}
+
   # Configure mail alert recipient
   printf "\nInform the account to receive all Zmbackup's alerts - DEFAULT [%s]:" "$ZMBKP_MAIL_ALERT"
   read -r TMP
@@ -75,6 +87,8 @@ function check_config_java() {
   echo "Zimbra User: $OSE_USER"
   echo "Zimbra IP Address: $OSE_INSTALL_ADDRESS"
   echo "Zimbra LDAP/Admin Password: $OSE_INSTALL_LDAPPASS"
+  echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
+  echo "Zimbra REST Admin Password: $ZMBKP_REST_ADMIN_PASS"
   echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
   echo "Zimbra Backup Directory: $OSE_DEFAULT_BKP_DIR"
   echo "Zmbackup Launcher: $ZMBKP_SRC/zmbackup"

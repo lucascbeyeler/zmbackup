@@ -302,7 +302,12 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         if (!ACCOUNT_PATTERN.matcher(account).matches()) {
             throw new IOException("Invalid Zimbra account identifier: " + account);
         }
-        String path = (baseUri.getRawPath() == null ? "" : baseUri.getRawPath()) + "/home/" + account + "/";
+        // Zimbra's UserServlet only accepts admin-delegated HTTP Basic auth (an admin account's
+        // own credentials fetching a *different* account's mailbox) under the /service prefix;
+        // the bare /home/{account}/ path returns 401 even with correct admin credentials, since
+        // it is routed to a servlet instance that expects the requester to *be* the target
+        // account. Confirmed against a live Zimbra 10.1 instance during #303's validation.
+        String path = (baseUri.getRawPath() == null ? "" : baseUri.getRawPath()) + "/service/home/" + account + "/";
         try {
             return new URI(baseUri.getScheme(), baseUri.getAuthority(), path, query, null);
         } catch (URISyntaxException e) {
