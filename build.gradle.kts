@@ -57,6 +57,25 @@ subprojects {
         }
     }
 
+    // Gates `check` on a coverage floor comfortably below every module's current line coverage
+    // (84.5%-97.4% as of writing) so a real regression - e.g. a new class landing with no tests -
+    // fails the build instead of only showing up as a smaller number in the HTML report artifact.
+    tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+        dependsOn(tasks.named("jacocoTestReport"))
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    minimum = "0.80".toBigDecimal()
+                }
+            }
+        }
+    }
+
+    tasks.named("check") {
+        dependsOn(tasks.named("jacocoTestCoverageVerification"))
+    }
+
     // Effort/reportLevel tuned for signal over noise: MAX effort catches more, but only findings
     // at MEDIUM confidence or higher are reported so `check` doesn't fail on speculative low-
     // confidence guesses.

@@ -2,6 +2,7 @@ package io.zmbackup.core.service;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -44,7 +45,10 @@ final class Parallel {
      *     or if any task exceeds {@link #TASK_TIMEOUT} (in which case it is cancelled); an {@link
      *     IOException} thrown by a task is rethrown as-is, anything else is wrapped in one. When
      *     more than one task fails or times out, the first one in {@code tasks}' order is the one
-     *     reported, but every task is still given up to {@link #TASK_TIMEOUT} to finish first.
+     *     reported, but every task is still given until a single shared deadline {@link
+     *     #TASK_TIMEOUT} after this call started to finish first - not {@link #TASK_TIMEOUT} each,
+     *     which could otherwise add up to {@code tasks.size() * TASK_TIMEOUT} of total wall time in
+     *     the worst case if every task hung.
      */
     static <T> List<T> run(int maxParallelProcesses, List<Callable<T>> tasks) throws IOException {
         return run(maxParallelProcesses, tasks, TASK_TIMEOUT);
@@ -63,11 +67,20 @@ final class Parallel {
                 futures.add(executor.submit(task));
             }
 
+            // A single deadline shared across every future.get() below, rather than re-measuring
+            // taskTimeout from scratch each time: futures run concurrently, so by the time a later
+            // future is checked, some of its budget has already elapsed alongside the earlier
+            // ones' - reusing the full timeout per future would let a pathological batch (every
+            // task hung) take up to tasks.size() * taskTimeout in total instead of bounding the
+            // whole batch by taskTimeout, as documented on this method.
+            Instant deadline = Instant.now().plus(taskTimeout);
+
             List<T> results = new ArrayList<>(futures.size());
             IOException firstFailure = null;
             for (Future<T> future : futures) {
                 try {
-                    T result = future.get(taskTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                    long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
+                    T result = future.get(remainingMillis, TimeUnit.MILLISECONDS);
                     if (firstFailure == null) {
                         results.add(result);
                     }

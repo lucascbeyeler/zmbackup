@@ -1,9 +1,14 @@
 package io.zmbackup.zimbra;
 
+import com.unboundid.util.ssl.PEMFileTrustManager;
+import com.unboundid.util.ssl.SSLUtil;
+import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
@@ -12,6 +17,9 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -19,6 +27,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.X509ExtendedTrustManager;
+import javax.net.ssl.X509TrustManager;
 
 /**
  * Exports a single account's mailbox content as a {@code .tgz} archive over Zimbra's REST
@@ -74,6 +86,29 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
      * @param adminPassword the admin account's password
      */
     public ZimbraRestMailboxExporter(String baseUrl, String adminUser, String adminPassword) {
+        this(baseUrl, adminUser, adminPassword, null, false);
+    }
+
+    /**
+     * @param baseUrl               the Zimbra server's REST base URL, e.g. {@code
+     *                              "https://mail.example.com:7071"}
+     * @param adminUser             the Zimbra admin account used for HTTP Basic authentication
+     * @param adminPassword         the admin account's password
+     * @param caCertificatePath     path to a PEM-encoded CA certificate (bundle) used to verify
+     *                              the server's certificate, or {@code null} to fall back to the
+     *                              JVM's default trust manager (or, if {@code
+     *                              trustAllCertificates} is set, to trusting any certificate)
+     * @param trustAllCertificates  whether to accept any server certificate when {@code
+     *                              caCertificatePath} is not set; must be explicitly enabled, e.g.
+     *                              for self-signed Zimbra certificates in dev/test environments,
+     *                              since it offers no protection against an active MITM attack
+     */
+    public ZimbraRestMailboxExporter(
+            String baseUrl,
+            String adminUser,
+            String adminPassword,
+            String caCertificatePath,
+            boolean trustAllCertificates) {
         Objects.requireNonNull(baseUrl, "baseUrl must not be null");
         this.baseUri = URI.create(baseUrl);
         this.adminUser = Objects.requireNonNull(adminUser, "adminUser must not be null");
@@ -81,7 +116,7 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         // WireMock (used in tests) and most Zimbra REST deployments only speak HTTP/1.1; pinning
         // the version avoids the client's default h2 upgrade attempt hitting an RST_STREAM/EOF on
         // unknown-length POST bodies (see restore()).
-        this.httpClient = HttpClient.newBuilder()
+        HttpClient.Builder builder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(CONNECT_TIMEOUT)
                 // restore()'s request body is a single-use InputStream wrapped in
@@ -91,8 +126,97 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
                 // restore. HttpClient.Redirect.NEVER is already the JDK default, but pinning it
                 // explicitly turns "the client happens not to resend" into a guarantee this class
                 // relies on, rather than something a future default change could silently break.
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
+                .followRedirects(HttpClient.Redirect.NEVER);
+        SSLContext sslContext = restSslContext(caCertificatePath, trustAllCertificates);
+        if (sslContext != null) {
+            builder.sslContext(sslContext);
+        }
+        this.httpClient = builder.build();
+    }
+
+    /**
+     * Builds the {@link SSLContext} used to verify the server's certificate, mirroring {@link
+     * io.zmbackup.zimbra.UnboundIdLdapAdapter}'s own {@code startTlsSslContext()}: a configured CA
+     * certificate takes precedence, then an explicit opt-in to trust any certificate (e.g. for
+     * self-signed Zimbra certs in dev/test environments). Returns {@code null} when neither is
+     * set, so the caller leaves {@link HttpClient.Builder#sslContext} unset and the JVM's default
+     * trust manager - which validates against real CAs and protects against an active MITM attack
+     * - applies instead.
+     */
+    private static SSLContext restSslContext(String caCertificatePath, boolean trustAllCertificates) {
+        try {
+            if (caCertificatePath != null) {
+                return new SSLUtil(new PEMFileTrustManager(new File(caCertificatePath))).createSSLContext();
+            }
+            if (trustAllCertificates) {
+                return new SSLUtil(new NoHostnameCheckTrustManager(new TrustAllTrustManager())).createSSLContext();
+            }
+            return null;
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("Failed to build SSL context for Zimbra REST client", e);
+        }
+    }
+
+    /**
+     * Wraps a plain {@link X509TrustManager} as an {@link X509ExtendedTrustManager}, working
+     * around a JDK compatibility behavior that would otherwise defeat {@link
+     * TrustAllTrustManager}'s purpose here: since JDK 8u31/9, {@link HttpClient} (like other JSSE
+     * consumers) automatically performs its own hostname verification against the peer certificate
+     * whenever the configured trust manager is a legacy {@link X509TrustManager} rather than an
+     * {@link X509ExtendedTrustManager} - a safety net for callers who can't otherwise access
+     * connection/hostname context from a plain {@code X509TrustManager}. That safety net is exactly
+     * what {@code trustAllCertificates} (mirroring {@code curl -k}: accept any certificate, for a
+     * self-signed Zimbra REST cert in dev/test) is opting out of, so without this wrapper the
+     * setting would still fail the handshake on a hostname mismatch against such a certificate,
+     * silently defeating the point of enabling it. {@link #caCertificatePath}'s {@link
+     * PEMFileTrustManager} path is unaffected and keeps real hostname verification: trusting a
+     * custom CA is not the same as trusting any hostname.
+     */
+    private static final class NoHostnameCheckTrustManager extends X509ExtendedTrustManager {
+        private final X509TrustManager delegate;
+
+        NoHostnameCheckTrustManager(X509TrustManager delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            delegate.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            delegate.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
+                throws CertificateException {
+            delegate.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket)
+                throws CertificateException {
+            delegate.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+                throws CertificateException {
+            delegate.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+                throws CertificateException {
+            delegate.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return delegate.getAcceptedIssuers();
+        }
     }
 
     /**

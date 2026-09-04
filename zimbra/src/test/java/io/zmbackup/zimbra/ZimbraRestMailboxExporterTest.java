@@ -192,6 +192,60 @@ class ZimbraRestMailboxExporterTest {
         assertTrue(exception.getMessage().contains("Invalid Zimbra account identifier"));
     }
 
+    @Test
+    void exportOverHttpsFailsAgainstSelfSignedCertByDefault() throws Exception {
+        WireMockServer httpsServer = new WireMockServer(WireMockConfiguration.options().dynamicHttpsPort());
+        httpsServer.start();
+        try {
+            httpsServer.stubFor(get(urlPathEqualTo(EXPORT_PATH)).willReturn(aResponse().withStatus(200)));
+            ZimbraRestMailboxExporter exporter =
+                    new ZimbraRestMailboxExporter(httpsBaseUrl(httpsServer), ADMIN_USER, ADMIN_PASSWORD);
+
+            assertThrows(IOException.class, () -> exporter.export(ACCOUNT, new ByteArrayOutputStream(), null));
+        } finally {
+            httpsServer.stop();
+        }
+    }
+
+    @Test
+    void exportOverHttpsSucceedsWhenTrustAllCertificatesIsSet() throws Exception {
+        WireMockServer httpsServer = new WireMockServer(WireMockConfiguration.options().dynamicHttpsPort());
+        httpsServer.start();
+        try {
+            byte[] tgzFixture = Files.readAllBytes(fixturePath("mailbox-export.tgz"));
+            httpsServer.stubFor(
+                    get(urlPathEqualTo(EXPORT_PATH)).willReturn(aResponse().withStatus(200).withBody(tgzFixture)));
+            ZimbraRestMailboxExporter exporter = new ZimbraRestMailboxExporter(
+                    httpsBaseUrl(httpsServer), ADMIN_USER, ADMIN_PASSWORD, null, true);
+
+            ByteArrayOutputStream destination = new ByteArrayOutputStream();
+            boolean wroteContent = exporter.export(ACCOUNT, destination, null);
+
+            assertTrue(wroteContent);
+            assertArrayEquals(tgzFixture, destination.toByteArray());
+        } finally {
+            httpsServer.stop();
+        }
+    }
+
+    @Test
+    void constructorRejectsUnreadableCaCertificatePath() {
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> new ZimbraRestMailboxExporter(
+                        wireMockServer.baseUrl(),
+                        ADMIN_USER,
+                        ADMIN_PASSWORD,
+                        "/nonexistent/path/rest-ca.pem",
+                        false));
+
+        assertTrue(exception.getMessage().contains("SSL context"));
+    }
+
+    private static String httpsBaseUrl(WireMockServer server) {
+        return "https://localhost:" + server.httpsPort();
+    }
+
     private ZimbraRestMailboxExporter exporter() {
         return new ZimbraRestMailboxExporter(wireMockServer.baseUrl(), ADMIN_USER, ADMIN_PASSWORD);
     }
