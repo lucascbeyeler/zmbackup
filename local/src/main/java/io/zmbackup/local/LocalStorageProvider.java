@@ -48,15 +48,26 @@ public class LocalStorageProvider implements StorageProvider {
         Path sessionDir = sessionDir(sessionId);
         long totalBytes = 0;
         if (Files.isDirectory(sessionDir)) {
-            String prefix = account + ".";
             try (DirectoryStream<Path> entries =
-                    Files.newDirectoryStream(sessionDir, path -> path.getFileName().toString().startsWith(prefix))) {
+                    Files.newDirectoryStream(sessionDir, path -> isAccountFile(path, account))) {
                 for (Path entry : entries) {
                     totalBytes += Files.size(entry);
                 }
             }
         }
         return HumanReadableSize.format(totalBytes);
+    }
+
+    /**
+     * Whether {@code path}'s filename is {@code account + "." + suffix} for some dot-free
+     * {@code suffix} (e.g. {@code "tgz"}, {@code "ldiff"}) - a plain prefix match would also match
+     * an unrelated account whose address is itself a dot-extension of {@code account}, e.g.
+     * {@code alice@example.com.au.tgz} when looking up {@code alice@example.com}.
+     */
+    private static boolean isAccountFile(Path path, String account) {
+        String prefix = account + ".";
+        String fileName = path.getFileName().toString();
+        return fileName.startsWith(prefix) && fileName.indexOf('.', prefix.length()) < 0;
     }
 
     @Override

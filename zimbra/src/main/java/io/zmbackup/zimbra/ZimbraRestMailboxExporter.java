@@ -12,6 +12,7 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -45,6 +46,22 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     private static final Pattern ACCOUNT_PATTERN =
             Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
+    /**
+     * How long {@link #httpClient} waits to establish the TCP/TLS connection before giving up.
+     * Without this, a Zimbra host that accepts the connection but never responds would hang
+     * {@link #export}/{@link #restore} - and, since a single account's export/restore runs
+     * synchronously inside a {@code Parallel.run} worker, that worker - indefinitely.
+     */
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
+
+    /**
+     * How long a single export/restore request is allowed to run end-to-end, once connected.
+     * Generous relative to {@link #CONNECT_TIMEOUT} since a mailbox archive can legitimately take
+     * a long time to transfer; the point is only to bound an otherwise-unbounded hang against a
+     * connected-but-unresponsive peer.
+     */
+    private static final Duration REQUEST_TIMEOUT = Duration.ofHours(6);
+
     private final URI baseUri;
     private final String adminUser;
     private final String adminPassword;
@@ -64,7 +81,10 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         // WireMock (used in tests) and most Zimbra REST deployments only speak HTTP/1.1; pinning
         // the version avoids the client's default h2 upgrade attempt hitting an RST_STREAM/EOF on
         // unknown-length POST bodies (see restore()).
-        this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+        this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(CONNECT_TIMEOUT)
+                .build();
     }
 
     /**
@@ -79,6 +99,7 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     public boolean export(String account, OutputStream destination, Instant since) throws IOException {
         HttpRequest request = HttpRequest.newBuilder(exportUri(account, since))
                 .header("Authorization", basicAuthHeader())
+                .timeout(REQUEST_TIMEOUT)
                 .GET()
                 .build();
 
@@ -116,6 +137,7 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     public void restore(String account, InputStream source) throws IOException {
         HttpRequest request = HttpRequest.newBuilder(restoreUri(account))
                 .header("Authorization", basicAuthHeader())
+                .timeout(REQUEST_TIMEOUT)
                 .POST(BodyPublishers.ofInputStream(() -> source))
                 .build();
 

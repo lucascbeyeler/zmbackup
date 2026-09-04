@@ -354,7 +354,6 @@ class RestoreCommandTest {
                   sslEnabled: false
                 zimbraMailbox:
                   backupUser: %s
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: %s
                   adminUser: zimbra
                   adminPassword: secret
@@ -365,6 +364,7 @@ class RestoreCommandTest {
                   emailNotify:
                     recipient: admin@example.com
                     sender: root@example.com
+                allowInsecure: true
                 """
                         .formatted(
                                 directoryServer.getListenPort(),

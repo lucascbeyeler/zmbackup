@@ -49,6 +49,9 @@ final class Parallel {
             executor.shutdownNow();
             throw new IOException("Interrupted while running parallel tasks", e);
         } finally {
+            // The sole cleanup for every exit path except the interrupted one above, which already
+            // shut the pool down via shutdownNow(); shutdown() on an already-shutdown executor is a
+            // documented no-op, so calling it again here is safe rather than redundant.
             executor.shutdown();
         }
     }

@@ -1,6 +1,7 @@
 package io.zmbackup.app;
 
 import io.zmbackup.app.config.AppConfig;
+import io.zmbackup.app.config.ConfigException;
 import io.zmbackup.app.config.EmailNotifyLevel;
 import io.zmbackup.app.config.YamlConfigLoader;
 import io.zmbackup.core.port.AccountDiscovery;
@@ -71,31 +72,7 @@ public final class AppContext {
         checkBackupUser(config);
         this.config = config;
         installLogging(config.backup().logFile());
-        if (!config.zimbraLdap().sslEnabled()) {
-            // Unlike the bash tool, whose ldapsearch/ldapadd/ldapdelete calls always upgraded with
-            // StartTLS (-Z) regardless of SSL_ENABLE (which there only chose http vs. https for the
-            // mailbox REST endpoint), zimbraLdap.sslEnabled here directly gates StartTLS on the LDAP
-            // admin bind - disabling it sends the bind password in cleartext.
-            LOG.warn(
-                    "zimbraLdap.sslEnabled is false: the LDAP admin bind will not use StartTLS and its"
-                            + " credentials will be sent in cleartext. The bash tool never allowed this.");
-        } else if (config.zimbraLdap().caCertificatePath() == null && config.zimbraLdap().trustAllCertificates()) {
-            LOG.warn(
-                    "zimbraLdap.trustAllCertificates is true: the LDAP StartTLS connection will accept any"
-                            + " server certificate, which does not protect against an active MITM attack."
-                            + " Configure zimbraLdap.caCertificatePath instead for production use.");
-        }
-        if (!config.zimbraMailbox().restBaseUrl().toLowerCase(Locale.ROOT).startsWith("https://")) {
-            // The bash tool's SSL_ENABLE defaulted to (and warned toward) true, choosing https for the
-            // mailbox REST endpoint; nothing here stopped an operator from setting it false, but the
-            // default was safe. zimbraMailbox.restBaseUrl carries no equivalent toggle or default: it's
-            // an operator-supplied URL, and ZimbraRestMailboxExporter sends the admin Basic-auth
-            // credentials over whatever scheme it's given, without any warning of its own.
-            LOG.warn(
-                    "zimbraMailbox.restBaseUrl does not start with https://: mailbox REST requests,"
-                            + " including the admin Basic-auth credentials, will be sent in cleartext."
-                            + " Configure an https:// URL for production use.");
-        }
+        checkInsecureSettings(config);
         this.storageProvider = new LocalStorageProvider(config.backup().workDir());
         this.metadataStore = new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
         UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
@@ -104,7 +81,8 @@ public final class AppContext {
                 config.zimbraLdap().bindPassword(),
                 config.zimbraLdap().sslEnabled(),
                 config.zimbraLdap().caCertificatePath(),
-                config.zimbraLdap().trustAllCertificates());
+                config.zimbraLdap().trustAllCertificates(),
+                config.zimbraMailbox().backupInactiveAccounts());
         this.accountDiscovery = ldapAdapter;
         this.ldapExporter = ldapAdapter;
         this.mailboxExporter = new ZimbraRestMailboxExporter(
@@ -114,16 +92,13 @@ public final class AppContext {
         Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
         Notifier notifier = emailNotifier(config);
         this.sessionService = new SessionService(storageProvider, metadataStore);
-        this.backupService = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                blocklist,
-                notifier,
-                config.backup().maxParallelProcesses(),
-                config.backup().lockBackup());
+        this.backupService = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(blocklist)
+                .notifier(notifier)
+                .maxParallelProcesses(config.backup().maxParallelProcesses())
+                .lockBackup(config.backup().lockBackup())
+                .build();
         this.restoreService = new RestoreService(
                 ldapExporter, mailboxExporter, storageProvider, metadataStore, config.backup().maxParallelProcesses());
         this.housekeepService = new HousekeepService(storageProvider, metadataStore);
@@ -142,6 +117,44 @@ public final class AppContext {
         if (!expected.equals(actual)) {
             throw new PrivilegeException("You need to be " + expected + " to run this software.");
         }
+    }
+
+    /**
+     * Refuses to start with a setting that sends credentials in cleartext or skips certificate
+     * verification, unless {@code allowInsecure} explicitly opts in - logging the same warning as
+     * before in that case. Unlike the bash tool (whose {@code ldapsearch}/{@code ldapadd}/{@code
+     * ldapdelete} calls always upgraded with StartTLS, and whose {@code SSL_ENABLE} defaulted to
+     * safe), nothing here previously stopped a misconfigured production install from silently
+     * sending the LDAP bind password or REST admin Basic-auth credentials in cleartext, or
+     * accepting an MITM certificate.
+     */
+    private static void checkInsecureSettings(AppConfig config) {
+        if (!config.zimbraLdap().sslEnabled()) {
+            refuseUnlessAllowInsecure(
+                    config,
+                    "zimbraLdap.sslEnabled is false: the LDAP admin bind will not use StartTLS and its"
+                            + " credentials will be sent in cleartext. The bash tool never allowed this.");
+        } else if (config.zimbraLdap().caCertificatePath() == null && config.zimbraLdap().trustAllCertificates()) {
+            refuseUnlessAllowInsecure(
+                    config,
+                    "zimbraLdap.trustAllCertificates is true: the LDAP StartTLS connection will accept any"
+                            + " server certificate, which does not protect against an active MITM attack."
+                            + " Configure zimbraLdap.caCertificatePath instead for production use.");
+        }
+        if (!config.zimbraMailbox().restBaseUrl().toLowerCase(Locale.ROOT).startsWith("https://")) {
+            refuseUnlessAllowInsecure(
+                    config,
+                    "zimbraMailbox.restBaseUrl does not start with https://: mailbox REST requests,"
+                            + " including the admin Basic-auth credentials, will be sent in cleartext."
+                            + " Configure an https:// URL for production use.");
+        }
+    }
+
+    private static void refuseUnlessAllowInsecure(AppConfig config, String message) {
+        if (!config.allowInsecure()) {
+            throw new ConfigException(message + " Set allowInsecure: true in zmbackup.yaml to run anyway.");
+        }
+        LOG.warn(message);
     }
 
     /**

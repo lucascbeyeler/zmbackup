@@ -40,8 +40,9 @@ class BackupServiceTest {
     private final FakeZimbraMailboxExporter mailboxExporter = new FakeZimbraMailboxExporter();
     private final InMemoryStorageProvider storageProvider = new InMemoryStorageProvider();
     private final InMemoryMetadataStore metadataStore = new InMemoryMetadataStore();
-    private final BackupService backupService = new BackupService(
-            accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
+    private final BackupService backupService = BackupService.builder(
+                    accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+            .build();
 
     @Test
     void backsUpDiscoveredAccountsForLdapType() throws IOException {
@@ -107,14 +108,11 @@ class BackupServiceTest {
     @Test
     void discoveredAccountOnBlocklistIsSkipped() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
-        BackupService blocklisted = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> identifier.equals("bob@example.com"),
-                1);
+        BackupService blocklisted = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> identifier.equals("bob@example.com"))
+                .maxParallelProcesses(1)
+                .build();
 
         Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP);
 
@@ -126,14 +124,11 @@ class BackupServiceTest {
     @Test
     void discoveredDomainOnBlocklistIsSkipped() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.DOMAIN, List.of("example.com", "blocked.example.com"));
-        BackupService blocklisted = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> identifier.equals("blocked.example.com"),
-                1);
+        BackupService blocklisted = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> identifier.equals("blocked.example.com"))
+                .maxParallelProcesses(1)
+                .build();
 
         Optional<BackupSession> result = blocklisted.backup(BackupType.DOMAIN);
 
@@ -191,14 +186,11 @@ class BackupServiceTest {
         accountDiscovery.byDomain.put(
                 Map.entry(LdapObjectType.ACCOUNT, "example.com"),
                 List.of("alice@example.com", "bob@example.com"));
-        BackupService blocklisted = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> identifier.equals("bob@example.com"),
-                1);
+        BackupService blocklisted = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> identifier.equals("bob@example.com"))
+                .maxParallelProcesses(1)
+                .build();
 
         Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of(), "example.com");
 
@@ -210,8 +202,11 @@ class BackupServiceTest {
     @Test
     void backupIsSkippedEntirelyWhenEveryDiscoveredAccountIsBlocked() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
-        BackupService blocklisted = new BackupService(
-                accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore, identifier -> true, 1);
+        BackupService blocklisted = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> true)
+                .maxParallelProcesses(1)
+                .build();
 
         Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP);
 
@@ -224,16 +219,13 @@ class BackupServiceTest {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
                 null, "ldap-earlier", "bob@example.com", "1B", Instant.now(), Instant.now()));
-        BackupService lockedBackup = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> false,
-                new RecordingNotifier(),
-                1,
-                true);
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .build();
 
         Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP);
 
@@ -252,16 +244,13 @@ class BackupServiceTest {
                 "1B",
                 Instant.now().minus(Duration.ofHours(30)),
                 Instant.now().minus(Duration.ofHours(30))));
-        BackupService lockedBackup = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> false,
-                new RecordingNotifier(),
-                1,
-                true);
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .build();
 
         Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP);
 
@@ -287,16 +276,13 @@ class BackupServiceTest {
     void explicitAccountBypassesLockBackup() throws IOException {
         metadataStore.recordAccountBackup(new BackupAccountRecord(
                 null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
-        BackupService lockedBackup = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> false,
-                new RecordingNotifier(),
-                1,
-                true);
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .build();
 
         Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP, List.of("alice@example.com"));
 
@@ -306,14 +292,11 @@ class BackupServiceTest {
 
     @Test
     void explicitAccountBypassesBlocklist() throws IOException {
-        BackupService blocklisted = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> true,
-                1);
+        BackupService blocklisted = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> true)
+                .maxParallelProcesses(1)
+                .build();
 
         Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of("alice@example.com"));
 
@@ -358,8 +341,10 @@ class BackupServiceTest {
                 throw new UnsupportedOperationException();
             }
         };
-        BackupService parallelBackup = new BackupService(
-                accountDiscovery, trackingExporter, mailboxExporter, storageProvider, metadataStore, 2);
+        BackupService parallelBackup = BackupService.builder(
+                        accountDiscovery, trackingExporter, mailboxExporter, storageProvider, metadataStore)
+                .maxParallelProcesses(2)
+                .build();
 
         Optional<BackupSession> result = parallelBackup.backup(BackupType.LDAP);
 
@@ -372,15 +357,12 @@ class BackupServiceTest {
     @Test
     void notifiesBeginAndFinishForASession() throws IOException {
         RecordingNotifier notifier = new RecordingNotifier();
-        BackupService notified = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> false,
-                notifier,
-                1);
+        BackupService notified = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(notifier)
+                .maxParallelProcesses(1)
+                .build();
 
         Optional<BackupSession> result = notified.backup(BackupType.LDAP, List.of("alice@example.com"));
 
@@ -395,15 +377,12 @@ class BackupServiceTest {
     @Test
     void doesNotNotifyWhenNothingToBackUp() throws IOException {
         RecordingNotifier notifier = new RecordingNotifier();
-        BackupService notified = new BackupService(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> false,
-                notifier,
-                1);
+        BackupService notified = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(notifier)
+                .maxParallelProcesses(1)
+                .build();
 
         notified.backup(BackupType.SIGNATURE);
 
@@ -460,15 +439,12 @@ class BackupServiceTest {
                 throw new UnsupportedOperationException();
             }
         };
-        BackupService interrupted = new BackupService(
-                accountDiscovery,
-                interruptingExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                identifier -> false,
-                notifier,
-                1);
+        BackupService interrupted = BackupService.builder(
+                        accountDiscovery, interruptingExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(notifier)
+                .maxParallelProcesses(1)
+                .build();
 
         assertThrows(IOException.class, () -> interrupted.backup(BackupType.LDAP));
 

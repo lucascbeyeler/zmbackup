@@ -86,101 +86,6 @@ public class BackupService {
     private final int maxParallelProcesses;
     private final boolean lockBackup;
 
-    public BackupService(
-            AccountDiscovery accountDiscovery,
-            ZimbraLdapExporter ldapExporter,
-            ZimbraMailboxExporter mailboxExporter,
-            StorageProvider storageProvider,
-            MetadataStore metadataStore) {
-        this(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                NO_BLOCKLIST,
-                NO_NOTIFIER,
-                1);
-    }
-
-    /**
-     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
-     *     tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated as 1
-     */
-    public BackupService(
-            AccountDiscovery accountDiscovery,
-            ZimbraLdapExporter ldapExporter,
-            ZimbraMailboxExporter mailboxExporter,
-            StorageProvider storageProvider,
-            MetadataStore metadataStore,
-            int maxParallelProcesses) {
-        this(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                NO_BLOCKLIST,
-                NO_NOTIFIER,
-                maxParallelProcesses);
-    }
-
-    /**
-     * @param blocklist            discovered accounts (or domains) found here are skipped rather
-     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
-     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
-     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
-     *                             as 1
-     */
-    public BackupService(
-            AccountDiscovery accountDiscovery,
-            ZimbraLdapExporter ldapExporter,
-            ZimbraMailboxExporter mailboxExporter,
-            StorageProvider storageProvider,
-            MetadataStore metadataStore,
-            Blocklist blocklist,
-            int maxParallelProcesses) {
-        this(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                blocklist,
-                NO_NOTIFIER,
-                maxParallelProcesses);
-    }
-
-    /**
-     * @param blocklist            discovered accounts (or domains) found here are skipped rather
-     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
-     * @param notifier             notified when a session starts and finishes, mirroring {@code
-     *                             notify_begin}/{@code notify_finish}
-     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
-     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
-     *                             as 1
-     */
-    public BackupService(
-            AccountDiscovery accountDiscovery,
-            ZimbraLdapExporter ldapExporter,
-            ZimbraMailboxExporter mailboxExporter,
-            StorageProvider storageProvider,
-            MetadataStore metadataStore,
-            Blocklist blocklist,
-            Notifier notifier,
-            int maxParallelProcesses) {
-        this(
-                accountDiscovery,
-                ldapExporter,
-                mailboxExporter,
-                storageProvider,
-                metadataStore,
-                blocklist,
-                notifier,
-                maxParallelProcesses,
-                false);
-    }
-
     /**
      * @param blocklist            discovered accounts (or domains) found here are skipped rather
      *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
@@ -194,7 +99,7 @@ public class BackupService {
      *                             the last 24 hours are skipped, mirroring {@code ldap_filter}'s
      *                             {@code LOCK_BACKUP} dedup check
      */
-    public BackupService(
+    private BackupService(
             AccountDiscovery accountDiscovery,
             ZimbraLdapExporter ldapExporter,
             ZimbraMailboxExporter mailboxExporter,
@@ -213,6 +118,97 @@ public class BackupService {
         this.notifier = Objects.requireNonNull(notifier, "notifier must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
         this.lockBackup = lockBackup;
+    }
+
+    /**
+     * Starts building a {@link BackupService} from its required collaborators, with {@link
+     * Builder#blocklist}, {@link Builder#notifier}, {@link Builder#maxParallelProcesses}, and
+     * {@link Builder#lockBackup} all optional and defaulted - replacing what used to be five
+     * telescoping constructors covering every combination of those four optional settings.
+     */
+    public static Builder builder(
+            AccountDiscovery accountDiscovery,
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore) {
+        return new Builder(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
+    }
+
+    /** Builds a {@link BackupService}; see {@link BackupService#builder} for how to obtain one. */
+    public static final class Builder {
+        private final AccountDiscovery accountDiscovery;
+        private final ZimbraLdapExporter ldapExporter;
+        private final ZimbraMailboxExporter mailboxExporter;
+        private final StorageProvider storageProvider;
+        private final MetadataStore metadataStore;
+        private Blocklist blocklist = NO_BLOCKLIST;
+        private Notifier notifier = NO_NOTIFIER;
+        private int maxParallelProcesses = 1;
+        private boolean lockBackup = false;
+
+        private Builder(
+                AccountDiscovery accountDiscovery,
+                ZimbraLdapExporter ldapExporter,
+                ZimbraMailboxExporter mailboxExporter,
+                StorageProvider storageProvider,
+                MetadataStore metadataStore) {
+            this.accountDiscovery = accountDiscovery;
+            this.ldapExporter = ldapExporter;
+            this.mailboxExporter = mailboxExporter;
+            this.storageProvider = storageProvider;
+            this.metadataStore = metadataStore;
+        }
+
+        /**
+         * Discovered accounts (or domains) found here are skipped rather than backed up,
+         * mirroring {@code ldap_filter}'s blocklist check. Defaults to backing up everything.
+         */
+        public Builder blocklist(Blocklist blocklist) {
+            this.blocklist = blocklist;
+            return this;
+        }
+
+        /**
+         * Notified when a session starts and finishes, mirroring {@code notify_begin}/{@code
+         * notify_finish}. Defaults to sending no notifications.
+         */
+        public Builder notifier(Notifier notifier) {
+            this.notifier = notifier;
+            return this;
+        }
+
+        /**
+         * How many accounts to back up concurrently, mirroring the bash tool's {@code
+         * MAX_PARALLEL_PROCESS}; values below 1 are treated as 1. Defaults to 1 (sequential).
+         */
+        public Builder maxParallelProcesses(int maxParallelProcesses) {
+            this.maxParallelProcesses = maxParallelProcesses;
+            return this;
+        }
+
+        /**
+         * When true, discovered identifiers (not explicit {@code --account} lists) with an
+         * account-level backup completed within the last 24 hours are skipped, mirroring {@code
+         * ldap_filter}'s {@code LOCK_BACKUP} dedup check. Defaults to false.
+         */
+        public Builder lockBackup(boolean lockBackup) {
+            this.lockBackup = lockBackup;
+            return this;
+        }
+
+        public BackupService build() {
+            return new BackupService(
+                    accountDiscovery,
+                    ldapExporter,
+                    mailboxExporter,
+                    storageProvider,
+                    metadataStore,
+                    blocklist,
+                    notifier,
+                    maxParallelProcesses,
+                    lockBackup);
+        }
     }
 
     /** Backs up every object of {@code type} found across the whole directory. */

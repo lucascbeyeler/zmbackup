@@ -118,7 +118,6 @@ class AccountsCommandTest {
                   sslEnabled: false
                 zimbraMailbox:
                   backupUser: %s
-                  zmmailboxPath: /opt/zimbra/bin/zmmailbox
                   restBaseUrl: https://127.0.0.1:7071
                   adminUser: zimbra
                   adminPassword: secret
@@ -129,6 +128,7 @@ class AccountsCommandTest {
                   emailNotify:
                     recipient: admin@example.com
                     sender: root@example.com
+                allowInsecure: true
                 """
                         .formatted(
                                 directoryServer.getListenPort(),

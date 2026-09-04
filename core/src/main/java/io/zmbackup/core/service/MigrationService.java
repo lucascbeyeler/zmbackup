@@ -17,7 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -117,8 +119,19 @@ public final class MigrationService {
             metadataStore.save(new BackupSession(sessionId, type, status, startedAt, completedAt, size));
             imported++;
 
+            // save() above is an upsert keyed on sessionId, so a retry after a partial failure
+            // re-reaches this point safely, but recordAccountBackup() below is a plain insert with
+            // no such key - skip accounts a previous, interrupted run already recorded for this
+            // session so a retry can't duplicate their rows.
+            Set<String> alreadyRecorded = metadataStore.findAccountsForSession(sessionId).stream()
+                    .map(BackupAccountRecord::email)
+                    .collect(Collectors.toSet());
+
             for (String[] accountLine : accountLinesBySession.getOrDefault(sessionId, List.of())) {
                 String email = accountLine[0];
+                if (alreadyRecorded.contains(email)) {
+                    continue;
+                }
                 Instant accountAt = parseAccountDate(accountLine[1], startedAt);
                 String accountSize = storageProvider.sizeOfAccount(sessionId, email);
                 metadataStore.recordAccountBackup(
