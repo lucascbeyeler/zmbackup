@@ -80,7 +80,7 @@ setup() {
 @test "vars: ZMBKP_VERSION reads the real VERSION file when MYDIR points at the repo" {
   MYDIR="$PROJECT_ROOT"
   ZMBKP_VERSION="zmbackup version: $(cat "$MYDIR/VERSION")"
-  [[ "$ZMBKP_VERSION" == *"1.2"* ]]
+  [[ "$ZMBKP_VERSION" == *"$(cat "$MYDIR/VERSION")"* ]]
 }
 
 @test "vars: TERM is set to linux" {
