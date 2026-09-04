@@ -46,8 +46,8 @@ public class EmailNotifier implements Notifier {
             boolean notifyOnFinishError) {
         this.smtpHost = Objects.requireNonNull(smtpHost, "smtpHost must not be null");
         this.smtpPort = smtpPort;
-        this.sender = Objects.requireNonNull(sender, "sender must not be null");
-        this.recipient = Objects.requireNonNull(recipient, "recipient must not be null");
+        this.sender = requireNoCrlf(sender, "sender");
+        this.recipient = requireNoCrlf(recipient, "recipient");
         this.notifyOnBegin = notifyOnBegin;
         this.notifyOnFinishSuccess = notifyOnFinishSuccess;
         this.notifyOnFinishError = notifyOnFinishError;
@@ -80,6 +80,14 @@ public class EmailNotifier implements Notifier {
                 + "Accounts: " + accountCount + "\n"
                 + "Status: " + status.dbValue() + "\n";
         send(subject, body);
+    }
+
+    private static String requireNoCrlf(String value, String fieldName) {
+        Objects.requireNonNull(value, fieldName + " must not be null");
+        if (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0) {
+            throw new IllegalArgumentException(fieldName + " must not contain CR or LF characters");
+        }
+        return value;
     }
 
     private void send(String subject, String body) throws IOException {

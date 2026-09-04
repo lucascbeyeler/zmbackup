@@ -46,6 +46,7 @@ final class Parallel {
             return results;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            executor.shutdownNow();
             throw new IOException("Interrupted while running parallel tasks", e);
         } finally {
             executor.shutdown();
