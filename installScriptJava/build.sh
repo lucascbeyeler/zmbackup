@@ -1,12 +1,5 @@
 #!/bin/bash
-################################################################################
 
-################################################################################
-# build_jar: Build the self-contained zmbackup.jar with the Gradle wrapper.
-# Requires a Java JDK on PATH (see check_java_runtime/depDownload.sh) and, on
-# first run, internet access to download Gradle and the project's Maven
-# dependencies.
-################################################################################
 function build_jar() {
   echo "Building ${ZMBKP_JAR_NAME} - this can take a few minutes on first run."
   ( cd "$MYDIR" && ./gradlew :app:shadowJar -q )

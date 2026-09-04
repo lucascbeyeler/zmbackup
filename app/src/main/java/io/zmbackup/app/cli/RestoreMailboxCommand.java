@@ -13,7 +13,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** Restores mailbox content from a backup session, mirroring {@code zmbackup -r mbox-*} in the bash tool. */
 @Command(name = "mailbox", description = "Restore mailbox content from a backup session.")
 public final class RestoreMailboxCommand implements Callable<Integer> {
 

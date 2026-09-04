@@ -13,27 +13,16 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
-/**
- * Parses {@code zmbackup.yaml} into an {@link AppConfig}, mirroring the fields of the bash tool's
- * {@code zmbackup.conf}.
- */
 public final class YamlConfigLoader {
 
-    /** Where the bash tool's installer places {@code zmbackup.conf}; the Java tool's equivalent. */
     public static final Path DEFAULT_CONFIG_PATH = Path.of("/etc/zmbackup/zmbackup.yaml");
 
     private YamlConfigLoader() {}
 
-    /**
-     * Restricted to plain maps/scalars: config content is operator-controlled but there is no
-     * reason to allow it to instantiate arbitrary Java types via {@code !!}-tagged values, which
-     * the default {@link Yaml} constructor otherwise permits.
-     */
     private static Yaml newYaml() {
         return new Yaml(new SafeConstructor(new LoaderOptions()));
     }
 
-    /** Reads and parses the config file at {@code configFile}. */
     public static AppConfig load(Path configFile) throws IOException {
         try (Reader reader = Files.newBufferedReader(configFile)) {
             return load(reader);
@@ -42,12 +31,10 @@ public final class YamlConfigLoader {
         }
     }
 
-    /** Parses config content already available as a stream, e.g. a bundled resource. */
     public static AppConfig load(InputStream in) {
         return load(newYaml().<Map<String, Object>>load(in));
     }
 
-    /** Parses config content already available as a reader. */
     public static AppConfig load(Reader reader) {
         return load(newYaml().<Map<String, Object>>load(reader));
     }
@@ -101,8 +88,6 @@ public final class YamlConfigLoader {
 
     private static EmailNotifyConfig parseEmailNotify(Map<String, Object> root) {
         EmailNotifyLevel level = optionalEmailNotifyLevel(root, "backup.emailNotify.level", EmailNotifyLevel.ALL);
-        // No notification is ever sent when level is NONE, so recipient/sender are pointless to
-        // require in that case - unlike every other level, where they're needed to send one.
         boolean notifyDisabled = level == EmailNotifyLevel.NONE;
         return new EmailNotifyConfig(
                 level,
@@ -114,10 +99,6 @@ public final class YamlConfigLoader {
                         : requireString(root, "backup.emailNotify.sender"));
     }
 
-    /**
-     * Navigates {@code root} following {@code dottedPath} (e.g. {@code "backup.workDir"}),
-     * returning {@code null} if any segment along the way is absent.
-     */
     private static Object get(Map<String, Object> root, String dottedPath) {
         Object current = root;
         StringBuilder soFar = new StringBuilder();
@@ -162,10 +143,6 @@ public final class YamlConfigLoader {
         if (value instanceof Boolean bool) {
             return bool;
         }
-        // SnakeYAML only ever produces a Boolean for an unquoted true/false (or YAML 1.1's
-        // yes/no/on/off); a quoted "true"/"yes" comes through as a String instead. Accepting that
-        // too - common when a config is templated or hand-quoted - avoids a confusing type error
-        // for what is otherwise an unambiguous value.
         if (value instanceof String text) {
             Optional<Boolean> parsed = parseBoolean(text);
             if (parsed.isPresent()) {
@@ -188,11 +165,6 @@ public final class YamlConfigLoader {
         if (value == null) {
             return defaultValue;
         }
-        // SnakeYAML parses a YAML integer as an Integer only while it fits in one; a larger value
-        // (e.g. a stray extra digit from a typo) comes through as a Long or BigInteger instead of
-        // failing to parse, so those must be handled too - and rejected with a clear "out of
-        // range" message rather than the generic type error below, which would otherwise be
-        // confusing for a value that IS an integer, just not one an int can hold.
         if (value instanceof Number number) {
             long asLong = number.longValue();
             if (asLong < Integer.MIN_VALUE || asLong > Integer.MAX_VALUE) {

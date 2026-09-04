@@ -12,17 +12,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Imports a bash-tool {@code sessions.txt} into the SQLite metadata store this build reads
- * exclusively, for servers moving from the bash tool - which may have stored its sessions as TXT
- * - to this Java build. Delegates the parsing to {@link io.zmbackup.core.service.MigrationService};
- * mirrors the bash tool's {@code -mg}/{@code --migrate} option in spirit, but only ever migrates
- * TXT into SQLite, since that is the only format this build understands.
- *
- * <p>Safe to run more than once, including unattended from the installer: once a {@code
- * sessions.txt} is imported it is renamed to {@code sessions.txt.migrated}, so a repeat run finds
- * nothing left to import instead of re-inserting duplicate account records.
- */
 @Command(name = "migrate", description = "Import a bash-tool sessions.txt into the SQLite metadata store.")
 public final class MigrateCommand implements Callable<Integer> {
 

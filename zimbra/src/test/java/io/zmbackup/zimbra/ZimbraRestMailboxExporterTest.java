@@ -32,10 +32,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Exercises {@link ZimbraRestMailboxExporter} against a WireMock server standing in for Zimbra's
- * REST mailbox endpoint.
- */
 class ZimbraRestMailboxExporterTest {
 
     private static final String ADMIN_USER = "zimbra";

@@ -10,10 +10,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
-/**
- * Picocli entry point. Dispatches to one of the subcommands, each of which turns the
- * {@code --config} option into a wired {@link io.zmbackup.app.AppContext}.
- */
 @Command(
         name = "zmbackup",
         versionProvider = VersionProvider.class,
@@ -48,15 +44,6 @@ public final class Main implements Callable<Integer> {
         System.exit(commandLine().execute(args));
     }
 
-    /**
-     * Builds the {@link CommandLine} with a handler that reports {@link PrivilegeException}
-     * cleanly (message + the usage exit code, mirroring the bash tool's {@code validate_config}
-     * {@code exit 2}) instead of picocli's default stack-trace dump, and otherwise prints just the
-     * failure's message rather than its full stack trace - which, for an admin-facing CLI run
-     * normally rather than under a debugger, is noise that can also expose internal class/file
-     * detail with no actionable value. {@code --stacktrace} (mirroring Gradle's own flag of the
-     * same name/purpose) opts back into the full trace for diagnosing an unexpected failure.
-     */
     static CommandLine commandLine() {
         Main main = new Main();
         CommandLine cmd = new CommandLine(main);
@@ -77,12 +64,10 @@ public final class Main implements Callable<Integer> {
         return cmd;
     }
 
-    /** The config file passed via {@code --config}, or {@link YamlConfigLoader#DEFAULT_CONFIG_PATH}. */
     public Path configFile() {
         return configFile;
     }
 
-    /** No subcommand given: show usage instead of doing nothing silently. */
     @Override
     public Integer call() {
         spec.commandLine().usage(spec.commandLine().getOut());

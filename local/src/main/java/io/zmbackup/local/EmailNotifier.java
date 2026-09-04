@@ -13,11 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * Sends plain-text e-mail notifications by speaking SMTP directly over a socket to a local relay,
- * mirroring {@code notify_begin}/{@code notify_finish} in the bash tool's {@code NotifyAction.sh},
- * which submits through the {@code sendmail} command to the same local MTA.
- */
 public class EmailNotifier implements Notifier {
 
     private final String smtpHost;
@@ -28,24 +23,8 @@ public class EmailNotifier implements Notifier {
     private final boolean notifyOnFinishSuccess;
     private final boolean notifyOnFinishError;
 
-    /**
-     * How long {@link #send} waits to connect to the relay, or to read its next response line,
-     * before giving up. Without this, a relay that accepts the TCP connection but never responds
-     * (or stops responding mid-conversation) would hang {@link #send} - and, since {@code
-     * notifyBegin}/{@code notifyFinish} run synchronously inside {@code BackupService.backup()},
-     * the whole backup run - indefinitely.
-     */
     private static final int SMTP_TIMEOUT_MILLIS = 30_000;
 
-    /**
-     * @param smtpHost              host of the local SMTP relay to submit through
-     * @param smtpPort              port of the local SMTP relay
-     * @param sender                the {@code From} address, mirroring {@code EMAIL_SENDER}
-     * @param recipient             the {@code To} address, mirroring {@code EMAIL_NOTIFY}
-     * @param notifyOnBegin         whether to send a notification when a session starts
-     * @param notifyOnFinishSuccess whether to send a notification when a session finishes successfully
-     * @param notifyOnFinishError   whether to send a notification when a session fails
-     */
     public EmailNotifier(
             String smtpHost,
             int smtpPort,
@@ -146,7 +125,7 @@ public class EmailNotifier implements Notifier {
             if (line == null) {
                 throw new IOException("SMTP server closed the connection unexpectedly");
             }
-        } while (line.length() > 3 && line.charAt(3) == '-'); // keep reading a multi-line response
+        } while (line.length() > 3 && line.charAt(3) == '-');
         if (!line.startsWith(Integer.toString(expectedCode))) {
             throw new IOException("Unexpected SMTP response: " + line);
         }

@@ -36,24 +36,14 @@ import java.util.Locale;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
-/**
- * Wires the application's components from a parsed {@link AppConfig} with plain {@code new},
- * standing in for a dependency injection framework.
- */
 public final class AppContext {
 
-    /** Filename of the SQLite database within {@link io.zmbackup.app.config.BackupConfig#workDir()}. */
     private static final String METADATA_STORE_FILENAME = "sessions.sqlite3";
 
-    /**
-     * Host/port of the local SMTP relay {@link EmailNotifier} submits through, matching the bash
-     * tool's use of the {@code sendmail} command to submit to the machine's own MTA.
-     */
     private static final String NOTIFY_SMTP_HOST = "localhost";
 
     private static final int NOTIFY_SMTP_PORT = 25;
 
-    /** Used for {@link EmailNotifyLevel#NONE}, where every lifecycle event is a silent no-op. */
     private static final Notifier NO_NOTIFIER = new Notifier() {
         @Override
         public void notifyBegin(String sessionId, BackupType type) {}
@@ -63,7 +53,6 @@ public final class AppContext {
                 String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {}
     };
 
-    /** Root logger name every zmbackup class logs under, so one appender pair covers all of them. */
     private static final String ROOT_LOGGER_NAME = "io.zmbackup";
 
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(AppContext.class);
@@ -89,9 +78,6 @@ public final class AppContext {
         SqliteMetadataStore sqliteMetadataStore =
                 new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
         this.metadataStore = sqliteMetadataStore;
-        // metadataStore holds a live JDBC connection from here on; if anything below fails, this
-        // constructor never returns a PidLock-style handle the caller could close, so it must
-        // close the connection itself rather than leaking it.
         try {
             UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
                     config.zimbraLdap().url(),
@@ -134,12 +120,6 @@ public final class AppContext {
         }
     }
 
-    /**
-     * Refuses to run when the OS user invoking the process doesn't match {@code
-     * zimbraMailbox.backupUser}, mirroring the bash tool's {@code validate_config}: {@code if [
-     * "$(whoami)" != "$BACKUPUSER" ]; then echo "You need to be $BACKUPUSER to run this
-     * software."; exit 2; fi}.
-     */
     private static void checkBackupUser(AppConfig config) {
         String expected = config.zimbraMailbox().backupUser();
         String actual = System.getProperty("user.name");
@@ -148,15 +128,6 @@ public final class AppContext {
         }
     }
 
-    /**
-     * Refuses to start with a setting that sends credentials in cleartext or skips certificate
-     * verification, unless {@code allowInsecure} explicitly opts in - logging the same warning as
-     * before in that case. Unlike the bash tool (whose {@code ldapsearch}/{@code ldapadd}/{@code
-     * ldapdelete} calls always upgraded with StartTLS, and whose {@code SSL_ENABLE} defaulted to
-     * safe), nothing here previously stopped a misconfigured production install from silently
-     * sending the LDAP bind password or REST admin Basic-auth credentials in cleartext, or
-     * accepting an MITM certificate.
-     */
     private static void checkInsecureSettings(AppConfig config) {
         if (!config.zimbraLdap().sslEnabled()) {
             refuseUnlessAllowInsecure(
@@ -193,15 +164,6 @@ public final class AppContext {
         LOG.warn(message);
     }
 
-    /**
-     * Routes every {@code io.zmbackup} logger to {@code logFile}/syslog, the same two
-     * destinations the bash tool's {@code zmlog} writes to, using the standard SLF4J/Logback
-     * stack instead of the JDK's default console handler.
-     *
-     * <p>{@code core} stays free of external dependencies (see {@code core/build.gradle.kts}) and
-     * keeps logging through plain {@code java.util.logging}; {@link SLF4JBridgeHandler} routes
-     * those records into SLF4J/Logback here instead.
-     */
     private static void installLogging(Path logFile) {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
@@ -239,13 +201,6 @@ public final class AppContext {
         return appender;
     }
 
-    /**
-     * Builds a {@link Notifier} from {@code config}'s {@code backup.emailNotify} section,
-     * translating {@link EmailNotifyLevel} into which lifecycle events it notifies on. {@code
-     * NONE} never sends anything, and its recipient/sender are therefore allowed to be unset
-     * ({@link EmailNotifyConfig}) - so it's handled separately here rather than passed through to
-     * {@link EmailNotifier}, which requires both to be non-null.
-     */
     private static Notifier emailNotifier(AppConfig config) {
         EmailNotifyLevel level = config.backup().emailNotify().level();
         if (level == EmailNotifyLevel.NONE) {
@@ -264,7 +219,6 @@ public final class AppContext {
                 notifyOnFinishError);
     }
 
-    /** Reads {@code configFile} and wires the components it describes. */
     public static AppContext fromConfigFile(Path configFile) throws IOException {
         return new AppContext(YamlConfigLoader.load(configFile));
     }

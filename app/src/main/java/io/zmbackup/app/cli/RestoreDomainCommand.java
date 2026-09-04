@@ -13,7 +13,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** Restores Zimbra domain LDAP entries from a backup session, mirroring {@code zmbackup -r domain-*} in the bash tool. */
 @Command(name = "domain", description = "Restore Zimbra domain LDAP entries from a backup session.")
 public final class RestoreDomainCommand implements Callable<Integer> {
 

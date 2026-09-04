@@ -1,4 +1,2 @@
 #!/usr/bin/env bash
-# Thin launcher installed at /usr/local/bin/zmbackup. All behaviour lives in
-# the jar; this script only hands off to it.
 exec java -jar /usr/local/lib/zmbackup/zmbackup.jar "$@"

@@ -27,13 +27,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-/**
- * Runs backup sessions for the LDAP-only {@link BackupType}s ({@code LDAP}, {@code ALIAS}, {@code
- * DISTRIBUTION_LIST}, {@code SIGNATURE}, {@code DOMAIN}), {@code MAILBOX}, {@code FULL}, and
- * {@code INCREMENTAL}, mirroring {@code backup_main} and its {@code __backupLdap}/{@code
- * __backupDomain}/{@code __backupMailbox}/{@code __backupFullInc} helpers in the bash tool's
- * {@code BackupAction.sh}.
- */
 public class BackupService {
 
     private static final Logger LOG = Logger.getLogger(BackupService.class.getName());
@@ -52,35 +45,14 @@ public class BackupService {
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
 
-    /**
-     * Format guards applied to LDAP-discovered identifiers before they reach a storage path, LDAP
-     * base DN, or REST URL - mirroring the CLI layer's own email/domain checks (the bash tool's
-     * {@code validate_email}/{@code validate_domain}), which only cover explicit {@code --account}/
-     * {@code --domain} arguments and never see identifiers found via directory discovery. {@link
-     * LdapObjectType#SIGNATURE} is exempt: its identifying attribute is a free-text signature name,
-     * not an email address.
-     */
     private static final Pattern DISCOVERED_EMAIL = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
     private static final Pattern DISCOVERED_DOMAIN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
-    /**
-     * Mirrors the bash tool's {@code YESTERDAY} variable: how far back of the last successful
-     * backup an incremental export's {@code after} cutoff is set.
-     */
     private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
-    /**
-     * How far back {@code lockBackup} looks for a prior backup of a discovered identifier,
-     * mirroring {@code ldap_filter}'s {@code YESTERDAY} cutoff.
-     */
     private static final Duration LOCK_BACKUP_WINDOW = Duration.ofHours(24);
 
-    /**
-     * How long {@link #uniqueSessionId} retries before giving up, bounding the pathological case
-     * where sessions of the same type are started back-to-back faster than {@link
-     * #SESSION_TIMESTAMP}'s second resolution can tell apart.
-     */
     private static final Duration SESSION_ID_RETRY_BUDGET = Duration.ofSeconds(5);
 
     private final AccountDiscovery accountDiscovery;
@@ -93,19 +65,6 @@ public class BackupService {
     private final int maxParallelProcesses;
     private final boolean lockBackup;
 
-    /**
-     * @param blocklist            discovered accounts (or domains) found here are skipped rather
-     *                             than backed up, mirroring {@code ldap_filter}'s blocklist check
-     * @param notifier             notified when a session starts and finishes, mirroring {@code
-     *                             notify_begin}/{@code notify_finish}
-     * @param maxParallelProcesses how many accounts to back up concurrently, mirroring the bash
-     *                             tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated
-     *                             as 1
-     * @param lockBackup           when true, discovered identifiers (not explicit {@code
-     *                             --account} lists) with an account-level backup completed within
-     *                             the last 24 hours are skipped, mirroring {@code ldap_filter}'s
-     *                             {@code LOCK_BACKUP} dedup check
-     */
     private BackupService(
             AccountDiscovery accountDiscovery,
             ZimbraLdapExporter ldapExporter,
@@ -127,12 +86,6 @@ public class BackupService {
         this.lockBackup = lockBackup;
     }
 
-    /**
-     * Starts building a {@link BackupService} from its required collaborators, with {@link
-     * Builder#blocklist}, {@link Builder#notifier}, {@link Builder#maxParallelProcesses}, and
-     * {@link Builder#lockBackup} all optional and defaulted - replacing what used to be five
-     * telescoping constructors covering every combination of those four optional settings.
-     */
     public static Builder builder(
             AccountDiscovery accountDiscovery,
             ZimbraLdapExporter ldapExporter,
@@ -142,7 +95,6 @@ public class BackupService {
         return new Builder(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore);
     }
 
-    /** Builds a {@link BackupService}; see {@link BackupService#builder} for how to obtain one. */
     public static final class Builder {
         private final AccountDiscovery accountDiscovery;
         private final ZimbraLdapExporter ldapExporter;
@@ -167,38 +119,21 @@ public class BackupService {
             this.metadataStore = metadataStore;
         }
 
-        /**
-         * Discovered accounts (or domains) found here are skipped rather than backed up,
-         * mirroring {@code ldap_filter}'s blocklist check. Defaults to backing up everything.
-         */
         public Builder blocklist(Blocklist blocklist) {
             this.blocklist = blocklist;
             return this;
         }
 
-        /**
-         * Notified when a session starts and finishes, mirroring {@code notify_begin}/{@code
-         * notify_finish}. Defaults to sending no notifications.
-         */
         public Builder notifier(Notifier notifier) {
             this.notifier = notifier;
             return this;
         }
 
-        /**
-         * How many accounts to back up concurrently, mirroring the bash tool's {@code
-         * MAX_PARALLEL_PROCESS}; values below 1 are treated as 1. Defaults to 1 (sequential).
-         */
         public Builder maxParallelProcesses(int maxParallelProcesses) {
             this.maxParallelProcesses = maxParallelProcesses;
             return this;
         }
 
-        /**
-         * When true, discovered identifiers (not explicit {@code --account} lists) with an
-         * account-level backup completed within the last 24 hours are skipped, mirroring {@code
-         * ldap_filter}'s {@code LOCK_BACKUP} dedup check. Defaults to false.
-         */
         public Builder lockBackup(boolean lockBackup) {
             this.lockBackup = lockBackup;
             return this;
@@ -218,31 +153,14 @@ public class BackupService {
         }
     }
 
-    /** Backs up every object of {@code type} found across the whole directory. */
     public Optional<BackupSession> backup(BackupType type) throws IOException {
         return backup(type, List.of(), null);
     }
 
-    /** Backs up only the given {@code identifiers} (accounts, or domains for {@link BackupType#DOMAIN}). */
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers) throws IOException {
         return backup(type, identifiers, null);
     }
 
-    /**
-     * Runs one backup session of {@code type}, mirroring {@code backup_main}: resolves the
-     * objects to back up, records an {@code IN PROGRESS} session, exports and stores each object,
-     * then updates the session to its final status.
-     *
-     * @param type        an LDAP-only backup type ({@code LDAP}, {@code ALIAS}, {@code
-     *                    DISTRIBUTION_LIST}, {@code SIGNATURE}, or {@code DOMAIN}), {@code
-     *                    MAILBOX}, {@code FULL}, or {@code INCREMENTAL}
-     * @param identifiers explicit accounts (or domains, for {@code DOMAIN}) to back up, bypassing
-     *                    discovery; empty to discover automatically
-     * @param domain      when {@code identifiers} is empty and {@code type != DOMAIN}, restricts
-     *                    discovery to this domain (e.g. {@code "example.com"}); {@code null} to
-     *                    search the whole directory
-     * @return the completed session, or empty if there was nothing to back up
-     */
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain)
             throws IOException {
         List<String> resolved = resolveIdentifiers(type, identifiers, domain);
@@ -272,7 +190,6 @@ public class BackupService {
         SessionStatus status = allSucceeded ? SessionStatus.FINISHED : SessionStatus.FAILED;
         BackupSession completed = new BackupSession(sessionId, type, status, sessionStart, sessionEnd, size);
         metadataStore.save(completed);
-        // Mirrors notify_finish's SIZE=0/QTDE=0 on a failed session: only report real numbers on success.
         String notifySize = status == SessionStatus.FINISHED ? size : "0";
         int notifyAccountCount =
                 status == SessionStatus.FINISHED ? metadataStore.findAccountsForSession(sessionId).size() : 0;
@@ -280,13 +197,6 @@ public class BackupService {
         return Optional.of(completed);
     }
 
-    /**
-     * A session ID for {@code type} that {@link #metadataStore} doesn't already have a session
-     * recorded under, retrying with a freshly captured timestamp when {@link #SESSION_TIMESTAMP}'s
-     * second-resolution clock hasn't ticked over yet. {@link MetadataStore#save} is an upsert
-     * keyed on session ID, so without this, two backups of the same type started within the same
-     * second would silently merge into a single session, each overwriting the other's metadata.
-     */
     private String uniqueSessionId(BackupType type) throws IOException {
         Instant deadline = Instant.now().plus(SESSION_ID_RETRY_BUDGET);
         while (true) {
@@ -308,11 +218,6 @@ public class BackupService {
         }
     }
 
-    /**
-     * Records {@code sessionId} as {@code FAILED} when {@link Parallel#run} itself threw (e.g. the
-     * calling thread was interrupted by SIGTERM/shutdown) rather than any individual task failing,
-     * so the session is never left orphaned as {@code IN_PROGRESS} forever.
-     */
     private void recordFailedSession(String sessionId, BackupType type, Instant sessionStart) throws IOException {
         Instant sessionEnd = Instant.now();
         String size = storageProvider.sizeOfSession(sessionId);
@@ -325,15 +230,6 @@ public class BackupService {
         void run() throws IOException;
     }
 
-    /**
-     * Runs a {@link Notifier} call, logging rather than propagating a failure: a notification
-     * problem must never fail the backup itself, mirroring how the bash tool's {@code
-     * notify_begin}/{@code notify_finish} only log a warning when {@code sendmail} fails. Catches
-     * {@link RuntimeException} as well as {@link IOException} - a {@link Notifier} implementation
-     * throwing unchecked (e.g. a bug, or a runtime dependency failure) is just as much "a
-     * notification problem" as a checked I/O failure, and must not be allowed to abort an
-     * otherwise-successful backup this late, after all the real work is already done.
-     */
     private void notifySafely(NotifierCall call) {
         try {
             call.run();
@@ -344,12 +240,6 @@ public class BackupService {
         }
     }
 
-    /**
-     * Exports and stores a single object, recording its result. Returns {@code false} on failure.
-     * For {@code FULL}, mirrors {@code __backupFullInc}: exports LDAP first, then skips the
-     * mailbox export (and the account record) entirely if the LDAP export failed. For {@code
-     * INCREMENTAL}, exports mailbox content after {@link #incrementalCutoff(String)}.
-     */
     private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
         Instant startedAt = Instant.now();
         try {
@@ -388,12 +278,6 @@ public class BackupService {
         return true;
     }
 
-    /**
-     * The {@code after} cutoff for an incremental export of {@code email}: {@link
-     * #INCREMENTAL_LOOKBACK} before its last successful backup, mirroring the bash tool's {@code
-     * YESTERDAY} variable. Returns {@code null} (falling back to a full export) when {@code email}
-     * has no prior successful backup.
-     */
     private Instant incrementalCutoff(String email) throws IOException {
         return metadataStore
                 .lastSuccessfulBackupTime(email)
@@ -401,13 +285,6 @@ public class BackupService {
                 .orElse(null);
     }
 
-    /**
-     * Resolves the objects to back up. Explicit {@code identifiers} are used as-is, bypassing the
-     * blocklist and {@code lockBackup} dedup, mirroring {@code backup_main}'s {@code -a}/{@code
-     * --account} path (which bypasses {@code build_listBKP} entirely); discovered objects are
-     * filtered against the blocklist and, when {@link #lockBackup} is enabled, against identifiers
-     * already backed up today - same as {@code build_listBKP} always does via {@code ldap_filter}.
-     */
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain)
             throws IOException {
         if (!identifiers.isEmpty()) {
@@ -427,12 +304,6 @@ public class BackupService {
         return filterAlreadyBackedUpToday(filterBlocked(filterMalformed(objectType, discovered)));
     }
 
-    /**
-     * Drops discovered identifiers that don't match the expected email/domain shape (see {@link
-     * #DISCOVERED_EMAIL}/{@link #DISCOVERED_DOMAIN}) before they reach a storage path, LDAP base
-     * DN, or REST URL - a malformed or hostile LDAP attribute value should never get that far. A
-     * no-op for {@link LdapObjectType#SIGNATURE}, whose identifier is a free-text name.
-     */
     private List<String> filterMalformed(LdapObjectType objectType, List<String> identifiers) {
         if (objectType == LdapObjectType.SIGNATURE) {
             return identifiers;
@@ -461,11 +332,6 @@ public class BackupService {
         return allowed;
     }
 
-    /**
-     * When {@link #lockBackup} is enabled, drops identifiers already backed up within {@link
-     * #LOCK_BACKUP_WINDOW}, mirroring {@code ldap_filter}'s {@code LOCK_BACKUP} check. A no-op
-     * when {@link #lockBackup} is disabled.
-     */
     private List<String> filterAlreadyBackedUpToday(List<String> identifiers) throws IOException {
         if (!lockBackup) {
             return identifiers;
@@ -483,9 +349,6 @@ public class BackupService {
     }
 
     private static LdapObjectType objectTypeFor(BackupType type) {
-        // Deliberately exhaustive with no default arm: every BackupType constant must map to an
-        // LdapObjectType here, so adding a new constant without updating this switch is a compile
-        // error instead of a runtime IllegalArgumentException from a now-dead default case.
         return switch (type) {
             case LDAP, MAILBOX, FULL, INCREMENTAL -> LdapObjectType.ACCOUNT;
             case ALIAS -> LdapObjectType.ALIAS;

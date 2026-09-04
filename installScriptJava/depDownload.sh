@@ -1,9 +1,5 @@
 #!/bin/bash
-################################################################################
 
-################################################################################
-# install_java_ubuntu: Install a Java 21 JDK on Ubuntu/Debian
-################################################################################
 function install_java_ubuntu() {
   echo "Installing Java $JAVA_MIN_VERSION JDK. Please wait..."
   apt update > /dev/null 2>&1
@@ -21,9 +17,6 @@ function install_java_ubuntu() {
   fi
 }
 
-################################################################################
-# install_java_redhat: Install a Java 21 JDK on Red Hat, CentOS and Rocky
-################################################################################
 function install_java_redhat() {
   echo "Installing Java $JAVA_MIN_VERSION JDK. Please wait..."
   yum install -y "java-${JAVA_MIN_VERSION}-openjdk-devel" > /dev/null 2>&1

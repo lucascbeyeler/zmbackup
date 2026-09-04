@@ -6,7 +6,6 @@ import java.util.List;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/** Backs up Zimbra signatures from LDAP, mirroring {@code zmbackup -f -sig} in the bash tool. */
 @Command(name = "signature", description = "Back up Zimbra signatures from LDAP.")
 public final class BackupSignatureCommand extends AbstractAccountScopedBackupCommand {
 

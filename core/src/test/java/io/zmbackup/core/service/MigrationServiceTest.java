@@ -118,7 +118,6 @@ class MigrationServiceTest {
         assertEquals("bob@example.com", accounts.get(1).email());
     }
 
-    /** In-memory {@link StorageProvider} fake returning canned sizes, keyed like the real dir layout. */
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, String> sessionSizes = new LinkedHashMap<>();
         final Map<String, String> accountSizes = new LinkedHashMap<>();
@@ -159,13 +158,11 @@ class MigrationServiceTest {
         }
     }
 
-    /** In-memory {@link MetadataStore} fake backed by simple maps. */
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();
         private String failNextRecordForEmail;
 
-        /** Makes the next {@link #recordAccountBackup} for {@code email} throw, to simulate a mid-import failure. */
         void failNextRecordFor(String email) {
             failNextRecordForEmail = email;
         }

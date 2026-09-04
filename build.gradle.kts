@@ -18,8 +18,6 @@ subprojects {
     apply(plugin = "jacoco")
     apply(plugin = "com.github.spotbugs")
 
-    // The `libs` type-safe accessor is only generated for a project's own build script; this
-    // block configures every *other* subproject, so the catalog is looked up explicitly instead.
     val libs = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
 
     configure<JavaPluginExtension> {
@@ -57,9 +55,6 @@ subprojects {
         }
     }
 
-    // Gates `check` on a coverage floor comfortably below every module's current line coverage
-    // (84.5%-97.4% as of writing) so a real regression - e.g. a new class landing with no tests -
-    // fails the build instead of only showing up as a smaller number in the HTML report artifact.
     tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
         dependsOn(tasks.named("jacocoTestReport"))
         violationRules {
@@ -76,9 +71,6 @@ subprojects {
         dependsOn(tasks.named("jacocoTestCoverageVerification"))
     }
 
-    // Effort/reportLevel tuned for signal over noise: MAX effort catches more, but only findings
-    // at MEDIUM confidence or higher are reported so `check` doesn't fail on speculative low-
-    // confidence guesses.
     configure<SpotBugsExtension> {
         effort.set(Effort.MAX)
         reportLevel.set(Confidence.MEDIUM)
@@ -90,7 +82,5 @@ subprojects {
         reports.create("xml") { required.set(true) }
     }
 
-    // Gate production code only - test sources are mocks/fixtures/assertions, not a place where
-    // SpotBugs' bug patterns (null derefs, resource leaks, etc.) carry the same weight.
     tasks.named("spotbugsTest") { enabled = false }
 }

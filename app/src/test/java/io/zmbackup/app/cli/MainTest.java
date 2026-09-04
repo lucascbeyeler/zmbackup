@@ -173,9 +173,6 @@ class MainTest {
 
     @Test
     void reportsConciseErrorByDefaultAndFullStackTraceWithStacktraceFlag() throws IOException {
-        // Not a PrivilegeException/ConfigException - an unrelated, generic failure: workDir's
-        // parent is an existing regular file, so PosixFileHardening.createDirectories() fails
-        // with a plain IOException, exercising the executionExceptionHandler's default branch.
         Path notADirectory = tempDir.resolve("not-a-directory");
         Files.writeString(notADirectory, "not a directory");
         Path configFile = tempDir.resolve("zmbackup.yaml");

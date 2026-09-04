@@ -1,13 +1,5 @@
 #!/bin/bash
-################################################################################
-# contract is reused as-is by install-java.sh (see its top-level source line)
-# for the license banner, which doesn't depend on which language zmbackup
-# itself is written in.
-################################################################################
 
-################################################################################
-# contract: Print the contract and informations about the project to the user
-################################################################################
 function contract(){
   clear
   echo "##################################################################################"

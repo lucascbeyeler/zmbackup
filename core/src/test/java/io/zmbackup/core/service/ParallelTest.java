@@ -13,10 +13,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-/**
- * Verifies {@link Parallel#run} bounds concurrency by {@code maxParallelProcesses}, runs every
- * task to completion regardless of individual failures, and surfaces results/exceptions correctly.
- */
 class ParallelTest {
 
     @Test
@@ -38,9 +34,6 @@ class ParallelTest {
             });
         }
 
-        // Every task blocks on releaseGate until at least maxParallelProcesses are running, which
-        // proves the pool doesn't run more than that many concurrently; then everything is
-        // released together so the batch actually completes.
         Thread releaser = new Thread(() -> {
             try {
                 while (inFlight.get() < maxParallelProcesses) {
@@ -155,8 +148,6 @@ class ParallelTest {
                 IOException.class, () -> Parallel.run(1, tasks, Duration.ofMillis(50)));
 
         assertTrue(exception.getMessage().contains("exceeded"));
-        // The cancelled task's thread is interrupted almost immediately; give it a moment to
-        // observe that before asserting, without depending on exact timing.
         for (int attempt = 0; attempt < 100 && interrupted.get() == 0; attempt++) {
             try {
                 Thread.sleep(10);

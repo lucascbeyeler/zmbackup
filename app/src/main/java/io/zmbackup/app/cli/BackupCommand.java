@@ -7,10 +7,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Groups the backup subcommands: {@code full}, {@code incremental}, {@code mailbox}, {@code
- * ldap}, {@code alias}, {@code distlist}, {@code signature}, {@code domain}.
- */
 @Command(
         name = "backup",
         subcommands = {
@@ -35,7 +31,6 @@ public final class BackupCommand implements Callable<Integer> {
         return parent;
     }
 
-    /** No subcommand given: show usage instead of doing nothing silently. */
     @Override
     public Integer call() {
         spec.commandLine().usage(spec.commandLine().getOut());

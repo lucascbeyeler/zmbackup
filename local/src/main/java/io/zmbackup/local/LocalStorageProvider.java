@@ -13,11 +13,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.FileVisitResult;
 import java.util.Objects;
 
-/**
- * Filesystem-backed {@link StorageProvider} storing content under
- * {@code {workDir}/{sessionId}/{account}.{suffix}}, the same layout the bash tool uses under its
- * {@code WORKDIR}.
- */
 public class LocalStorageProvider implements StorageProvider {
 
     private final Path workDir;
@@ -60,12 +55,6 @@ public class LocalStorageProvider implements StorageProvider {
         return HumanReadableSize.format(totalBytes);
     }
 
-    /**
-     * Whether {@code path}'s filename is {@code account + "." + suffix} for some dot-free
-     * {@code suffix} (e.g. {@code "tgz"}, {@code "ldiff"}) - a plain prefix match would also match
-     * an unrelated account whose address is itself a dot-extension of {@code account}, e.g.
-     * {@code alice@example.com.au.tgz} when looking up {@code alice@example.com}.
-     */
     private static boolean isAccountFile(Path path, String account) {
         String prefix = account + ".";
         String fileName =
@@ -133,12 +122,6 @@ public class LocalStorageProvider implements StorageProvider {
         return removed[0];
     }
 
-    /**
-     * Resolves {@code sessionId}'s directory under {@code workDir}, rejecting any {@code
-     * sessionId} (e.g. one carrying a path separator or {@code ..} segment - whether from a
-     * malformed CLI argument or an unvalidated session ID imported via {@code migrate}) that
-     * would resolve outside {@code workDir}.
-     */
     private Path sessionDir(String sessionId) {
         Path dir = workDir.resolve(sessionId).normalize();
         if (!workDir.equals(dir.getParent())) {
@@ -147,12 +130,6 @@ public class LocalStorageProvider implements StorageProvider {
         return dir;
     }
 
-    /**
-     * Resolves {@code account}'s file within {@code sessionId}'s directory, rejecting any
-     * {@code account} value (e.g. one carrying a path separator or {@code ..} segment, whether
-     * from a malformed {@code --account} argument or an LDAP-discovered identifier that was never
-     * validated against an email/domain shape) that would resolve outside that directory.
-     */
     private Path accountFile(String sessionId, String account, String suffix) {
         Path sessionDir = sessionDir(sessionId);
         Path file = sessionDir.resolve(account + "." + suffix).normalize();

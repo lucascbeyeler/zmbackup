@@ -10,7 +10,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** Deletes a stored backup session, mirroring the bash tool's {@code delete_one}. */
 @Command(name = "delete", description = "Delete a stored backup session.")
 public final class DeleteCommand implements Callable<Integer> {
 

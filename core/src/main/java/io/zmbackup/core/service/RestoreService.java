@@ -18,11 +18,6 @@ import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Restores previously backed-up LDAP entries and mailbox content, mirroring {@code
- * restore_main_ldap}/{@code restore_main_mailbox}/{@code restore_main_domain} in the bash tool's
- * {@code RestoreAction.sh}.
- */
 public class RestoreService {
 
     private static final Logger LOG = Logger.getLogger(RestoreService.class.getName());
@@ -43,10 +38,6 @@ public class RestoreService {
         this(ldapExporter, mailboxExporter, storageProvider, metadataStore, 1);
     }
 
-    /**
-     * @param maxParallelProcesses how many accounts to restore concurrently, mirroring the bash
-     *     tool's {@code MAX_PARALLEL_PROCESS}; values below 1 are treated as 1
-     */
     public RestoreService(
             ZimbraLdapExporter ldapExporter,
             ZimbraMailboxExporter mailboxExporter,
@@ -60,10 +51,6 @@ public class RestoreService {
         this.maxParallelProcesses = maxParallelProcesses;
     }
 
-    /**
-     * Restores the LDAP entry for each of {@code accounts} (or every account in {@code sessionId}
-     * when {@code accounts} is empty), mirroring {@code restore_main_ldap}.
-     */
     public RestoreResult restoreLdap(String sessionId, List<String> accounts) throws IOException {
         List<String> resolved = resolve(sessionId, accounts);
         List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
@@ -73,10 +60,6 @@ public class RestoreService {
         return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
-    /**
-     * Restores the domain LDAP entry for each of {@code domains} (or every domain in {@code
-     * sessionId} when {@code domains} is empty), mirroring {@code restore_main_domain}.
-     */
     public RestoreResult restoreDomain(String sessionId, List<String> domains) throws IOException {
         List<String> resolved = resolve(sessionId, domains);
         List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
@@ -86,24 +69,10 @@ public class RestoreService {
         return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
-    /**
-     * Restores the mailbox content for each of {@code accounts} (or every account in {@code
-     * sessionId} when {@code accounts} is empty), mirroring {@code restore_main_mailbox}.
-     */
     public RestoreResult restoreMailbox(String sessionId, List<String> accounts) throws IOException {
         return restoreMailbox(sessionId, accounts, null);
     }
 
-    /**
-     * Restores the mailbox content for each of {@code accounts} (or every account in {@code
-     * sessionId} when {@code accounts} is empty) into {@code destination} when given, mirroring
-     * {@code restore_main_mailbox}'s restore-on-account handling of its {@code $3} destination
-     * argument.
-     *
-     * @param destination a different account to restore the mailbox content into, or {@code null}
-     *     to restore each account into itself; when given, {@code accounts} must contain exactly
-     *     one account
-     */
     public RestoreResult restoreMailbox(String sessionId, List<String> accounts, String destination)
             throws IOException {
         if (destination != null && accounts.size() != 1) {
@@ -117,11 +86,6 @@ public class RestoreService {
         return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
-    /**
-     * Restores both the LDAP entry and mailbox content for each of {@code accounts} (or every
-     * account in {@code sessionId} when {@code accounts} is empty), equivalent to {@code zmbackup
-     * -r full-*} in the bash tool.
-     */
     public RestoreResult restoreFull(String sessionId, List<String> accounts) throws IOException {
         RestoreResult ldapResult = restoreLdap(sessionId, accounts);
         RestoreResult mailboxResult = restoreMailbox(sessionId, accounts);
@@ -132,8 +96,6 @@ public class RestoreService {
 
     private boolean restoreLdapOne(String sessionId, String account) {
         try (InputStream source = storageProvider.openRead(sessionId, account, LDIFF_SUFFIX)) {
-            // The adapter reads the DN straight out of the LDIF content, so the object type
-            // passed here has no effect on account/alias/distlist/signature restores.
             ldapExporter.restore(LdapObjectType.ACCOUNT, source);
             return true;
         } catch (IOException e) {
@@ -154,8 +116,6 @@ public class RestoreService {
 
     private boolean restoreMailboxOne(String sessionId, String account, String destination) {
         if (!storageProvider.exists(sessionId, account, TGZ_SUFFIX)) {
-            // Mirrors mailbox_restore's "No such file or directory" case: nothing to restore, not
-            // a failure.
             return true;
         }
         try (InputStream source = storageProvider.openRead(sessionId, account, TGZ_SUFFIX)) {
@@ -167,7 +127,6 @@ public class RestoreService {
         }
     }
 
-    /** Pairs {@code resolved} with the matching per-account {@code outcomes} from {@link Parallel#run}. */
     private static RestoreResult summarize(List<String> resolved, List<Boolean> outcomes) {
         List<String> failed = new ArrayList<>();
         for (int i = 0; i < resolved.size(); i++) {
@@ -178,10 +137,6 @@ public class RestoreService {
         return new RestoreResult(resolved.size(), failed);
     }
 
-    /**
-     * {@code identifiers} when non-empty; otherwise every account (or domain) recorded for {@code
-     * sessionId}, mirroring {@code build_listRST}'s SQLite-backed session lookup.
-     */
     private List<String> resolve(String sessionId, List<String> identifiers) throws IOException {
         if (!identifiers.isEmpty()) {
             return identifiers;

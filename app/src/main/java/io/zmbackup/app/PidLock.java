@@ -9,15 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-/**
- * An OS-level advisory lock on a {@code zmbackup.pid} file inside the backup work directory,
- * preventing two zmbackup processes from mutating the same backup store at once.
- *
- * <p>This holds a {@link FileLock} for the lifetime of the process rather than writing a bare PID
- * and grepping {@code ps} for it (the bash tool's {@code checkpid}, which was never actually
- * wired up): the OS releases a {@link FileLock} automatically if the process dies, so there is no
- * stale-lock case to detect or clean up.
- */
 public final class PidLock implements AutoCloseable {
 
     private static final String LOCK_FILENAME = "zmbackup.pid";
@@ -30,11 +21,6 @@ public final class PidLock implements AutoCloseable {
         this.lock = lock;
     }
 
-    /**
-     * Acquires the lock inside {@code workDir}, writing this process's PID into the lock file.
-     *
-     * @throws AlreadyRunningException if another zmbackup process currently holds the lock
-     */
     public static PidLock acquire(Path workDir) throws IOException {
         Path lockFile = workDir.resolve(LOCK_FILENAME);
         FileChannel channel = FileChannel.open(
@@ -56,9 +42,6 @@ public final class PidLock implements AutoCloseable {
                     ByteBuffer.wrap(Long.toString(ProcessHandle.current().pid()).getBytes(StandardCharsets.UTF_8)));
             return new PidLock(channel, lock);
         } catch (IOException | RuntimeException e) {
-            // Every failure path above (a tryLock() IOException, readPid()/truncate()/write()
-            // failing, or the AlreadyRunningException just thrown) must still close the channel -
-            // otherwise it leaks, since there is no PidLock yet for the caller to close.
             channel.close();
             throw e;
         }
@@ -81,7 +64,6 @@ public final class PidLock implements AutoCloseable {
         }
     }
 
-    /** Thrown by {@link #acquire} when another zmbackup process already holds the lock. */
     public static final class AlreadyRunningException extends IOException {
         private AlreadyRunningException(String message) {
             super(message);

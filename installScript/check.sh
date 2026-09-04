@@ -1,13 +1,5 @@
 #!/bin/bash
-################################################################################
-# check_env is reused as-is by install-java.sh (see its top-level source line)
-# for root/OS/upgrade detection, which doesn't depend on which language
-# zmbackup itself is written in.
-################################################################################
 
-################################################################################
-# check_env: Check the environment if everything is okay to begin the install
-################################################################################
 function check_env() {
   printf "  Root Privileges...	          "
   if [ "$(id -u)" -ne 0 ]; then

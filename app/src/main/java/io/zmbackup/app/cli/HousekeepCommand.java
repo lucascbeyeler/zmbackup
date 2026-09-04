@@ -11,10 +11,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Prunes old and empty backup sessions, mirroring the bash tool's {@code delete_old} and {@code
- * clean_empty} functions in {@code DeleteAction.sh}.
- */
 @Command(name = "housekeep", description = "Prune old and empty backup sessions.")
 public final class HousekeepCommand implements Callable<Integer> {
 

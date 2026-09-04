@@ -9,7 +9,6 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** Lists all stored backup sessions, mirroring the bash tool's {@code --list}. */
 @Command(name = "list", description = "List stored backup sessions.")
 public final class ListCommand implements Callable<Integer> {
 

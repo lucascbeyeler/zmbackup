@@ -70,9 +70,6 @@ class HousekeepServiceTest {
         assertEquals(List.of(ok), removed);
         assertTrue(storageProvider.content.containsKey("ldap-fail/alice@example.com.ldiff"));
         assertTrue(storageProvider.deletedSessions.contains("ldap-ok"));
-        // Files are deleted before metadata, so a storage failure leaves the metadata row in
-        // place - the session stays discoverable and the removal can be retried, rather than the
-        // leftover files silently leaking with nothing left pointing at them.
         assertTrue(metadataStore.findSession("ldap-fail").isPresent());
         assertEquals(1, metadataStore.vacuumCalls);
     }
@@ -120,7 +117,6 @@ class HousekeepServiceTest {
                 sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, "1K");
     }
 
-    /** In-memory {@link StorageProvider} fake that records which sessions were deleted. */
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new LinkedHashMap<>();
         final Set<String> deletedSessions = new java.util.HashSet<>();
@@ -172,7 +168,6 @@ class HousekeepServiceTest {
         }
     }
 
-    /** In-memory {@link MetadataStore} fake backed by simple maps. */
     private static final class InMemoryMetadataStore implements MetadataStore {
         final Map<String, BackupSession> sessions = new LinkedHashMap<>();
         final Map<String, List<BackupAccountRecord>> accounts = new LinkedHashMap<>();

@@ -10,10 +10,6 @@ setup() {
   source "${INSTALLER_JAVA_DIR}/menu.sh"
 }
 
-# ---------------------------------------------------------------------------
-# set_values_java
-# ---------------------------------------------------------------------------
-
 @test "set_values_java: uses defaults when all inputs are empty" {
   run bash -c "
     PATH='${MOCKS_DIR}:${PATH}'
@@ -58,10 +54,6 @@ setup() {
   "
   [[ "$output" == *"CONFIGURATION COMPLETED"* ]]
 }
-
-# ---------------------------------------------------------------------------
-# check_config_java
-# ---------------------------------------------------------------------------
 
 @test "check_config_java: displays configuration summary" {
   OSE_USER="zimbra"

@@ -13,10 +13,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/**
- * Prints every Zimbra account found in LDAP, mirroring {@code zmbackup -f -ldp} in the bash tool.
- * Diagnostic only: it does not perform a backup.
- */
 @Command(name = "list", description = "List Zimbra accounts from LDAP (diagnostic; not a backup operation).")
 public final class AccountsListCommand implements Callable<Integer> {
 

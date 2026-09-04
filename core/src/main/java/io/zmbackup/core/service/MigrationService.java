@@ -25,21 +25,6 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Imports the bash tool's {@code sessions.txt} format into the {@link MetadataStore}, for
- * servers moving from the bash tool (which may store its sessions as TXT) to this Java build,
- * which only ever reads session metadata from SQLite. Mirrors {@code importsessionSQL} and
- * {@code importaccountsSQL} in the bash tool's {@code MigrationAction.sh}, except that it writes
- * {@code backup_session.type} as the raw prefix ({@link BackupType#sessionPrefix()}) that {@link
- * io.zmbackup.core.port.MetadataStore} implementations parse back with {@link
- * BackupType#fromSessionPrefix(String)}, rather than the bash tool's human-readable text.
- *
- * <p>{@code sessions.txt} only records a session's start/finish text (not a reliably parseable
- * timestamp) and, per account line, a date without a time. So - like the bash tool's own
- * migration - a session's completion time is taken to be the same instant as its start (itself
- * read precisely from the {@code {prefix}-yyyyMMddHHmmss} session ID), and an account record's
- * start/completion time is taken to be midnight of the date on its line.
- */
 public final class MigrationService {
 
     private static final Logger LOG = Logger.getLogger(MigrationService.class.getName());
@@ -58,12 +43,6 @@ public final class MigrationService {
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
     }
 
-    /**
-     * Parses {@code sessionsTxtLines} (the content of a bash-tool {@code sessions.txt}) and
-     * writes every session, and every account backup within it, into the metadata store.
-     *
-     * @return the number of sessions imported
-     */
     public int importSessionsText(List<String> sessionsTxtLines) throws IOException {
         TreeSet<String> started = new TreeSet<>();
         TreeSet<String> completed = new TreeSet<>();
@@ -119,10 +98,6 @@ public final class MigrationService {
             metadataStore.save(new BackupSession(sessionId, type, status, startedAt, completedAt, size));
             imported++;
 
-            // save() above is an upsert keyed on sessionId, so a retry after a partial failure
-            // re-reaches this point safely, but recordAccountBackup() below is a plain insert with
-            // no such key - skip accounts a previous, interrupted run already recorded for this
-            // session so a retry can't duplicate their rows.
             Set<String> alreadyRecorded = metadataStore.findAccountsForSession(sessionId).stream()
                     .map(BackupAccountRecord::email)
                     .collect(Collectors.toSet());

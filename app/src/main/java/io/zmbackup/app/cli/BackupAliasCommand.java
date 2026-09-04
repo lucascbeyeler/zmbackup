@@ -6,7 +6,6 @@ import java.util.List;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/** Backs up Zimbra aliases from LDAP, mirroring {@code zmbackup -f -alp} in the bash tool. */
 @Command(name = "alias", description = "Back up Zimbra aliases from LDAP.")
 public final class BackupAliasCommand extends AbstractAccountScopedBackupCommand {
 

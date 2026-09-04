@@ -13,7 +13,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-/** Restores LDAP entries from a backup session, mirroring {@code zmbackup -r ldap-*} in the bash tool. */
 @Command(name = "ldap", description = "Restore LDAP entries from a backup session.")
 public final class RestoreLdapCommand implements Callable<Integer> {
 
