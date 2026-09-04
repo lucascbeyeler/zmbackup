@@ -11,6 +11,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.FileVisitResult;
+import java.util.Objects;
 
 /**
  * Filesystem-backed {@link StorageProvider} storing content under
@@ -28,7 +29,8 @@ public class LocalStorageProvider implements StorageProvider {
     @Override
     public OutputStream openWrite(String sessionId, String account, String suffix) throws IOException {
         Path file = accountFile(sessionId, account, suffix);
-        PosixFileHardening.createDirectories(file.getParent());
+        Path parent = Objects.requireNonNull(file.getParent(), "accountFile always resolves within a parent directory");
+        PosixFileHardening.createDirectories(parent);
         return PosixFileHardening.newRestrictedOutputStream(
                 file, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
     }
@@ -66,7 +68,9 @@ public class LocalStorageProvider implements StorageProvider {
      */
     private static boolean isAccountFile(Path path, String account) {
         String prefix = account + ".";
-        String fileName = path.getFileName().toString();
+        String fileName =
+                Objects.requireNonNull(path.getFileName(), "directory stream entries always have a file name")
+                        .toString();
         return fileName.startsWith(prefix) && fileName.indexOf('.', prefix.length()) < 0;
     }
 

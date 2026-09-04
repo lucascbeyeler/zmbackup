@@ -157,6 +157,7 @@ function load_config(){
   local bashrc="${ZIMBRA_BASHRC:-/opt/zimbra/.bashrc}"
   local ldaprc="${ZIMBRA_LDAPRC:-/opt/zimbra/.ldaprc}"
   if [ -f "$conf" ]; then
+    # shellcheck disable=SC1090  # install-time config path, not resolvable statically
     source "$conf" 2> /dev/null
     ZMBACKUP_BLOCKEDLIST="${ZMBACKUP_BLOCKEDLIST:-/etc/zmbackup/blockedlist.conf}"
     export ZMBACKUP_BLOCKEDLIST
@@ -166,6 +167,7 @@ function load_config(){
     exit 1
   fi
   if [ -f "$bashrc" ]; then
+    # shellcheck disable=SC1090  # zimbra user's bashrc path, not resolvable statically
     source "$bashrc" 2> /dev/null
   else
     zmlog local7.err "Zmbackup: zimbra user's .bashrc not found."

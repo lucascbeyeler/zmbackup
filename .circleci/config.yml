@@ -25,8 +25,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Run Java tests
-          command: ./gradlew test
+          name: Run Java tests and static analysis
+          command: ./gradlew check
       - run:
           name: Collect JUnit test results
           command: |
@@ -38,9 +38,51 @@ jobs:
           path: ~/test-results/junit
       - store_artifacts:
           path: ~/test-results/junit
+      - run:
+          name: Collect JaCoCo coverage reports
+          command: |
+            mkdir -p ~/reports/jacoco
+            for html_dir in */build/reports/jacoco/test/html; do
+              [ -d "$html_dir" ] || continue
+              module="${html_dir%%/build/*}"
+              mkdir -p ~/reports/jacoco/"$module"
+              cp -R "$html_dir"/. ~/reports/jacoco/"$module"/
+            done
+          when: always
+      - store_artifacts:
+          path: ~/reports/jacoco
+      - run:
+          name: Collect SpotBugs reports
+          command: |
+            mkdir -p ~/reports/spotbugs
+            for report_dir in */build/reports/spotbugs; do
+              [ -d "$report_dir" ] || continue
+              module="${report_dir%%/build/*}"
+              mkdir -p ~/reports/spotbugs/"$module"
+              cp -R "$report_dir"/. ~/reports/spotbugs/"$module"/
+            done
+          when: always
+      - store_artifacts:
+          path: ~/reports/spotbugs
+
+  shellcheck:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: Install ShellCheck
+          command: sudo apt-get update -qq && sudo apt-get install -y shellcheck
+      - run:
+          name: Run ShellCheck on the bash tool's entrypoints
+          command: |
+            shellcheck -x --check-sourced -P project project/zmbackup
+            shellcheck -x --check-sourced install.sh
+            shellcheck -x --check-sourced install-java.sh
 
 workflows:
   test-workflow:
     jobs:
       - test
       - test-java
+      - shellcheck

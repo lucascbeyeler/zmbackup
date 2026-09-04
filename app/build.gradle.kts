@@ -1,22 +1,22 @@
 plugins {
-    id("com.gradleup.shadow") version "8.3.6"
+    alias(libs.plugins.shadow)
 }
 
 dependencies {
     implementation(project(":core"))
     implementation(project(":zimbra"))
     implementation(project(":local"))
-    implementation("org.yaml:snakeyaml:2.6")
-    implementation("info.picocli:picocli:4.7.6")
+    implementation(libs.snakeyaml)
+    implementation(libs.picocli)
     // The standard SLF4J/Logback logging stack, fed by core's java.util.logging calls through the
     // jul-to-slf4j bridge (core stays dependency-free; see core/build.gradle.kts).
-    implementation("ch.qos.logback:logback-classic:1.5.16")
-    implementation("org.slf4j:jul-to-slf4j:2.0.16")
-    testImplementation("com.unboundid:unboundid-ldapsdk:7.0.5")
-    testImplementation("org.wiremock:wiremock:3.13.1")
-    testImplementation("io.cucumber:cucumber-java:7.34.7")
-    testImplementation("io.cucumber:cucumber-junit-platform-engine:7.34.7")
-    testImplementation("org.junit.platform:junit-platform-suite:1.11.4")
+    implementation(libs.logback.classic)
+    implementation(libs.slf4j.jul.to.slf4j)
+    testImplementation(libs.unboundid.ldapsdk)
+    testImplementation(libs.wiremock)
+    testImplementation(libs.cucumber.java)
+    testImplementation(libs.cucumber.junit.platform.engine)
+    testImplementation(libs.junit.platform.suite)
 }
 
 // Bundle the repo-root VERSION file into the jar so VersionProvider can read it at runtime,

@@ -7,15 +7,11 @@ import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
-import io.zmbackup.core.port.MetadataStore;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -28,26 +24,21 @@ import org.junit.jupiter.api.io.TempDir;
 
 class SqliteMetadataStoreTest {
 
-    private static final String IN_MEMORY_URL = "jdbc:sqlite:file::memory:?cache=shared";
-
-    /**
-     * A shared-cache in-memory SQLite database is destroyed once its last connection closes.
-     * {@link SqliteMetadataStore} opens and closes a fresh connection per call, so this anchor
-     * connection is held open for the test's duration to keep the database alive between calls.
-     */
-    private Connection anchor;
-
-    private MetadataStore store;
+    private SqliteMetadataStore store;
 
     @BeforeEach
-    void setUp() throws SQLException, IOException {
-        anchor = DriverManager.getConnection(IN_MEMORY_URL);
+    void setUp() throws IOException {
         store = new SqliteMetadataStore(Path.of("file::memory:?cache=shared"));
     }
 
+    /**
+     * A shared-cache in-memory SQLite database is destroyed once its last connection closes;
+     * {@link SqliteMetadataStore} now holds a single connection for its lifetime, so closing it
+     * here is what resets the database between tests.
+     */
     @AfterEach
-    void tearDown() throws SQLException {
-        anchor.close();
+    void tearDown() throws IOException {
+        store.close();
     }
 
     @Test
@@ -271,7 +262,7 @@ class SqliteMetadataStoreTest {
         Path sessionDir = workDir.resolve("sessions");
         Path databaseFile = sessionDir.resolve("sessions.sqlite3");
 
-        new SqliteMetadataStore(databaseFile);
+        new SqliteMetadataStore(databaseFile).close();
 
         assertEquals("rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(sessionDir)));
         assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(databaseFile)));
