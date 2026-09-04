@@ -18,6 +18,11 @@ import java.util.Objects;
  * @param trustAllCertificates whether to accept any server certificate when {@code caCertificatePath}
  *                             is not set; must be explicitly enabled, since it offers no protection
  *                             against an active MITM attack
+ * @param responseTimeoutSeconds how long a single LDAP operation (bind, search, add, delete) is
+ *                             allowed to take once connected, before it's abandoned as hung against
+ *                             a connected-but-unresponsive server; discovery over a very large
+ *                             directory can legitimately take a while, so this is exposed rather
+ *                             than fixed
  */
 public record ZimbraLdapConfig(
         String url,
@@ -25,12 +30,19 @@ public record ZimbraLdapConfig(
         String bindPassword,
         boolean sslEnabled,
         String caCertificatePath,
-        boolean trustAllCertificates) {
+        boolean trustAllCertificates,
+        int responseTimeoutSeconds) {
+
+    /** The default {@link #responseTimeoutSeconds()} when {@code zimbraLdap.responseTimeoutSeconds} is unset. */
+    public static final int DEFAULT_RESPONSE_TIMEOUT_SECONDS = 600;
 
     public ZimbraLdapConfig {
         Objects.requireNonNull(url, "url must not be null");
         Objects.requireNonNull(bindDn, "bindDn must not be null");
         Objects.requireNonNull(bindPassword, "bindPassword must not be null");
+        if (responseTimeoutSeconds < 1) {
+            throw new IllegalArgumentException("responseTimeoutSeconds must be at least 1");
+        }
     }
 
     /**
@@ -46,6 +58,7 @@ public record ZimbraLdapConfig(
                 + ", sslEnabled=" + sslEnabled
                 + ", caCertificatePath=" + caCertificatePath
                 + ", trustAllCertificates=" + trustAllCertificates
+                + ", responseTimeoutSeconds=" + responseTimeoutSeconds
                 + "]";
     }
 }

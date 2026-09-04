@@ -4,6 +4,8 @@ import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.ConfigException;
 import io.zmbackup.app.config.EmailNotifyLevel;
 import io.zmbackup.app.config.YamlConfigLoader;
+import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
@@ -51,6 +53,16 @@ public final class AppContext {
 
     private static final int NOTIFY_SMTP_PORT = 25;
 
+    /** Used for {@link EmailNotifyLevel#NONE}, where every lifecycle event is a silent no-op. */
+    private static final Notifier NO_NOTIFIER = new Notifier() {
+        @Override
+        public void notifyBegin(String sessionId, BackupType type) {}
+
+        @Override
+        public void notifyFinish(
+                String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {}
+    };
+
     /** Root logger name every zmbackup class logs under, so one appender pair covers all of them. */
     private static final String ROOT_LOGGER_NAME = "io.zmbackup";
 
@@ -88,7 +100,8 @@ public final class AppContext {
                     config.zimbraLdap().sslEnabled(),
                     config.zimbraLdap().caCertificatePath(),
                     config.zimbraLdap().trustAllCertificates(),
-                    config.zimbraMailbox().backupInactiveAccounts());
+                    config.zimbraMailbox().backupInactiveAccounts(),
+                    config.zimbraLdap().responseTimeoutSeconds() * 1000L);
             this.accountDiscovery = ldapAdapter;
             this.ldapExporter = ldapAdapter;
             this.mailboxExporter = new ZimbraRestMailboxExporter(
@@ -227,11 +240,17 @@ public final class AppContext {
     }
 
     /**
-     * Builds an {@link EmailNotifier} from {@code config}'s {@code backup.emailNotify} section,
-     * translating {@link EmailNotifyLevel} into which lifecycle events it notifies on.
+     * Builds a {@link Notifier} from {@code config}'s {@code backup.emailNotify} section,
+     * translating {@link EmailNotifyLevel} into which lifecycle events it notifies on. {@code
+     * NONE} never sends anything, and its recipient/sender are therefore allowed to be unset
+     * ({@link EmailNotifyConfig}) - so it's handled separately here rather than passed through to
+     * {@link EmailNotifier}, which requires both to be non-null.
      */
-    private static EmailNotifier emailNotifier(AppConfig config) {
+    private static Notifier emailNotifier(AppConfig config) {
         EmailNotifyLevel level = config.backup().emailNotify().level();
+        if (level == EmailNotifyLevel.NONE) {
+            return NO_NOTIFIER;
+        }
         boolean notifyOnBegin = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.START;
         boolean notifyOnFinishSuccess = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.FINISH;
         boolean notifyOnFinishError = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.ERROR;

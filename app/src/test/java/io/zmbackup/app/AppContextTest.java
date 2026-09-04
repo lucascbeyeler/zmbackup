@@ -77,6 +77,34 @@ class AppContextTest {
     }
 
     @Test
+    void wiresComponentsWhenEmailNotifyLevelIsNoneWithNoRecipientOrSender() throws IOException {
+        AppConfig config = new AppConfig(
+                new ZimbraLdapConfig(
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
+                new ZimbraMailboxConfig(
+                        System.getProperty("user.name"),
+                        true,
+                        "https://127.0.0.1:7071",
+                        "zimbra",
+                        "secret",
+                        null,
+                        false),
+                new BackupConfig(
+                        tempDir,
+                        tempDir.resolve("zmbackup.log"),
+                        tempDir.resolve("blockedlist.conf"),
+                        3,
+                        30,
+                        true,
+                        new EmailNotifyConfig(EmailNotifyLevel.NONE, null, null)),
+                false);
+
+        AppContext context = new AppContext(config);
+
+        assertEquals(config, context.config());
+    }
+
+    @Test
     void constructorRejectsMismatchedBackupUser() {
         AppConfig config = configWithWorkDir(tempDir, "not-the-real-user");
 
@@ -128,7 +156,7 @@ class AppContextTest {
     private static AppConfig configWithWorkDir(Path workDir, String backupUser) {
         return new AppConfig(
                 new ZimbraLdapConfig(
-                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false),
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
                 new ZimbraMailboxConfig(backupUser, true, "https://127.0.0.1:7071", "zimbra", "secret", null, false),
                 new BackupConfig(
                         workDir,
@@ -149,7 +177,8 @@ class AppContextTest {
                         "secret",
                         sslEnabled,
                         null,
-                        false),
+                        false,
+                        600),
                 new ZimbraMailboxConfig(
                         System.getProperty("user.name"),
                         true,
@@ -172,7 +201,7 @@ class AppContextTest {
     private static AppConfig configWithMailboxTrustAllCertificates(Path workDir, boolean allowInsecure) {
         return new AppConfig(
                 new ZimbraLdapConfig(
-                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false),
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
                 new ZimbraMailboxConfig(
                         System.getProperty("user.name"),
                         true,

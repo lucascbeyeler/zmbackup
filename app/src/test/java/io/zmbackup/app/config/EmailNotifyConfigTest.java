@@ -28,6 +28,15 @@ class EmailNotifyConfigTest {
     }
 
     @Test
+    void allowsNullRecipientAndSenderWhenLevelIsNone() {
+        EmailNotifyConfig config = new EmailNotifyConfig(EmailNotifyLevel.NONE, null, null);
+
+        assertEquals(EmailNotifyLevel.NONE, config.level());
+        assertEquals(null, config.recipient());
+        assertEquals(null, config.sender());
+    }
+
+    @Test
     void storesConfiguredFields() {
         EmailNotifyConfig config = new EmailNotifyConfig(EmailNotifyLevel.ERROR, "admin@example.com", "root@example.com");
 

@@ -26,6 +26,7 @@ class YamlConfigLoaderTest {
               sslEnabled: false
               caCertificatePath: /etc/zmbackup/ldap-ca.pem
               trustAllCertificates: true
+              responseTimeoutSeconds: 120
             zimbraMailbox:
               backupUser: zimbra
               restBaseUrl: https://127.0.0.1:7071
@@ -78,6 +79,7 @@ class YamlConfigLoaderTest {
         assertFalseSsl(config);
         assertEquals("/etc/zmbackup/ldap-ca.pem", config.zimbraLdap().caCertificatePath());
         assertEquals(true, config.zimbraLdap().trustAllCertificates());
+        assertEquals(120, config.zimbraLdap().responseTimeoutSeconds());
 
         assertEquals("zimbra", config.zimbraMailbox().backupUser());
         assertEquals(false, config.zimbraMailbox().backupInactiveAccounts());
@@ -110,6 +112,8 @@ class YamlConfigLoaderTest {
         assertTrue(config.zimbraLdap().sslEnabled());
         assertEquals(null, config.zimbraLdap().caCertificatePath());
         assertEquals(false, config.zimbraLdap().trustAllCertificates());
+        assertEquals(
+                ZimbraLdapConfig.DEFAULT_RESPONSE_TIMEOUT_SECONDS, config.zimbraLdap().responseTimeoutSeconds());
         assertTrue(config.zimbraMailbox().backupInactiveAccounts());
         assertEquals(null, config.zimbraMailbox().caCertificatePath());
         assertEquals(false, config.zimbraMailbox().trustAllCertificates());
@@ -118,6 +122,34 @@ class YamlConfigLoaderTest {
         assertTrue(config.backup().lockBackup());
         assertEquals(EmailNotifyLevel.ALL, config.backup().emailNotify().level());
         assertEquals(false, config.allowInsecure());
+    }
+
+    @Test
+    void emailNotifyRecipientAndSenderAreOptionalWhenLevelIsNone() {
+        String yaml =
+                """
+                zimbraLdap:
+                  url: ldap://127.0.0.1:389
+                  bindDn: uid=zimbra,cn=admins,cn=zimbra
+                  bindPassword: secret
+                zimbraMailbox:
+                  backupUser: zimbra
+                  restBaseUrl: https://127.0.0.1:7071
+                  adminUser: zimbra
+                  adminPassword: secret
+                backup:
+                  workDir: /opt/zimbra/backup
+                  logFile: /opt/zimbra/log/zmbackup.log
+                  blockedListFile: /etc/zmbackup/blockedlist.conf
+                  emailNotify:
+                    level: NONE
+                """;
+
+        AppConfig config = YamlConfigLoader.load(new StringReader(yaml));
+
+        assertEquals(EmailNotifyLevel.NONE, config.backup().emailNotify().level());
+        assertEquals(null, config.backup().emailNotify().recipient());
+        assertEquals(null, config.backup().emailNotify().sender());
     }
 
     @Test

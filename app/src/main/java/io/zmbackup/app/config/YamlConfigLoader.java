@@ -70,7 +70,11 @@ public final class YamlConfigLoader {
                 requireString(root, "zimbraLdap.bindPassword"),
                 optionalBoolean(root, "zimbraLdap.sslEnabled", true),
                 optionalString(root, "zimbraLdap.caCertificatePath"),
-                optionalBoolean(root, "zimbraLdap.trustAllCertificates", false));
+                optionalBoolean(root, "zimbraLdap.trustAllCertificates", false),
+                optionalInt(
+                        root,
+                        "zimbraLdap.responseTimeoutSeconds",
+                        ZimbraLdapConfig.DEFAULT_RESPONSE_TIMEOUT_SECONDS));
     }
 
     private static ZimbraMailboxConfig parseZimbraMailbox(Map<String, Object> root) {
@@ -96,10 +100,18 @@ public final class YamlConfigLoader {
     }
 
     private static EmailNotifyConfig parseEmailNotify(Map<String, Object> root) {
+        EmailNotifyLevel level = optionalEmailNotifyLevel(root, "backup.emailNotify.level", EmailNotifyLevel.ALL);
+        // No notification is ever sent when level is NONE, so recipient/sender are pointless to
+        // require in that case - unlike every other level, where they're needed to send one.
+        boolean notifyDisabled = level == EmailNotifyLevel.NONE;
         return new EmailNotifyConfig(
-                optionalEmailNotifyLevel(root, "backup.emailNotify.level", EmailNotifyLevel.ALL),
-                requireString(root, "backup.emailNotify.recipient"),
-                requireString(root, "backup.emailNotify.sender"));
+                level,
+                notifyDisabled
+                        ? optionalString(root, "backup.emailNotify.recipient")
+                        : requireString(root, "backup.emailNotify.recipient"),
+                notifyDisabled
+                        ? optionalString(root, "backup.emailNotify.sender")
+                        : requireString(root, "backup.emailNotify.sender"));
     }
 
     /**

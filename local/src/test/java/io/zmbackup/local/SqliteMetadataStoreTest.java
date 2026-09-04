@@ -196,6 +196,15 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
+    void lastSuccessfulBackupTimeCountsAccountRecordedUnderFailedSession() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("full-1", BackupType.FULL, SessionStatus.FAILED, now));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com", now));
+
+        assertEquals(Optional.of(now), store.lastSuccessfulBackupTime("user@example.com"));
+    }
+
+    @Test
     void lastSuccessfulBackupTimeIgnoresNonMailboxSessionTypes() throws IOException {
         Instant now = Instant.now();
         store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
