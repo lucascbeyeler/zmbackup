@@ -223,6 +223,36 @@ class DynamoDBMetadataStoreTest {
     }
 
     @Test
+    void lastSuccessfulBackupTimeRetriesUnprocessedKeysUntilTheyAreAllServed() throws IOException {
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .willReturn(jsonResponse("{\"Items\":["
+                        + accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
+                        + "]}")));
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchGetItem"))
+                .inScenario("unprocessed-keys")
+                .whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)
+                .willReturn(jsonResponse("{\"Responses\":{},\"UnprocessedKeys\":{\"" + SESSION_TABLE + "\":{"
+                        + "\"Keys\":[{\"sessionId\":{\"S\":\"full-20260101120000\"}}]}}}"))
+                .willSetStateTo("served"));
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchGetItem"))
+                .inScenario("unprocessed-keys")
+                .whenScenarioStateIs("served")
+                .willReturn(jsonResponse("{\"Responses\":{\"" + SESSION_TABLE + "\":["
+                        + "{\"sessionId\":{\"S\":\"full-20260101120000\"},\"status\":{\"S\":\"FINISHED\"}}"
+                        + "]}}")));
+
+        Optional<Instant> result = store().lastSuccessfulBackupTime("alice@example.com");
+
+        assertTrue(result.isPresent());
+        assertEquals(Instant.parse("2026-01-01T12:00:00Z"), result.get());
+        wireMockServer.verify(2, postRequestedFor(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchGetItem")));
+    }
+
+    @Test
     void backedUpSinceReturnsTrueOnlyWhenARecordCompletedAfterTheCutoff() throws IOException {
         wireMockServer.stubFor(post(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
