@@ -2,14 +2,22 @@ package io.zmbackup.app;
 
 import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.ConfigException;
+import io.zmbackup.app.config.DynamoDbConfig;
 import io.zmbackup.app.config.EmailNotifyLevel;
+import io.zmbackup.app.config.MetadataBackend;
+import io.zmbackup.app.config.S3Config;
+import io.zmbackup.app.config.StorageBackend;
 import io.zmbackup.app.config.YamlConfigLoader;
+import io.zmbackup.aws.DynamoDBLock;
+import io.zmbackup.aws.DynamoDBMetadataStore;
+import io.zmbackup.aws.S3StorageProvider;
 import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.Notifier;
+import io.zmbackup.core.port.RunLock;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
@@ -30,8 +38,11 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
+import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Locale;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -39,6 +50,8 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 public final class AppContext {
 
     private static final String METADATA_STORE_FILENAME = "sessions.sqlite3";
+
+    private static final Duration DYNAMODB_LOCK_LEASE = Duration.ofHours(24);
 
     private static final String NOTIFY_SMTP_HOST = "localhost";
 
@@ -74,10 +87,9 @@ public final class AppContext {
         this.config = config;
         installLogging(config.backup().logFile());
         checkInsecureSettings(config);
-        this.storageProvider = new LocalStorageProvider(config.backup().workDir());
-        SqliteMetadataStore sqliteMetadataStore =
-                new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
-        this.metadataStore = sqliteMetadataStore;
+        this.storageProvider = buildStorageProvider(config);
+        MetadataStore builtMetadataStore = buildMetadataStore(config);
+        this.metadataStore = builtMetadataStore;
         try {
             UnboundIdLdapAdapter ldapAdapter = new UnboundIdLdapAdapter(
                     config.zimbraLdap().url(),
@@ -115,9 +127,41 @@ public final class AppContext {
             this.housekeepService = new HousekeepService(storageProvider, metadataStore);
             this.migrationService = new MigrationService(storageProvider, metadataStore);
         } catch (IOException | RuntimeException e) {
-            sqliteMetadataStore.close();
+            closeIfCloseable(builtMetadataStore);
             throw e;
         }
+    }
+
+    private static void closeIfCloseable(MetadataStore metadataStore) throws IOException {
+        if (metadataStore instanceof Closeable closeable) {
+            closeable.close();
+        }
+    }
+
+    private static StorageProvider buildStorageProvider(AppConfig config) {
+        if (config.storage().backend() == StorageBackend.S3) {
+            S3Config s3 = config.storage().s3();
+            return new S3StorageProvider(s3.bucket(), s3.region(), s3.prefix(), s3.endpointOverride());
+        }
+        return new LocalStorageProvider(config.backup().workDir());
+    }
+
+    private static MetadataStore buildMetadataStore(AppConfig config) throws IOException {
+        if (config.metadata().backend() == MetadataBackend.DYNAMODB) {
+            DynamoDbConfig dynamodb = config.metadata().dynamodb();
+            return new DynamoDBMetadataStore(
+                    dynamodb.region(), dynamodb.sessionTable(), dynamodb.accountTable(), dynamodb.endpointOverride());
+        }
+        return new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
+    }
+
+    public RunLock acquireRunLock() throws IOException {
+        if (config.metadata().backend() == MetadataBackend.DYNAMODB) {
+            DynamoDbConfig dynamodb = config.metadata().dynamodb();
+            return DynamoDBLock.acquire(
+                    dynamodb.region(), dynamodb.lockTable(), dynamodb.endpointOverride(), DYNAMODB_LOCK_LEASE);
+        }
+        return PidLock.acquire(config.backup().workDir());
     }
 
     private static void checkBackupUser(AppConfig config) {
@@ -155,6 +199,25 @@ public final class AppContext {
                             + " server certificate, which does not protect against an active MITM attack."
                             + " Configure zimbraMailbox.caCertificatePath instead for production use.");
         }
+        if (config.storage().backend() == StorageBackend.S3
+                && !isHttpsOrUnset(config.storage().s3().endpointOverride())) {
+            refuseUnlessAllowInsecure(
+                    config,
+                    "storage.s3.endpointOverride does not use https://: S3 requests will be sent in cleartext."
+                            + " Configure an https:// endpoint for production use.");
+        }
+        if (config.metadata().backend() == MetadataBackend.DYNAMODB
+                && !isHttpsOrUnset(config.metadata().dynamodb().endpointOverride())) {
+            refuseUnlessAllowInsecure(
+                    config,
+                    "metadata.dynamodb.endpointOverride does not use https://: DynamoDB requests will be sent in"
+                            + " cleartext. Configure an https:// endpoint for production use.");
+        }
+    }
+
+    private static boolean isHttpsOrUnset(URI endpointOverride) {
+        return endpointOverride == null
+                || "https".equalsIgnoreCase(endpointOverride.getScheme());
     }
 
     private static void refuseUnlessAllowInsecure(AppConfig config, String message) {

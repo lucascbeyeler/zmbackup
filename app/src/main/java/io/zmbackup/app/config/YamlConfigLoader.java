@@ -3,6 +3,7 @@ package io.zmbackup.app.config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -47,7 +48,39 @@ public final class YamlConfigLoader {
                 parseZimbraLdap(root),
                 parseZimbraMailbox(root),
                 parseBackup(root),
+                parseStorage(root),
+                parseMetadata(root),
                 optionalBoolean(root, "allowInsecure", false));
+    }
+
+    private static StorageConfig parseStorage(Map<String, Object> root) {
+        StorageBackend backend = optionalEnum(root, "storage.backend", StorageBackend.class, StorageBackend.LOCAL);
+        return new StorageConfig(backend, backend == StorageBackend.S3 ? parseS3(root) : null);
+    }
+
+    private static S3Config parseS3(Map<String, Object> root) {
+        return new S3Config(
+                requireString(root, "storage.s3.bucket"),
+                requireString(root, "storage.s3.region"),
+                optionalStringDefault(root, "storage.s3.prefix", S3Config.DEFAULT_PREFIX),
+                optionalUri(root, "storage.s3.endpointOverride"));
+    }
+
+    private static MetadataConfig parseMetadata(Map<String, Object> root) {
+        MetadataBackend backend =
+                optionalEnum(root, "metadata.backend", MetadataBackend.class, MetadataBackend.SQLITE);
+        return new MetadataConfig(backend, backend == MetadataBackend.DYNAMODB ? parseDynamoDb(root) : null);
+    }
+
+    private static DynamoDbConfig parseDynamoDb(Map<String, Object> root) {
+        return new DynamoDbConfig(
+                requireString(root, "metadata.dynamodb.region"),
+                optionalStringDefault(
+                        root, "metadata.dynamodb.sessionTable", DynamoDbConfig.DEFAULT_SESSION_TABLE),
+                optionalStringDefault(
+                        root, "metadata.dynamodb.accountTable", DynamoDbConfig.DEFAULT_ACCOUNT_TABLE),
+                optionalStringDefault(root, "metadata.dynamodb.lockTable", DynamoDbConfig.DEFAULT_LOCK_TABLE),
+                optionalUri(root, "metadata.dynamodb.endpointOverride"));
     }
 
     private static ZimbraLdapConfig parseZimbraLdap(Map<String, Object> root) {
@@ -135,6 +168,23 @@ public final class YamlConfigLoader {
         return value == null ? null : value.toString();
     }
 
+    private static String optionalStringDefault(Map<String, Object> root, String dottedPath, String defaultValue) {
+        String value = optionalString(root, dottedPath);
+        return value == null ? defaultValue : value;
+    }
+
+    private static URI optionalUri(Map<String, Object> root, String dottedPath) {
+        String value = optionalString(root, dottedPath);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return URI.create(value);
+        } catch (IllegalArgumentException e) {
+            throw new ConfigException("Invalid URI at '" + dottedPath + "': " + value, e);
+        }
+    }
+
     private static boolean optionalBoolean(Map<String, Object> root, String dottedPath, boolean defaultValue) {
         Object value = get(root, dottedPath);
         if (value == null) {
@@ -177,12 +227,17 @@ public final class YamlConfigLoader {
 
     private static EmailNotifyLevel optionalEmailNotifyLevel(
             Map<String, Object> root, String dottedPath, EmailNotifyLevel defaultValue) {
+        return optionalEnum(root, dottedPath, EmailNotifyLevel.class, defaultValue);
+    }
+
+    private static <E extends Enum<E>> E optionalEnum(
+            Map<String, Object> root, String dottedPath, Class<E> enumType, E defaultValue) {
         Object value = get(root, dottedPath);
         if (value == null) {
             return defaultValue;
         }
         try {
-            return EmailNotifyLevel.valueOf(value.toString().toUpperCase(Locale.ROOT));
+            return Enum.valueOf(enumType, value.toString().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             throw new ConfigException("Invalid value for '" + dottedPath + "': " + value, e);
         }

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,21 @@ class YamlConfigLoaderTest {
                 level: ERROR
                 recipient: admin@example.com
                 sender: root@example.com
+            storage:
+              backend: s3
+              s3:
+                bucket: my-zmbackup-bucket
+                region: us-east-1
+                prefix: custom-prefix/
+                endpointOverride: https://s3.example.com
+            metadata:
+              backend: dynamodb
+              dynamodb:
+                region: us-west-2
+                sessionTable: custom_session
+                accountTable: custom_account
+                lockTable: custom_lock
+                endpointOverride: https://dynamodb.example.com
             allowInsecure: true
             """;
 
@@ -99,6 +115,19 @@ class YamlConfigLoaderTest {
         assertEquals("admin@example.com", config.backup().emailNotify().recipient());
         assertEquals("root@example.com", config.backup().emailNotify().sender());
         assertEquals(true, config.allowInsecure());
+
+        assertEquals(StorageBackend.S3, config.storage().backend());
+        assertEquals("my-zmbackup-bucket", config.storage().s3().bucket());
+        assertEquals("us-east-1", config.storage().s3().region());
+        assertEquals("custom-prefix/", config.storage().s3().prefix());
+        assertEquals(URI.create("https://s3.example.com"), config.storage().s3().endpointOverride());
+
+        assertEquals(MetadataBackend.DYNAMODB, config.metadata().backend());
+        assertEquals("us-west-2", config.metadata().dynamodb().region());
+        assertEquals("custom_session", config.metadata().dynamodb().sessionTable());
+        assertEquals("custom_account", config.metadata().dynamodb().accountTable());
+        assertEquals("custom_lock", config.metadata().dynamodb().lockTable());
+        assertEquals(URI.create("https://dynamodb.example.com"), config.metadata().dynamodb().endpointOverride());
     }
 
     private static void assertFalseSsl(AppConfig config) {
@@ -122,6 +151,10 @@ class YamlConfigLoaderTest {
         assertTrue(config.backup().lockBackup());
         assertEquals(EmailNotifyLevel.ALL, config.backup().emailNotify().level());
         assertEquals(false, config.allowInsecure());
+        assertEquals(StorageBackend.LOCAL, config.storage().backend());
+        assertEquals(null, config.storage().s3());
+        assertEquals(MetadataBackend.SQLITE, config.metadata().backend());
+        assertEquals(null, config.metadata().dynamodb());
     }
 
     @Test
@@ -344,5 +377,70 @@ class YamlConfigLoaderTest {
         String yaml = "zimbraLdap: !!java.net.URL [\"http://example.com\"]";
 
         assertThrows(YAMLException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+    }
+
+    @Test
+    void s3BackendWithoutBucketThrowsConfigException() {
+        String yaml = MINIMAL_YAML
+                + """
+                storage:
+                  backend: s3
+                  s3:
+                    region: us-east-1
+                """;
+
+        ConfigException exception =
+                assertThrows(ConfigException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+        assertTrue(exception.getMessage().contains("storage.s3.bucket"));
+    }
+
+    @Test
+    void dynamodbBackendWithoutRegionThrowsConfigException() {
+        String yaml = MINIMAL_YAML
+                + """
+                metadata:
+                  backend: dynamodb
+                """;
+
+        ConfigException exception =
+                assertThrows(ConfigException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+        assertTrue(exception.getMessage().contains("metadata.dynamodb.region"));
+    }
+
+    @Test
+    void invalidStorageBackendThrowsConfigException() {
+        String yaml = MINIMAL_YAML
+                + """
+                storage:
+                  backend: nfs
+                """;
+
+        ConfigException exception =
+                assertThrows(ConfigException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+        assertTrue(exception.getMessage().contains("storage.backend"));
+    }
+
+    @Test
+    void s3BackendAppliesDefaultPrefixAndDynamoDbAppliesDefaultTableNames() {
+        String yaml = MINIMAL_YAML
+                + """
+                storage:
+                  backend: s3
+                  s3:
+                    bucket: my-zmbackup-bucket
+                    region: us-east-1
+                metadata:
+                  backend: dynamodb
+                  dynamodb:
+                    region: us-east-1
+                """;
+
+        AppConfig config = YamlConfigLoader.load(new StringReader(yaml));
+
+        assertEquals(S3Config.DEFAULT_PREFIX, config.storage().s3().prefix());
+        assertEquals(null, config.storage().s3().endpointOverride());
+        assertEquals(DynamoDbConfig.DEFAULT_SESSION_TABLE, config.metadata().dynamodb().sessionTable());
+        assertEquals(DynamoDbConfig.DEFAULT_ACCOUNT_TABLE, config.metadata().dynamodb().accountTable());
+        assertEquals(DynamoDbConfig.DEFAULT_LOCK_TABLE, config.metadata().dynamodb().lockTable());
     }
 }

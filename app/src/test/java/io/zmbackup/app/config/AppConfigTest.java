@@ -24,24 +24,49 @@ class AppConfigTest {
             true,
             new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com"));
 
+    private static final StorageConfig STORAGE_CONFIG = new StorageConfig(StorageBackend.LOCAL, null);
+
+    private static final MetadataConfig METADATA_CONFIG = new MetadataConfig(MetadataBackend.SQLITE, null);
+
     @Test
     void rejectsNullZimbraLdap() {
-        assertThrows(NullPointerException.class, () -> new AppConfig(null, MAILBOX_CONFIG, BACKUP_CONFIG, false));
+        assertThrows(
+                NullPointerException.class,
+                () -> new AppConfig(null, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, false));
     }
 
     @Test
     void rejectsNullZimbraMailbox() {
-        assertThrows(NullPointerException.class, () -> new AppConfig(LDAP_CONFIG, null, BACKUP_CONFIG, false));
+        assertThrows(
+                NullPointerException.class,
+                () -> new AppConfig(LDAP_CONFIG, null, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, false));
     }
 
     @Test
     void rejectsNullBackup() {
-        assertThrows(NullPointerException.class, () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, null, false));
+        assertThrows(
+                NullPointerException.class,
+                () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, null, STORAGE_CONFIG, METADATA_CONFIG, false));
+    }
+
+    @Test
+    void rejectsNullStorage() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, null, METADATA_CONFIG, false));
+    }
+
+    @Test
+    void rejectsNullMetadata() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, null, false));
     }
 
     @Test
     void toStringDoesNotLeakNestedSecrets() {
-        AppConfig config = new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, false);
+        AppConfig config = new AppConfig(
+                LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, false);
 
         String result = config.toString();
 

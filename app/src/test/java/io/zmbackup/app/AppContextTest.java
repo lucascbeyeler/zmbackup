@@ -5,24 +5,48 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.BackupConfig;
 import io.zmbackup.app.config.ConfigException;
+import io.zmbackup.app.config.DynamoDbConfig;
 import io.zmbackup.app.config.EmailNotifyConfig;
 import io.zmbackup.app.config.EmailNotifyLevel;
+import io.zmbackup.app.config.MetadataBackend;
+import io.zmbackup.app.config.MetadataConfig;
+import io.zmbackup.app.config.S3Config;
+import io.zmbackup.app.config.StorageBackend;
+import io.zmbackup.app.config.StorageConfig;
 import io.zmbackup.app.config.ZimbraLdapConfig;
 import io.zmbackup.app.config.ZimbraMailboxConfig;
+import io.zmbackup.aws.DynamoDBLock;
+import io.zmbackup.aws.DynamoDBMetadataStore;
+import io.zmbackup.aws.S3StorageProvider;
+import io.zmbackup.core.port.RunLock;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class AppContextTest {
+
+    private static final StorageConfig LOCAL_STORAGE = new StorageConfig(StorageBackend.LOCAL, null);
+
+    private static final MetadataConfig SQLITE_METADATA = new MetadataConfig(MetadataBackend.SQLITE, null);
+
+    @BeforeAll
+    static void setUpCredentials() {
+        System.setProperty("aws.accessKeyId", "test");
+        System.setProperty("aws.secretAccessKey", "test");
+    }
 
     @TempDir
     Path tempDir;
@@ -97,6 +121,8 @@ class AppContextTest {
                         30,
                         true,
                         new EmailNotifyConfig(EmailNotifyLevel.NONE, null, null)),
+                LOCAL_STORAGE,
+                SQLITE_METADATA,
                 false);
 
         AppContext context = new AppContext(config);
@@ -149,6 +175,80 @@ class AppContextTest {
         assertEquals(config, context.config());
     }
 
+    @Test
+    void wiresS3StorageProviderAndDynamoDBLockWhenCloudBackendsAreConfigured() throws Exception {
+        WireMockServer wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        wireMockServer.start();
+        try {
+            wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(
+                            com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                    .withHeader(
+                            "X-Amz-Target",
+                            com.github.tomakehurst.wiremock.client.WireMock.equalTo("DynamoDB_20120810.PutItem"))
+                    .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withStatus(200)));
+            wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(
+                            com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                    .withHeader(
+                            "X-Amz-Target",
+                            com.github.tomakehurst.wiremock.client.WireMock.equalTo("DynamoDB_20120810.DeleteItem"))
+                    .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withStatus(200)));
+            AppConfig config = configWithCloudBackends(tempDir, URI.create(wireMockServer.baseUrl()), true);
+
+            AppContext context = new AppContext(config);
+
+            assertInstanceOf(S3StorageProvider.class, context.storageProvider());
+            assertInstanceOf(DynamoDBMetadataStore.class, context.metadataStore());
+            try (RunLock lock = context.acquireRunLock()) {
+                assertInstanceOf(DynamoDBLock.class, lock);
+            }
+        } finally {
+            wireMockServer.stop();
+        }
+    }
+
+    @Test
+    void constructorRefusesInsecureS3EndpointOverrideWithoutAllowInsecure() {
+        AppConfig config = configWithCloudBackends(tempDir, URI.create("http://127.0.0.1:1"), false);
+
+        ConfigException exception = assertThrows(ConfigException.class, () -> new AppContext(config));
+
+        assertTrue(exception.getMessage().startsWith("storage.s3.endpointOverride"));
+    }
+
+    private static AppConfig configWithCloudBackends(Path workDir, URI endpointOverride, boolean allowInsecure) {
+        return new AppConfig(
+                new ZimbraLdapConfig(
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
+                new ZimbraMailboxConfig(
+                        System.getProperty("user.name"),
+                        true,
+                        "https://127.0.0.1:7071",
+                        "zimbra",
+                        "secret",
+                        null,
+                        false),
+                new BackupConfig(
+                        workDir,
+                        workDir.resolve("zmbackup.log"),
+                        workDir.resolve("blockedlist.conf"),
+                        3,
+                        30,
+                        true,
+                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                new StorageConfig(
+                        StorageBackend.S3,
+                        new S3Config("test-bucket", "us-east-1", S3Config.DEFAULT_PREFIX, endpointOverride)),
+                new MetadataConfig(
+                        MetadataBackend.DYNAMODB,
+                        new DynamoDbConfig(
+                                "us-east-1",
+                                DynamoDbConfig.DEFAULT_SESSION_TABLE,
+                                DynamoDbConfig.DEFAULT_ACCOUNT_TABLE,
+                                DynamoDbConfig.DEFAULT_LOCK_TABLE,
+                                endpointOverride)),
+                allowInsecure);
+    }
+
     private static AppConfig configWithWorkDir(Path workDir) {
         return configWithWorkDir(workDir, System.getProperty("user.name"));
     }
@@ -166,6 +266,8 @@ class AppContextTest {
                         30,
                         true,
                         new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                LOCAL_STORAGE,
+                SQLITE_METADATA,
                 false);
     }
 
@@ -195,6 +297,8 @@ class AppContextTest {
                         30,
                         true,
                         new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                LOCAL_STORAGE,
+                SQLITE_METADATA,
                 allowInsecure);
     }
 
@@ -218,6 +322,8 @@ class AppContextTest {
                         30,
                         true,
                         new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                LOCAL_STORAGE,
+                SQLITE_METADATA,
                 allowInsecure);
     }
 }

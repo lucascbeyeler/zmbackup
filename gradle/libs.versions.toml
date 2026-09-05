@@ -8,6 +8,7 @@ picocli = "4.7.7"
 logback = "1.6.3"
 slf4j = "2.0.18"
 sqlite-jdbc = "3.53.4.0"
+aws-sdk = "2.29.52"
 cucumber = "7.34.7"
 shadow = "9.6.1"
 foojay-resolver = "1.0.0"
@@ -26,6 +27,8 @@ picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 slf4j-jul-to-slf4j = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+aws-sdk-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws-sdk" }
+aws-sdk-dynamodb = { module = "software.amazon.awssdk:dynamodb", version.ref = "aws-sdk" }
 cucumber-java = { module = "io.cucumber:cucumber-java", version.ref = "cucumber" }
 cucumber-junit-platform-engine = { module = "io.cucumber:cucumber-junit-platform-engine", version.ref = "cucumber" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs-annotations" }

@@ -4,4 +4,4 @@ plugins {
 
 rootProject.name = "zmbackup"
 
-include("core", "zimbra", "local", "app")
+include("core", "zimbra", "local", "aws", "app")
