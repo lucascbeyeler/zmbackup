@@ -1,5 +1,7 @@
 package io.zmbackup.app;
 
+import io.zmbackup.core.port.LockContentionException;
+import io.zmbackup.core.port.RunLock;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -9,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-public final class PidLock implements AutoCloseable {
+public final class PidLock implements RunLock {
 
     private static final String LOCK_FILENAME = "zmbackup.pid";
 
@@ -64,7 +66,7 @@ public final class PidLock implements AutoCloseable {
         }
     }
 
-    public static final class AlreadyRunningException extends IOException {
+    public static final class AlreadyRunningException extends LockContentionException {
         private AlreadyRunningException(String message) {
             super(message);
         }

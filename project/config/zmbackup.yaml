@@ -72,8 +72,31 @@ backup:
     # Address the report is sent from.
     sender: {ZMBKP_MAIL_SENDER}
 
+# Where backup content (LDIF/TGZ files) is stored. Optional; both sections below default to the
+# local filesystem, matching zmbackup 1.0/2.0 Phase 1 behavior. Set backend: s3 to store backup
+# content in Amazon S3 instead - see zmbackupdocs specs/13-cloud-backends.md.
+storage:
+  backend: local
+  # s3:
+  #   bucket: my-zmbackup-bucket
+  #   region: us-east-1
+  #   prefix: sessions/
+
+# Where session/account metadata is stored. Optional; defaults to the local SQLite database
+# alongside workDir above. Set backend: dynamodb to store metadata in DynamoDB instead, and to
+# switch the run lock from a local PID file to a DynamoDB-based distributed lock - see
+# zmbackupdocs specs/13-cloud-backends.md.
+metadata:
+  backend: sqlite
+  # dynamodb:
+  #   region: us-east-1
+  #   sessionTable: zmbackup_session
+  #   accountTable: zmbackup_account
+  #   lockTable: zmbackup_lock
+
 # Explicit opt-in required to start with a setting that sends credentials in cleartext or skips
 # certificate verification (sslEnabled: false, trustAllCertificates: true with no
-# caCertificatePath, or a non-https:// restBaseUrl). zmbackup refuses to start with such a
-# setting unless this is true. Optional, defaults to false.
+# caCertificatePath, a non-https:// restBaseUrl, or a non-https:// storage/metadata
+# endpointOverride). zmbackup refuses to start with such a setting unless this is true. Optional,
+# defaults to false.
 allowInsecure: false

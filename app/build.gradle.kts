@@ -6,6 +6,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":zimbra"))
     implementation(project(":local"))
+    implementation(project(":aws"))
     implementation(libs.snakeyaml)
     implementation(libs.picocli)
     implementation(libs.logback.classic)
