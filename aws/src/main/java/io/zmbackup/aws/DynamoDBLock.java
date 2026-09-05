@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -30,10 +31,12 @@ public final class DynamoDBLock implements RunLock {
 
     private final DynamoDbClient client;
     private final String lockTable;
+    private final String lockToken;
 
-    private DynamoDBLock(DynamoDbClient client, String lockTable) {
+    private DynamoDBLock(DynamoDbClient client, String lockTable, String lockToken) {
         this.client = client;
         this.lockTable = lockTable;
+        this.lockToken = lockToken;
     }
 
     public static DynamoDBLock acquire(String region, String lockTable, URI endpointOverride, Duration leaseDuration)
@@ -45,9 +48,11 @@ public final class DynamoDBLock implements RunLock {
         DynamoDbClient client = builder.build();
         Instant now = Instant.now();
         Instant expiresAt = now.plus(leaseDuration);
+        String lockToken = UUID.randomUUID().toString();
         Map<String, AttributeValue> item = new HashMap<>();
         item.put("lockId", AttributeValue.fromS(LOCK_ID));
         item.put("holder", AttributeValue.fromS(holderDescription()));
+        item.put("lockToken", AttributeValue.fromS(lockToken));
         item.put("expiresAt", AttributeValue.fromS(expiresAt.toString()));
         item.put("expiresAtEpochSeconds", AttributeValue.fromN(Long.toString(expiresAt.getEpochSecond())));
         try {
@@ -57,7 +62,7 @@ public final class DynamoDBLock implements RunLock {
                     .conditionExpression("attribute_not_exists(lockId) OR expiresAt < :now")
                     .expressionAttributeValues(Map.of(":now", AttributeValue.fromS(now.toString())))
                     .build());
-            return new DynamoDBLock(client, lockTable);
+            return new DynamoDBLock(client, lockTable, lockToken);
         } catch (ConditionalCheckFailedException e) {
             String holder = currentHolder(client, lockTable);
             client.close();
@@ -100,7 +105,12 @@ public final class DynamoDBLock implements RunLock {
             client.deleteItem(DeleteItemRequest.builder()
                     .tableName(lockTable)
                     .key(Map.of("lockId", AttributeValue.fromS(LOCK_ID)))
+                    .conditionExpression("lockToken = :token")
+                    .expressionAttributeValues(Map.of(":token", AttributeValue.fromS(lockToken)))
                     .build());
+        } catch (ConditionalCheckFailedException e) {
+            LOG.log(Level.WARNING, "Lease on " + lockTable
+                    + " was already reclaimed by another process; not deleting its lock item");
         } catch (SdkException e) {
             throw new IOException(e);
         } finally {

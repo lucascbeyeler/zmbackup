@@ -82,7 +82,24 @@ class DynamoDBLockTest {
         lock.close();
 
         wireMockServer.verify(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
-                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem")));
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem"))
+                .withRequestBody(com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath("$.ConditionExpression")));
+    }
+
+    @Test
+    void closeDoesNotFailWhenLockWasAlreadyReclaimedByAnotherHolder() throws IOException {
+        stubTarget("PutItem", 200, "{}");
+        wireMockServer.stubFor(post(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem"))
+                .willReturn(aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/x-amz-json-1.0")
+                        .withHeader("x-amzn-errortype", "ConditionalCheckFailedException")
+                        .withBody("{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\","
+                                + "\"message\":\"The conditional request failed\"}")));
+        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24));
+
+        lock.close();
     }
 
     private URI endpoint() {

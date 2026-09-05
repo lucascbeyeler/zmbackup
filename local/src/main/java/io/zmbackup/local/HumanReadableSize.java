@@ -18,6 +18,10 @@ final class HumanReadableSize {
             unitIndex++;
         }
         long tenths = Math.round(value * 10);
+        if (tenths >= 10240 && unitIndex < UNITS.length - 1) {
+            tenths /= 1024;
+            unitIndex++;
+        }
         if (tenths % 10 == 0) {
             return (tenths / 10) + UNITS[unitIndex];
         }

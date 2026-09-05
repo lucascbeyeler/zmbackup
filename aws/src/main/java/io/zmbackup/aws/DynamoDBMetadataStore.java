@@ -38,6 +38,8 @@ public final class DynamoDBMetadataStore implements MetadataStore {
     static final String SESSION_ID_INDEX = "sessionId-index";
 
     private static final int BATCH_GET_SIZE = 100;
+    private static final int MAX_UNPROCESSED_KEYS_RETRIES = 8;
+    private static final long UNPROCESSED_KEYS_BASE_BACKOFF_MILLIS = 50;
 
     private final DynamoDbClient client;
     private final String sessionTable;
@@ -284,7 +286,15 @@ public final class DynamoDBMetadataStore implements MetadataStore {
             Set<String> result = new HashSet<>();
             Map<String, KeysAndAttributes> requestItems =
                     new HashMap<>(Map.of(sessionTable, KeysAndAttributes.builder().keys(keys).build()));
+            int attempt = 0;
             while (!requestItems.isEmpty()) {
+                if (attempt > 0) {
+                    sleepBeforeRetry(attempt);
+                }
+                if (attempt >= MAX_UNPROCESSED_KEYS_RETRIES) {
+                    throw new IOException("Gave up waiting for DynamoDB to process BatchGetItem keys against "
+                            + sessionTable + " after " + attempt + " retries");
+                }
                 BatchGetItemResponse response =
                         client.batchGetItem(BatchGetItemRequest.builder().requestItems(requestItems).build());
                 for (Map<String, AttributeValue> item :
@@ -294,10 +304,20 @@ public final class DynamoDBMetadataStore implements MetadataStore {
                     }
                 }
                 requestItems = response.unprocessedKeys();
+                attempt++;
             }
             return result;
         } catch (SdkException e) {
             throw new IOException(e);
+        }
+    }
+
+    private static void sleepBeforeRetry(int attempt) throws IOException {
+        try {
+            Thread.sleep(UNPROCESSED_KEYS_BASE_BACKOFF_MILLIS << Math.min(attempt, 10));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while backing off retrying unprocessed DynamoDB keys", e);
         }
     }
 
