@@ -26,6 +26,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,12 @@ class S3StorageProviderTest {
     private static final String ACCOUNT = "alice.smith";
 
     private WireMockServer wireMockServer;
+
+    @BeforeAll
+    static void setUpCredentials() {
+        System.setProperty("aws.accessKeyId", "test");
+        System.setProperty("aws.secretAccessKey", "test");
+    }
 
     @BeforeEach
     void setUp() {

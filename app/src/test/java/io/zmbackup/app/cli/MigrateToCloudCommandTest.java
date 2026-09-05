@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -36,6 +37,12 @@ class MigrateToCloudCommandTest {
     Path tempDir;
 
     private WireMockServer wireMockServer;
+
+    @BeforeAll
+    static void setUpCredentials() {
+        System.setProperty("aws.accessKeyId", "test");
+        System.setProperty("aws.secretAccessKey", "test");
+    }
 
     @BeforeEach
     void setUp() {

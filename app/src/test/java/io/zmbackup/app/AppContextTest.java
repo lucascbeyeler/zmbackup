@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,6 +41,12 @@ class AppContextTest {
     private static final StorageConfig LOCAL_STORAGE = new StorageConfig(StorageBackend.LOCAL, null);
 
     private static final MetadataConfig SQLITE_METADATA = new MetadataConfig(MetadataBackend.SQLITE, null);
+
+    @BeforeAll
+    static void setUpCredentials() {
+        System.setProperty("aws.accessKeyId", "test");
+        System.setProperty("aws.secretAccessKey", "test");
+    }
 
     @TempDir
     Path tempDir;

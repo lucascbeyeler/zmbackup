@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +31,12 @@ class DynamoDBMetadataStoreTest {
     private static final String ACCOUNT_TABLE = "zmbackup_account";
 
     private WireMockServer wireMockServer;
+
+    @BeforeAll
+    static void setUpCredentials() {
+        System.setProperty("aws.accessKeyId", "test");
+        System.setProperty("aws.secretAccessKey", "test");
+    }
 
     @BeforeEach
     void setUp() {

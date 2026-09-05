@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,12 @@ class DynamoDBLockTest {
     private static final String LOCK_TABLE = "zmbackup_lock";
 
     private WireMockServer wireMockServer;
+
+    @BeforeAll
+    static void setUpCredentials() {
+        System.setProperty("aws.accessKeyId", "test");
+        System.setProperty("aws.secretAccessKey", "test");
+    }
 
     @BeforeEach
     void setUp() {
