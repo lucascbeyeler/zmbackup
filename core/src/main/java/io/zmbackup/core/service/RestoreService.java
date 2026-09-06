@@ -35,7 +35,7 @@ public class RestoreService {
         }
 
         @Override
-        public void restore(InputStream source) throws IOException {
+        public List<String> restore(InputStream source) throws IOException {
             throw new IOException("serverConfig is not configured in zmbackup.yaml");
         }
     };
@@ -155,7 +155,12 @@ public class RestoreService {
 
     private boolean restoreServerConfigOne(String sessionId) {
         try (InputStream source = storageProvider.openRead(sessionId, SERVER_CONFIG_IDENTIFIER, ZIP_SUFFIX)) {
-            serverConfigArchiver.restore(source);
+            List<String> skipped = serverConfigArchiver.restore(source);
+            if (!skipped.isEmpty()) {
+                LOG.warning(() -> "Server config restore for session " + sessionId + " could not write "
+                        + skipped.size() + " file(s) - the running user likely lacks write permission on their"
+                        + " containing directory - and left them untouched: " + skipped);
+            }
             return true;
         } catch (IOException e) {
             LOG.log(Level.WARNING, "Server config restore failed for session " + sessionId, e);

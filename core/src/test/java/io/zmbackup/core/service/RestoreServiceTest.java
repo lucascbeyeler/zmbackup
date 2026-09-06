@@ -144,6 +144,17 @@ class RestoreServiceTest {
     }
 
     @Test
+    void restoreServerConfigStillSucceedsWhenSomeFilesAreSkipped() throws IOException {
+        storageProvider.put("serverconfig-1", "serverconfig", "zip", "archive-bytes");
+        serverConfigArchiver.nextRestoreSkips = List.of("opt/zimbra/conf/crontabs/crontab.logger");
+
+        RestoreResult result = restoreService.restoreServerConfig("serverconfig-1");
+
+        assertTrue(result.allSucceeded());
+        assertEquals(1, result.total());
+    }
+
+    @Test
     void restoreServerConfigFailsWhenArchiverThrows() throws IOException {
         storageProvider.put("serverconfig-1", "serverconfig", "zip", "archive-bytes");
         serverConfigArchiver.failNextRestore = true;
@@ -259,6 +270,7 @@ class RestoreServiceTest {
     private static final class FakeServerConfigArchiver implements ServerConfigArchiver {
         final List<String> restored = new ArrayList<>();
         boolean failNextRestore;
+        List<String> nextRestoreSkips = List.of();
 
         @Override
         public void export(OutputStream destination) throws IOException {
@@ -266,12 +278,15 @@ class RestoreServiceTest {
         }
 
         @Override
-        public void restore(InputStream source) throws IOException {
+        public List<String> restore(InputStream source) throws IOException {
             if (failNextRestore) {
                 failNextRestore = false;
                 throw new IOException("simulated server config restore failure");
             }
             restored.add(new String(source.readAllBytes()));
+            List<String> skipped = nextRestoreSkips;
+            nextRestoreSkips = List.of();
+            return skipped;
         }
     }
 

@@ -812,8 +812,9 @@ class BackupServiceTest {
         }
 
         @Override
-        public void restore(InputStream source) throws IOException {
+        public List<String> restore(InputStream source) throws IOException {
             source.readAllBytes();
+            return List.of();
         }
     }
 

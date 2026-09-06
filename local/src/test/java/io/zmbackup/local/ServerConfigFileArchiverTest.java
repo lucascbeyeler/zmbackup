@@ -102,6 +102,33 @@ class ServerConfigFileArchiverTest {
     }
 
     @Test
+    void restoreSkipsAFileItCannotWriteButStillRestoresEverythingElse() throws IOException {
+        Assumptions.assumeFalse("root".equals(System.getProperty("user.name")));
+        Path writable = confRoot.resolve("localconfig.xml");
+        Files.writeString(writable, "original-writable");
+        Path lockedDir = confRoot.resolve("crontabs");
+        Files.createDirectories(lockedDir);
+        Path locked = lockedDir.resolve("crontab.logger");
+        Files.writeString(locked, "original-locked");
+        ServerConfigArchiver archiver = new ServerConfigFileArchiver(List.of(confRoot));
+        byte[] archive = export(archiver);
+
+        Files.writeString(writable, "corrupted-writable");
+        Files.writeString(locked, "corrupted-locked");
+        Files.setPosixFilePermissions(lockedDir, PosixFilePermissions.fromString("r-xr-xr-x"));
+        try {
+            List<String> skipped = archiver.restore(new ByteArrayInputStream(archive));
+
+            assertEquals("original-writable", Files.readString(writable));
+            assertEquals("corrupted-locked", Files.readString(locked));
+            assertEquals(1, skipped.size());
+            assertTrue(skipped.get(0).endsWith("crontabs/crontab.logger"));
+        } finally {
+            Files.setPosixFilePermissions(lockedDir, PosixFilePermissions.fromString("rwxr-xr-x"));
+        }
+    }
+
+    @Test
     void restoreRejectsArchiveMissingManifest() throws IOException {
         ServerConfigArchiver archiver = new ServerConfigFileArchiver(List.of(confRoot));
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

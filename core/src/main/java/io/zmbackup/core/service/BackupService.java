@@ -49,7 +49,7 @@ public class BackupService {
         }
 
         @Override
-        public void restore(InputStream source) throws IOException {
+        public List<String> restore(InputStream source) throws IOException {
             throw new IOException("serverConfig is not configured in zmbackup.yaml");
         }
     };

@@ -64,17 +64,17 @@ public class ServerConfigFileArchiver implements ServerConfigArchiver {
     }
 
     @Override
-    public void restore(InputStream source) throws IOException {
+    public List<String> restore(InputStream source) throws IOException {
         Path spool = PosixFileHardening.createTempFile("zmbackup-serverconfig-", ".zip");
         try {
             Files.copy(source, spool, StandardCopyOption.REPLACE_EXISTING);
-            applyArchive(spool);
+            return applyArchive(spool);
         } finally {
             Files.deleteIfExists(spool);
         }
     }
 
-    private void applyArchive(Path spoolFile) throws IOException {
+    private List<String> applyArchive(Path spoolFile) throws IOException {
         try (ZipFile zip = new ZipFile(spoolFile.toFile())) {
             ZipEntry manifestEntry = zip.getEntry(MANIFEST_ENTRY_NAME);
             if (manifestEntry == null) {
@@ -91,19 +91,30 @@ public class ServerConfigFileArchiver implements ServerConfigArchiver {
                 }
             }
 
+            List<String> skipped = new ArrayList<>();
             for (TargetEntry mapping : targets) {
-                Path parent = mapping.target().getParent();
-                if (parent != null) {
-                    Files.createDirectories(parent);
-                }
-                try (InputStream in = zip.getInputStream(mapping.entry())) {
-                    Files.copy(in, mapping.target(), StandardCopyOption.REPLACE_EXISTING);
-                }
-                String permissions = permissionsByName.get(mapping.entry().getName());
-                if (permissions != null && POSIX_SUPPORTED) {
-                    Files.setPosixFilePermissions(mapping.target(), PosixFilePermissions.fromString(permissions));
+                try {
+                    applyOne(zip, mapping, permissionsByName);
+                } catch (IOException e) {
+                    skipped.add(mapping.entry().getName());
                 }
             }
+            return List.copyOf(skipped);
+        }
+    }
+
+    private void applyOne(ZipFile zip, TargetEntry mapping, Map<String, String> permissionsByName)
+            throws IOException {
+        Path parent = mapping.target().getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        try (InputStream in = zip.getInputStream(mapping.entry())) {
+            Files.copy(in, mapping.target(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        String permissions = permissionsByName.get(mapping.entry().getName());
+        if (permissions != null && POSIX_SUPPORTED) {
+            Files.setPosixFilePermissions(mapping.target(), PosixFilePermissions.fromString(permissions));
         }
     }
 
