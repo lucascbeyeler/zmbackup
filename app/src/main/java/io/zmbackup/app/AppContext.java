@@ -53,10 +53,6 @@ public final class AppContext {
 
     private static final Duration DYNAMODB_LOCK_LEASE = Duration.ofHours(24);
 
-    private static final String NOTIFY_SMTP_HOST = "localhost";
-
-    private static final int NOTIFY_SMTP_PORT = 25;
-
     private static final Notifier NO_NOTIFIER = new Notifier() {
         @Override
         public void notifyBegin(String sessionId, BackupType type) {}
@@ -273,8 +269,8 @@ public final class AppContext {
         boolean notifyOnFinishSuccess = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.FINISH;
         boolean notifyOnFinishError = level == EmailNotifyLevel.ALL || level == EmailNotifyLevel.ERROR;
         return new EmailNotifier(
-                NOTIFY_SMTP_HOST,
-                NOTIFY_SMTP_PORT,
+                config.backup().emailNotify().smtpHost(),
+                config.backup().emailNotify().smtpPort(),
                 config.backup().emailNotify().sender(),
                 config.backup().emailNotify().recipient(),
                 notifyOnBegin,

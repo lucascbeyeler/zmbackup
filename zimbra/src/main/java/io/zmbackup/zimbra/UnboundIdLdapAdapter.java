@@ -27,6 +27,7 @@ import com.unboundid.ldif.LDIFWriter;
 import com.unboundid.util.ssl.PEMFileTrustManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
+import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.ZimbraLdapExporter;
@@ -225,7 +226,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         return type.objectFilter();
     }
 
-    private static final Pattern DOMAIN_PATTERN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern DOMAIN_PATTERN = Identifiers.DOMAIN;
 
     private static String domainBaseDn(String domain) throws IOException {
         if (!DOMAIN_PATTERN.matcher(domain).matches()) {

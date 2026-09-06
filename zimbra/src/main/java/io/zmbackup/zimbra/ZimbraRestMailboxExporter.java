@@ -3,6 +3,7 @@ package io.zmbackup.zimbra;
 import com.unboundid.util.ssl.PEMFileTrustManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
+import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.File;
 import java.io.IOException;
@@ -37,8 +38,7 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     private static final DateTimeFormatter AFTER_DATE_FORMAT =
             DateTimeFormatter.ofPattern("MM/dd/yyyy").withZone(ZoneId.systemDefault());
 
-    private static final Pattern ACCOUNT_PATTERN =
-            Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern ACCOUNT_PATTERN = Identifiers.EMAIL;
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
 

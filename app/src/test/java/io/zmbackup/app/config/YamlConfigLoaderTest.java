@@ -47,6 +47,8 @@ class YamlConfigLoaderTest {
                 level: ERROR
                 recipient: admin@example.com
                 sender: root@example.com
+                smtpHost: mail.example.com
+                smtpPort: 587
             storage:
               backend: s3
               s3:
@@ -114,6 +116,8 @@ class YamlConfigLoaderTest {
         assertEquals(EmailNotifyLevel.ERROR, config.backup().emailNotify().level());
         assertEquals("admin@example.com", config.backup().emailNotify().recipient());
         assertEquals("root@example.com", config.backup().emailNotify().sender());
+        assertEquals("mail.example.com", config.backup().emailNotify().smtpHost());
+        assertEquals(587, config.backup().emailNotify().smtpPort());
         assertEquals(true, config.allowInsecure());
 
         assertEquals(StorageBackend.S3, config.storage().backend());
@@ -150,6 +154,8 @@ class YamlConfigLoaderTest {
         assertEquals(30, config.backup().rotateDays());
         assertTrue(config.backup().lockBackup());
         assertEquals(EmailNotifyLevel.ALL, config.backup().emailNotify().level());
+        assertEquals(EmailNotifyConfig.DEFAULT_SMTP_HOST, config.backup().emailNotify().smtpHost());
+        assertEquals(EmailNotifyConfig.DEFAULT_SMTP_PORT, config.backup().emailNotify().smtpPort());
         assertEquals(false, config.allowInsecure());
         assertEquals(StorageBackend.LOCAL, config.storage().backend());
         assertEquals(null, config.storage().s3());

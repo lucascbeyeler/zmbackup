@@ -11,25 +11,53 @@ class EmailNotifyConfigTest {
     void rejectsNullLevel() {
         assertThrows(
                 NullPointerException.class,
-                () -> new EmailNotifyConfig(null, "admin@example.com", "root@example.com"));
+                () -> new EmailNotifyConfig(
+                        null, "admin@example.com", "root@example.com", "localhost", 25));
     }
 
     @Test
     void rejectsNullRecipient() {
         assertThrows(
-                NullPointerException.class, () -> new EmailNotifyConfig(EmailNotifyLevel.ALL, null, "root@example.com"));
+                NullPointerException.class,
+                () -> new EmailNotifyConfig(
+                        EmailNotifyLevel.ALL, null, "root@example.com", "localhost", 25));
     }
 
     @Test
     void rejectsNullSender() {
         assertThrows(
                 NullPointerException.class,
-                () -> new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", null));
+                () -> new EmailNotifyConfig(
+                        EmailNotifyLevel.ALL, "admin@example.com", null, "localhost", 25));
+    }
+
+    @Test
+    void rejectsNullSmtpHost() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new EmailNotifyConfig(
+                        EmailNotifyLevel.ALL, "admin@example.com", "root@example.com", null, 25));
+    }
+
+    @Test
+    void rejectsSmtpPortBelowOne() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new EmailNotifyConfig(
+                        EmailNotifyLevel.ALL, "admin@example.com", "root@example.com", "localhost", 0));
+    }
+
+    @Test
+    void rejectsSmtpPortAboveSixtyFiveThirtyFive() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new EmailNotifyConfig(
+                        EmailNotifyLevel.ALL, "admin@example.com", "root@example.com", "localhost", 65536));
     }
 
     @Test
     void allowsNullRecipientAndSenderWhenLevelIsNone() {
-        EmailNotifyConfig config = new EmailNotifyConfig(EmailNotifyLevel.NONE, null, null);
+        EmailNotifyConfig config = new EmailNotifyConfig(EmailNotifyLevel.NONE, null, null, "localhost", 25);
 
         assertEquals(EmailNotifyLevel.NONE, config.level());
         assertEquals(null, config.recipient());
@@ -38,10 +66,13 @@ class EmailNotifyConfigTest {
 
     @Test
     void storesConfiguredFields() {
-        EmailNotifyConfig config = new EmailNotifyConfig(EmailNotifyLevel.ERROR, "admin@example.com", "root@example.com");
+        EmailNotifyConfig config = new EmailNotifyConfig(
+                EmailNotifyLevel.ERROR, "admin@example.com", "root@example.com", "mail.example.com", 587);
 
         assertEquals(EmailNotifyLevel.ERROR, config.level());
         assertEquals("admin@example.com", config.recipient());
         assertEquals("root@example.com", config.sender());
+        assertEquals("mail.example.com", config.smtpHost());
+        assertEquals(587, config.smtpPort());
     }
 }

@@ -45,6 +45,7 @@ public final class DynamoDBMetadataStore implements MetadataStore {
     private static final int BATCH_WRITE_SIZE = 25;
     private static final int MAX_UNPROCESSED_KEYS_RETRIES = 8;
     private static final long UNPROCESSED_KEYS_BASE_BACKOFF_MILLIS = 50;
+    private static final int RECENT_CANDIDATE_LIMIT = 5;
 
     private final DynamoDbClient client;
     private final String sessionTable;
@@ -201,24 +202,20 @@ public final class DynamoDBMetadataStore implements MetadataStore {
 
     @Override
     public Optional<Instant> lastSuccessfulBackupTime(String email) throws IOException {
-        List<BackupAccountRecord> candidates = queryAccountsByEmail(email);
-        Set<String> mailboxPrefixes = new HashSet<>(BackupType.mailboxSessionPrefixes());
-        List<BackupAccountRecord> mailboxCandidates = new ArrayList<>();
-        for (BackupAccountRecord candidate : candidates) {
-            if (mailboxPrefixes.contains(sessionPrefixOf(candidate.sessionId()))) {
-                mailboxCandidates.add(candidate);
-            }
+        List<BackupAccountRecord> candidates = new ArrayList<>();
+        for (String prefix : BackupType.mailboxSessionPrefixes()) {
+            candidates.addAll(queryMostRecentByPrefix(email, prefix, RECENT_CANDIDATE_LIMIT));
         }
-        if (mailboxCandidates.isEmpty()) {
+        if (candidates.isEmpty()) {
             return Optional.empty();
         }
         Set<String> sessionIds = new HashSet<>();
-        for (BackupAccountRecord candidate : mailboxCandidates) {
+        for (BackupAccountRecord candidate : candidates) {
             sessionIds.add(candidate.sessionId());
         }
         Set<String> nonInProgress = nonInProgressSessionIds(sessionIds);
         Instant latest = null;
-        for (BackupAccountRecord candidate : mailboxCandidates) {
+        for (BackupAccountRecord candidate : candidates) {
             if (!nonInProgress.contains(candidate.sessionId()) || candidate.completedAt() == null) {
                 continue;
             }
@@ -231,40 +228,32 @@ public final class DynamoDBMetadataStore implements MetadataStore {
 
     @Override
     public boolean backedUpSince(String identifier, BackupType type, Instant since) throws IOException {
-        Set<String> conflictingPrefixes = new HashSet<>(type.conflictingSessionPrefixes());
-        for (BackupAccountRecord record : queryAccountsByEmail(identifier)) {
-            if (record.completedAt() != null
-                    && record.completedAt().isAfter(since)
-                    && conflictingPrefixes.contains(sessionPrefixOf(record.sessionId()))) {
-                return true;
+        for (String prefix : type.conflictingSessionPrefixes()) {
+            for (BackupAccountRecord record : queryMostRecentByPrefix(identifier, prefix, RECENT_CANDIDATE_LIMIT)) {
+                if (record.completedAt() != null && record.completedAt().isAfter(since)) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
-    private static String sessionPrefixOf(String sessionId) {
-        int dash = sessionId.indexOf('-');
-        return dash < 0 ? sessionId : sessionId.substring(0, dash);
-    }
-
-    private List<BackupAccountRecord> queryAccountsByEmail(String email) throws IOException {
+    private List<BackupAccountRecord> queryMostRecentByPrefix(String email, String prefix, int limit)
+            throws IOException {
         try {
-            List<BackupAccountRecord> records = new ArrayList<>();
-            Map<String, AttributeValue> lastKey = null;
-            do {
-                QueryRequest.Builder requestBuilder = QueryRequest.builder()
-                        .tableName(accountTable)
-                        .keyConditionExpression("email = :email")
-                        .expressionAttributeValues(Map.of(":email", AttributeValue.fromS(email)));
-                if (lastKey != null) {
-                    requestBuilder.exclusiveStartKey(lastKey);
-                }
-                QueryResponse response = client.query(requestBuilder.build());
-                for (Map<String, AttributeValue> item : response.items()) {
-                    records.add(mapAccount(item));
-                }
-                lastKey = response.lastEvaluatedKey();
-            } while (lastKey != null && !lastKey.isEmpty());
+            QueryResponse response = client.query(QueryRequest.builder()
+                    .tableName(accountTable)
+                    .keyConditionExpression("email = :email and begins_with(sessionId, :prefix)")
+                    .expressionAttributeValues(Map.of(
+                            ":email", AttributeValue.fromS(email),
+                            ":prefix", AttributeValue.fromS(prefix)))
+                    .scanIndexForward(false)
+                    .limit(limit)
+                    .build());
+            List<BackupAccountRecord> records = new ArrayList<>(response.items().size());
+            for (Map<String, AttributeValue> item : response.items()) {
+                records.add(mapAccount(item));
+            }
             return records;
         } catch (SdkException e) {
             throw new IOException(e);
