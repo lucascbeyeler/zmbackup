@@ -10,10 +10,12 @@ import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.Notifier;
+import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,11 +42,24 @@ public class BackupService {
         public void notifyFinish(
                 String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {}
     };
+    private static final ServerConfigArchiver NO_SERVER_CONFIG_ARCHIVER = new ServerConfigArchiver() {
+        @Override
+        public void export(OutputStream destination) throws IOException {
+            throw new IOException("serverConfig is not configured in zmbackup.yaml");
+        }
+
+        @Override
+        public void restore(InputStream source) throws IOException {
+            throw new IOException("serverConfig is not configured in zmbackup.yaml");
+        }
+    };
 
     private static final DateTimeFormatter SESSION_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
+    private static final String ZIP_SUFFIX = "zip";
+    private static final String SERVER_CONFIG_IDENTIFIER = "serverconfig";
 
     private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
@@ -59,6 +74,7 @@ public class BackupService {
     private final MetadataStore metadataStore;
     private final Blocklist blocklist;
     private final Notifier notifier;
+    private final ServerConfigArchiver serverConfigArchiver;
     private final int maxParallelProcesses;
     private final boolean lockBackup;
 
@@ -70,6 +86,7 @@ public class BackupService {
             MetadataStore metadataStore,
             Blocklist blocklist,
             Notifier notifier,
+            ServerConfigArchiver serverConfigArchiver,
             int maxParallelProcesses,
             boolean lockBackup) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
@@ -79,6 +96,7 @@ public class BackupService {
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
         this.blocklist = Objects.requireNonNull(blocklist, "blocklist must not be null");
         this.notifier = Objects.requireNonNull(notifier, "notifier must not be null");
+        this.serverConfigArchiver = Objects.requireNonNull(serverConfigArchiver, "serverConfigArchiver must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
         this.lockBackup = lockBackup;
     }
@@ -100,6 +118,7 @@ public class BackupService {
         private final MetadataStore metadataStore;
         private Blocklist blocklist = NO_BLOCKLIST;
         private Notifier notifier = NO_NOTIFIER;
+        private ServerConfigArchiver serverConfigArchiver = NO_SERVER_CONFIG_ARCHIVER;
         private int maxParallelProcesses = 1;
         private boolean lockBackup = false;
 
@@ -126,6 +145,11 @@ public class BackupService {
             return this;
         }
 
+        public Builder serverConfigArchiver(ServerConfigArchiver serverConfigArchiver) {
+            this.serverConfigArchiver = serverConfigArchiver;
+            return this;
+        }
+
         public Builder maxParallelProcesses(int maxParallelProcesses) {
             this.maxParallelProcesses = maxParallelProcesses;
             return this;
@@ -145,6 +169,7 @@ public class BackupService {
                     metadataStore,
                     blocklist,
                     notifier,
+                    serverConfigArchiver,
                     maxParallelProcesses,
                     lockBackup);
         }
@@ -267,6 +292,10 @@ public class BackupService {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
                     logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
                 }
+            } else if (type == BackupType.SERVER_CONFIG) {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, ZIP_SUFFIX)) {
+                    serverConfigArchiver.export(destination);
+                }
             } else {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
                     if (type == BackupType.DOMAIN) {
@@ -296,6 +325,10 @@ public class BackupService {
 
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain, boolean force)
             throws IOException {
+        if (type == BackupType.SERVER_CONFIG) {
+            return filterAlreadyBackedUpToday(
+                    type, filterBlocked(List.of(SERVER_CONFIG_IDENTIFIER)), force);
+        }
         if (!identifiers.isEmpty()) {
             return identifiers;
         }
@@ -371,6 +404,8 @@ public class BackupService {
             case DISTRIBUTION_LIST -> LdapObjectType.DISTRIBUTION_LIST;
             case SIGNATURE -> LdapObjectType.SIGNATURE;
             case DOMAIN -> LdapObjectType.DOMAIN;
+            case SERVER_CONFIG -> throw new IllegalStateException(
+                    "SERVER_CONFIG has no LDAP object type - it is handled directly in backupOne");
         };
     }
 }

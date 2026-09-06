@@ -16,7 +16,12 @@ import picocli.CommandLine.Spec;
 @Command(
         name = "restore",
         description = "Restore a backup session (LDAP + mailbox).",
-        subcommands = {RestoreLdapCommand.class, RestoreDomainCommand.class, RestoreMailboxCommand.class})
+        subcommands = {
+            RestoreLdapCommand.class,
+            RestoreDomainCommand.class,
+            RestoreMailboxCommand.class,
+            RestoreServerConfigCommand.class
+        })
 public final class RestoreCommand implements Callable<Integer> {
 
     @ParentCommand

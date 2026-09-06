@@ -33,45 +33,67 @@ class AppConfigTest {
 
     private static final MetadataConfig METADATA_CONFIG = new MetadataConfig(MetadataBackend.SQLITE, null);
 
+    private static final ServerConfigConfig SERVER_CONFIG_CONFIG =
+            new ServerConfigConfig(ServerConfigConfig.DEFAULT_PATHS);
+
     @Test
     void rejectsNullZimbraLdap() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AppConfig(null, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, false));
+                () -> new AppConfig(
+                        null, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, SERVER_CONFIG_CONFIG,
+                        false));
     }
 
     @Test
     void rejectsNullZimbraMailbox() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AppConfig(LDAP_CONFIG, null, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, false));
+                () -> new AppConfig(
+                        LDAP_CONFIG, null, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, SERVER_CONFIG_CONFIG,
+                        false));
     }
 
     @Test
     void rejectsNullBackup() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, null, STORAGE_CONFIG, METADATA_CONFIG, false));
+                () -> new AppConfig(
+                        LDAP_CONFIG, MAILBOX_CONFIG, null, STORAGE_CONFIG, METADATA_CONFIG, SERVER_CONFIG_CONFIG,
+                        false));
     }
 
     @Test
     void rejectsNullStorage() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, null, METADATA_CONFIG, false));
+                () -> new AppConfig(
+                        LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, null, METADATA_CONFIG, SERVER_CONFIG_CONFIG,
+                        false));
     }
 
     @Test
     void rejectsNullMetadata() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AppConfig(LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, null, false));
+                () -> new AppConfig(
+                        LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, null, SERVER_CONFIG_CONFIG,
+                        false));
+    }
+
+    @Test
+    void rejectsNullServerConfig() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new AppConfig(
+                        LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, null, false));
     }
 
     @Test
     void toStringDoesNotLeakNestedSecrets() {
         AppConfig config = new AppConfig(
-                LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, false);
+                LDAP_CONFIG, MAILBOX_CONFIG, BACKUP_CONFIG, STORAGE_CONFIG, METADATA_CONFIG, SERVER_CONFIG_CONFIG,
+                false);
 
         String result = config.toString();
 

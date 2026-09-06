@@ -7,6 +7,8 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -50,7 +52,13 @@ public final class YamlConfigLoader {
                 parseBackup(root),
                 parseStorage(root),
                 parseMetadata(root),
+                parseServerConfig(root),
                 optionalBoolean(root, "allowInsecure", false));
+    }
+
+    private static ServerConfigConfig parseServerConfig(Map<String, Object> root) {
+        return new ServerConfigConfig(
+                optionalStringList(root, "serverConfig.paths", ServerConfigConfig.DEFAULT_PATHS));
     }
 
     private static StorageConfig parseStorage(Map<String, Object> root) {
@@ -173,6 +181,25 @@ public final class YamlConfigLoader {
     private static String optionalStringDefault(Map<String, Object> root, String dottedPath, String defaultValue) {
         String value = optionalString(root, dottedPath);
         return value == null ? defaultValue : value;
+    }
+
+    private static List<String> optionalStringList(
+            Map<String, Object> root, String dottedPath, List<String> defaultValue) {
+        Object value = get(root, dottedPath);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (!(value instanceof List<?> list)) {
+            throw new ConfigException("Expected a list at '" + dottedPath + "', got: " + value);
+        }
+        List<String> result = new ArrayList<>(list.size());
+        for (Object item : list) {
+            if (item == null) {
+                throw new ConfigException("List at '" + dottedPath + "' must not contain a null entry");
+            }
+            result.add(item.toString());
+        }
+        return List.copyOf(result);
     }
 
     private static URI optionalUri(Map<String, Object> root, String dottedPath) {

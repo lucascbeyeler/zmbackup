@@ -11,7 +11,8 @@ public enum BackupType {
     ALIAS("alias", true, false),
     DISTRIBUTION_LIST("distlist", true, false),
     SIGNATURE("signature", true, false),
-    DOMAIN("domain", true, false);
+    DOMAIN("domain", true, false),
+    SERVER_CONFIG("serverconfig", false, false);
 
     private final String sessionPrefix;
     private final boolean includesLdap;
@@ -44,7 +45,9 @@ public enum BackupType {
 
     public List<String> conflictingSessionPrefixes() {
         return Arrays.stream(values())
-                .filter(other -> (includesLdap && other.includesLdap) || (includesMailbox && other.includesMailbox))
+                .filter(other -> other == this
+                        || (includesLdap && other.includesLdap)
+                        || (includesMailbox && other.includesMailbox))
                 .map(BackupType::sessionPrefix)
                 .toList();
     }

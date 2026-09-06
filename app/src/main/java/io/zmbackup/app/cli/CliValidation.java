@@ -10,7 +10,7 @@ final class CliValidation {
     private static final Pattern EMAIL = Identifiers.EMAIL;
     private static final Pattern DOMAIN = Identifiers.DOMAIN;
     private static final Pattern SESSION_ID =
-            Pattern.compile("^(full|inc|ldap|domain|distlist|alias|mbox|signature)-[0-9]{14}$");
+            Pattern.compile("^(full|inc|ldap|domain|distlist|alias|mbox|signature|serverconfig)-[0-9]{14}$");
 
     private CliValidation() {}
 
