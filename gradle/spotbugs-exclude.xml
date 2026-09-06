@@ -15,4 +15,9 @@
     <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
   </Match>
 
+  <Match>
+    <Class name="io.zmbackup.local.ServerConfigFileArchiver"/>
+    <Bug pattern="DMI_HARDCODED_ABSOLUTE_FILENAME"/>
+  </Match>
+
 </FindBugsFilter>
