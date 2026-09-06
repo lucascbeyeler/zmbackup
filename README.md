@@ -58,9 +58,13 @@ The table below documents what zmbackup covers.
 - **Restoring `serverconfig` writes files directly back to their original host paths**, not through
   any Zimbra API — unlike every other restore in this table. It does not stop or reload Zimbra
   services for you; restart the affected services (or run `zmcertmgr`/`zmcontrol restart` as
-  appropriate) after restoring certificates, keystores, or `localconfig.xml`. A restore is
-  all-or-nothing: if the archive contains anything that doesn't resolve back under the currently
-  configured `serverConfig.paths`, nothing in it is written.
+  appropriate) after restoring certificates, keystores, or `localconfig.xml`. If the archive contains
+  anything that doesn't resolve back under the currently configured `serverConfig.paths`, the whole
+  restore is refused and nothing is written - that check is a security boundary. A file that *is* in
+  the allowed paths but that `zimbraMailbox.backupUser` simply doesn't have permission to overwrite
+  (e.g. a root-owned file under `/opt/zimbra/conf/crontabs` on a stock install) is skipped
+  individually instead - the restore still reports success, and `zmbackup.log`/syslog names exactly
+  which files were skipped and why.
 
 ## Requirements
 
