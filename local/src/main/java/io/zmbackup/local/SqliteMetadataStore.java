@@ -49,6 +49,12 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             )
             """;
 
+    private static final String CREATE_INDEX_BACKUP_ACCOUNT_EMAIL =
+            "create index if not exists idx_backup_account_email on backup_account(email)";
+
+    private static final String CREATE_INDEX_BACKUP_ACCOUNT_SESSION_ID =
+            "create index if not exists idx_backup_account_sessionID on backup_account(sessionID)";
+
     private static final String SQLITE_URI_PREFIX = "file:";
 
     private final ReentrantLock lock = new ReentrantLock();
@@ -63,6 +69,8 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             try (Statement statement = connection.createStatement()) {
                 statement.execute(CREATE_BACKUP_SESSION);
                 statement.execute(CREATE_BACKUP_ACCOUNT);
+                statement.execute(CREATE_INDEX_BACKUP_ACCOUNT_EMAIL);
+                statement.execute(CREATE_INDEX_BACKUP_ACCOUNT_SESSION_ID);
             }
         } catch (SQLException e) {
             throw new IOException(e);

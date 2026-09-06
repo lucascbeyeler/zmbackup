@@ -2,6 +2,7 @@ package io.zmbackup.local;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
@@ -12,8 +13,14 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -283,6 +290,26 @@ class SqliteMetadataStoreTest {
 
         assertEquals(
                 true, store.backedUpSince("user@example.com", BackupType.MAILBOX, now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void constructingStoreCreatesIndexesOnFrequentlyQueriedBackupAccountColumns(@TempDir Path workDir)
+            throws IOException, SQLException {
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+
+        new SqliteMetadataStore(databaseFile).close();
+
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "select name from sqlite_master where type = 'index' and tbl_name = 'backup_account'")) {
+            List<String> indexNames = new ArrayList<>();
+            while (rs.next()) {
+                indexNames.add(rs.getString("name"));
+            }
+            assertTrue(indexNames.contains("idx_backup_account_email"));
+            assertTrue(indexNames.contains("idx_backup_account_sessionID"));
+        }
     }
 
     @Test
