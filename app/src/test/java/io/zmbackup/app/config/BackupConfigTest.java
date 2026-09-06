@@ -9,7 +9,12 @@ import org.junit.jupiter.api.Test;
 class BackupConfigTest {
 
     private static final EmailNotifyConfig EMAIL_NOTIFY =
-            new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com");
+            new EmailNotifyConfig(
+                    EmailNotifyLevel.ALL,
+                    "admin@example.com",
+                    "root@example.com",
+                    EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                    EmailNotifyConfig.DEFAULT_SMTP_PORT);
 
     @Test
     void rejectsMaxParallelProcessesBelowOne() {

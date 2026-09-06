@@ -22,7 +22,12 @@ class AppConfigTest {
             3,
             30,
             true,
-            new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com"));
+            new EmailNotifyConfig(
+                    EmailNotifyLevel.ALL,
+                    "admin@example.com",
+                    "root@example.com",
+                    EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                    EmailNotifyConfig.DEFAULT_SMTP_PORT));
 
     private static final StorageConfig STORAGE_CONFIG = new StorageConfig(StorageBackend.LOCAL, null);
 

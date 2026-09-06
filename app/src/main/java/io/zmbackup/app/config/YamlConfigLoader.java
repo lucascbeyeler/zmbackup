@@ -129,7 +129,9 @@ public final class YamlConfigLoader {
                         : requireString(root, "backup.emailNotify.recipient"),
                 notifyDisabled
                         ? optionalString(root, "backup.emailNotify.sender")
-                        : requireString(root, "backup.emailNotify.sender"));
+                        : requireString(root, "backup.emailNotify.sender"),
+                optionalStringDefault(root, "backup.emailNotify.smtpHost", EmailNotifyConfig.DEFAULT_SMTP_HOST),
+                optionalInt(root, "backup.emailNotify.smtpPort", EmailNotifyConfig.DEFAULT_SMTP_PORT));
     }
 
     private static Object get(Map<String, Object> root, String dottedPath) {

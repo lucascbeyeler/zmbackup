@@ -120,7 +120,12 @@ class AppContextTest {
                         3,
                         30,
                         true,
-                        new EmailNotifyConfig(EmailNotifyLevel.NONE, null, null)),
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.NONE,
+                                null,
+                                null,
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
                 false);
@@ -234,7 +239,12 @@ class AppContextTest {
                         3,
                         30,
                         true,
-                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.ALL,
+                                "admin@example.com",
+                                "root@example.com",
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 new StorageConfig(
                         StorageBackend.S3,
                         new S3Config("test-bucket", "us-east-1", S3Config.DEFAULT_PREFIX, endpointOverride)),
@@ -265,7 +275,12 @@ class AppContextTest {
                         3,
                         30,
                         true,
-                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.ALL,
+                                "admin@example.com",
+                                "root@example.com",
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
                 false);
@@ -296,7 +311,12 @@ class AppContextTest {
                         3,
                         30,
                         true,
-                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.ALL,
+                                "admin@example.com",
+                                "root@example.com",
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
                 allowInsecure);
@@ -321,7 +341,12 @@ class AppContextTest {
                         3,
                         30,
                         true,
-                        new EmailNotifyConfig(EmailNotifyLevel.ALL, "admin@example.com", "root@example.com")),
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.ALL,
+                                "admin@example.com",
+                                "root@example.com",
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
                 allowInsecure);

@@ -1,13 +1,14 @@
 package io.zmbackup.app.cli;
 
+import io.zmbackup.core.domain.Identifiers;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.regex.Pattern;
 
 final class CliValidation {
 
-    private static final Pattern EMAIL = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    private static final Pattern DOMAIN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    private static final Pattern EMAIL = Identifiers.EMAIL;
+    private static final Pattern DOMAIN = Identifiers.DOMAIN;
     private static final Pattern SESSION_ID =
             Pattern.compile("^(full|inc|ldap|domain|distlist|alias|mbox|signature)-[0-9]{14}$");
 

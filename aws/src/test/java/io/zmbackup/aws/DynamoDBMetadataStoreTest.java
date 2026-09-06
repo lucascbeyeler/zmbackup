@@ -258,15 +258,9 @@ class DynamoDBMetadataStoreTest {
 
     @Test
     void lastSuccessfulBackupTimeIgnoresInProgressAndNonMailboxSessions() throws IOException {
-        wireMockServer.stubFor(post(anyPath())
-                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
-                .willReturn(jsonResponse("{\"Items\":["
-                        + accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
-                        + ","
-                        + accountItem("mbox-20260201120000", "alice@example.com", "2026-02-01T12:00:00Z")
-                        + ","
-                        + accountItem("ldap-20260301120000", "alice@example.com", "2026-03-01T12:00:00Z")
-                        + "]}")));
+        stubQueryForPrefix("full", accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z"));
+        stubQueryForPrefix("mbox", accountItem("mbox-20260201120000", "alice@example.com", "2026-02-01T12:00:00Z"));
+        stubQueryForPrefix("inc");
         wireMockServer.stubFor(post(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchGetItem"))
                 .willReturn(jsonResponse("{\"Responses\":{\"" + SESSION_TABLE + "\":["
@@ -278,6 +272,20 @@ class DynamoDBMetadataStoreTest {
 
         assertTrue(result.isPresent());
         assertEquals(Instant.parse("2026-01-01T12:00:00Z"), result.get());
+    }
+
+    @Test
+    void lastSuccessfulBackupTimeQueriesEachMailboxPrefixWithABoundedDescendingLimit() throws IOException {
+        stubTarget("Query", "{\"Items\":[]}");
+
+        Optional<Instant> result = store().lastSuccessfulBackupTime("alice@example.com");
+
+        assertTrue(result.isEmpty());
+        wireMockServer.verify(postRequestedFor(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .withRequestBody(containing("begins_with(sessionId, :prefix)"))
+                .withRequestBody(containing("\"ScanIndexForward\":false"))
+                .withRequestBody(containing("\"Limit\":5")));
     }
 
     @Test
@@ -326,11 +334,10 @@ class DynamoDBMetadataStoreTest {
 
     @Test
     void backedUpSinceIsFalseForANonOverlappingBackupType() throws IOException {
-        wireMockServer.stubFor(post(anyPath())
-                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
-                .willReturn(jsonResponse("{\"Items\":["
-                        + accountItem("ldap-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
-                        + "]}")));
+        stubQueryForPrefix("ldap", accountItem("ldap-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z"));
+        stubQueryForPrefix("full");
+        stubQueryForPrefix("inc");
+        stubQueryForPrefix("mbox");
 
         assertFalse(store().backedUpSince(
                 "alice@example.com", BackupType.MAILBOX, Instant.parse("2025-12-01T00:00:00Z")));
@@ -338,11 +345,7 @@ class DynamoDBMetadataStoreTest {
 
     @Test
     void backedUpSinceIsTrueForMailboxWhenAFullBackupAlreadyCoveredItToday() throws IOException {
-        wireMockServer.stubFor(post(anyPath())
-                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
-                .willReturn(jsonResponse("{\"Items\":["
-                        + accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
-                        + "]}")));
+        stubQueryForPrefix("full", accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z"));
 
         assertTrue(store().backedUpSince(
                 "alice@example.com", BackupType.MAILBOX, Instant.parse("2025-12-01T00:00:00Z")));
@@ -357,6 +360,13 @@ class DynamoDBMetadataStoreTest {
         wireMockServer.stubFor(post(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810." + operation))
                 .willReturn(jsonResponse(responseBody)));
+    }
+
+    private void stubQueryForPrefix(String prefix, String... items) {
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .withRequestBody(containing("\"S\":\"" + prefix + "\""))
+                .willReturn(jsonResponse("{\"Items\":[" + String.join(",", items) + "]}")));
     }
 
     private static com.github.tomakehurst.wiremock.matching.UrlPattern anyPath() {

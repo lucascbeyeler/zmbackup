@@ -3,6 +3,7 @@ package io.zmbackup.core.service;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
@@ -44,10 +45,6 @@ public class BackupService {
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
-
-    private static final Pattern DISCOVERED_EMAIL = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-
-    private static final Pattern DISCOVERED_DOMAIN = Pattern.compile("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
     private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
@@ -320,7 +317,7 @@ public class BackupService {
         if (objectType == LdapObjectType.SIGNATURE) {
             return identifiers;
         }
-        Pattern pattern = objectType == LdapObjectType.DOMAIN ? DISCOVERED_DOMAIN : DISCOVERED_EMAIL;
+        Pattern pattern = objectType == LdapObjectType.DOMAIN ? Identifiers.DOMAIN : Identifiers.EMAIL;
         List<String> allowed = new ArrayList<>(identifiers.size());
         for (String identifier : identifiers) {
             if (pattern.matcher(identifier).matches()) {
@@ -346,13 +343,19 @@ public class BackupService {
 
     private List<String> filterAlreadyBackedUpToday(BackupType type, List<String> identifiers, boolean force)
             throws IOException {
-        if (!lockBackup || force) {
+        if (!lockBackup || force || identifiers.isEmpty()) {
             return identifiers;
         }
         Instant since = Instant.now().minus(LOCK_BACKUP_WINDOW);
-        List<String> allowed = new ArrayList<>(identifiers.size());
+        List<Callable<Boolean>> tasks = new ArrayList<>(identifiers.size());
         for (String identifier : identifiers) {
-            if (metadataStore.backedUpSince(identifier, type, since)) {
+            tasks.add(() -> metadataStore.backedUpSince(identifier, type, since));
+        }
+        List<Boolean> alreadyBackedUp = Parallel.run(maxParallelProcesses, tasks);
+        List<String> allowed = new ArrayList<>(identifiers.size());
+        for (int i = 0; i < identifiers.size(); i++) {
+            String identifier = identifiers.get(i);
+            if (alreadyBackedUp.get(i)) {
                 LOG.info(() -> identifier + " already has backup today - skipping.");
             } else {
                 allowed.add(identifier);
