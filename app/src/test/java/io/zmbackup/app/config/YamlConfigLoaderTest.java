@@ -9,6 +9,7 @@ import java.io.StringReader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.yaml.snakeyaml.error.YAMLException;
@@ -64,6 +65,11 @@ class YamlConfigLoaderTest {
                 accountTable: custom_account
                 lockTable: custom_lock
                 endpointOverride: https://dynamodb.example.com
+            serverConfig:
+              paths:
+                - /opt/zimbra/conf
+                - /opt/zimbra/ssl
+                - /etc/zimbra
             allowInsecure: true
             """;
 
@@ -132,6 +138,26 @@ class YamlConfigLoaderTest {
         assertEquals("custom_account", config.metadata().dynamodb().accountTable());
         assertEquals("custom_lock", config.metadata().dynamodb().lockTable());
         assertEquals(URI.create("https://dynamodb.example.com"), config.metadata().dynamodb().endpointOverride());
+
+        assertEquals(
+                List.of("/opt/zimbra/conf", "/opt/zimbra/ssl", "/etc/zimbra"), config.serverConfig().paths());
+    }
+
+    @Test
+    void usesDefaultServerConfigPathsWhenSectionOmitted() {
+        AppConfig config = YamlConfigLoader.load(new StringReader(MINIMAL_YAML));
+
+        assertEquals(ServerConfigConfig.DEFAULT_PATHS, config.serverConfig().paths());
+    }
+
+    @Test
+    void serverConfigPathsMustBeAList() {
+        String yaml = MINIMAL_YAML + "serverConfig:\n  paths: /opt/zimbra/conf\n";
+
+        ConfigException exception =
+                assertThrows(ConfigException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+
+        assertTrue(exception.getMessage().contains("serverConfig.paths"));
     }
 
     private static void assertFalseSsl(AppConfig config) {

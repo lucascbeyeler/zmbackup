@@ -16,6 +16,7 @@ import io.zmbackup.app.config.EmailNotifyLevel;
 import io.zmbackup.app.config.MetadataBackend;
 import io.zmbackup.app.config.MetadataConfig;
 import io.zmbackup.app.config.S3Config;
+import io.zmbackup.app.config.ServerConfigConfig;
 import io.zmbackup.app.config.StorageBackend;
 import io.zmbackup.app.config.StorageConfig;
 import io.zmbackup.app.config.ZimbraLdapConfig;
@@ -41,6 +42,9 @@ class AppContextTest {
     private static final StorageConfig LOCAL_STORAGE = new StorageConfig(StorageBackend.LOCAL, null);
 
     private static final MetadataConfig SQLITE_METADATA = new MetadataConfig(MetadataBackend.SQLITE, null);
+
+    private static final ServerConfigConfig DEFAULT_SERVER_CONFIG =
+            new ServerConfigConfig(ServerConfigConfig.DEFAULT_PATHS);
 
     @BeforeAll
     static void setUpCredentials() {
@@ -128,6 +132,7 @@ class AppContextTest {
                                 EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
+                DEFAULT_SERVER_CONFIG,
                 false);
 
         AppContext context = new AppContext(config);
@@ -256,6 +261,7 @@ class AppContextTest {
                                 DynamoDbConfig.DEFAULT_ACCOUNT_TABLE,
                                 DynamoDbConfig.DEFAULT_LOCK_TABLE,
                                 endpointOverride)),
+                DEFAULT_SERVER_CONFIG,
                 allowInsecure);
     }
 
@@ -283,6 +289,7 @@ class AppContextTest {
                                 EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
+                DEFAULT_SERVER_CONFIG,
                 false);
     }
 
@@ -319,6 +326,7 @@ class AppContextTest {
                                 EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
+                DEFAULT_SERVER_CONFIG,
                 allowInsecure);
     }
 
@@ -349,6 +357,7 @@ class AppContextTest {
                                 EmailNotifyConfig.DEFAULT_SMTP_PORT)),
                 LOCAL_STORAGE,
                 SQLITE_METADATA,
+                DEFAULT_SERVER_CONFIG,
                 allowInsecure);
     }
 }

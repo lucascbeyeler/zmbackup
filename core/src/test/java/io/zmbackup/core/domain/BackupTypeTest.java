@@ -79,4 +79,16 @@ class BackupTypeTest {
                 List.of("full", "inc", "ldap", "alias", "distlist", "signature", "domain"),
                 BackupType.LDAP.conflictingSessionPrefixes());
     }
+
+    @Test
+    void serverConfigIncludesNeitherLdapNorMailbox() {
+        assertFalse(BackupType.SERVER_CONFIG.includesLdap());
+        assertFalse(BackupType.SERVER_CONFIG.includesMailbox());
+        assertEquals("serverconfig", BackupType.SERVER_CONFIG.sessionPrefix());
+    }
+
+    @Test
+    void serverConfigConflictsOnlyWithItselfDespiteHavingNoLdapOrMailboxFlag() {
+        assertEquals(List.of("serverconfig"), BackupType.SERVER_CONFIG.conflictingSessionPrefixes());
+    }
 }

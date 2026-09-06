@@ -413,6 +413,77 @@ class BackupCommandTest {
         assertTrue(forcedOut.toString().contains("FINISHED"));
     }
 
+    @Test
+    void serverConfigBacksUpEmptyArchiveWhenDefaultPathsAreAbsent() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "serverconfig");
+
+        assertEquals(0, exitCode);
+        String output = out.toString();
+        assertTrue(output.contains("serverconfig-"));
+        assertTrue(output.contains("FINISHED"));
+    }
+
+    @Test
+    void serverConfigArchivesConfiguredPaths() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path confDir = tempDir.resolve("fake-zimbra-conf");
+        Files.createDirectories(confDir);
+        Files.writeString(confDir.resolve("localconfig.xml"), "secret-config");
+        Path configFile = writeConfigWithServerConfigPaths(confDir);
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "serverconfig");
+
+        assertEquals(0, exitCode);
+        String sessionId = "serverconfig-" + sessionSuffixOf(out, "serverconfig-");
+        assertTrue(Files.exists(tempDir.resolve(sessionId + "/serverconfig.zip")));
+        assertTrue(Files.size(tempDir.resolve(sessionId + "/serverconfig.zip")) > 0);
+    }
+
+    private Path writeConfigWithServerConfigPaths(Path serverConfigPath) throws IOException {
+        Path configFile = tempDir.resolve("zmbackup.yaml");
+        Files.writeString(
+                configFile,
+                """
+                zimbraLdap:
+                  url: ldap://127.0.0.1:%d
+                  bindDn: uid=zimbra,cn=admins,cn=zimbra
+                  bindPassword: secret
+                  sslEnabled: false
+                zimbraMailbox:
+                  backupUser: %s
+                  restBaseUrl: %s
+                  adminUser: zimbra
+                  adminPassword: secret
+                backup:
+                  workDir: %s
+                  logFile: %s
+                  blockedListFile: %s
+                  emailNotify:
+                    recipient: admin@example.com
+                    sender: root@example.com
+                serverConfig:
+                  paths:
+                    - %s
+                allowInsecure: true
+                """
+                        .formatted(
+                                directoryServer.getListenPort(),
+                                System.getProperty("user.name"),
+                                mailboxRestBaseUrl,
+                                tempDir,
+                                tempDir.resolve("zmbackup.log"),
+                                tempDir.resolve("blockedlist.conf"),
+                                serverConfigPath));
+        return configFile;
+    }
+
     private static String sessionSuffixOf(StringWriter out, String prefix) {
         String output = out.toString();
         int start = output.indexOf(prefix) + prefix.length();

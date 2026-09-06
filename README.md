@@ -22,7 +22,7 @@ Zmbackup is a reliable tool developed to help you in your daily task to backup a
 
 ## Backup & Restore Scope
 
-The table below documents what zmbackup covers and what falls outside its scope. Items marked **No** are not touched by zmbackup at all — you will need separate tooling (e.g. etckeeper, manual cert exports) to protect them.
+The table below documents what zmbackup covers.
 
 | Object                     | Scope                             | Backup | Restore | Command                                                                                                |
 | -------------------------- | --------------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------- |
@@ -34,10 +34,10 @@ The table below documents what zmbackup covers and what falls outside its scope.
 | Distribution list          | Per list                          | Yes    | Yes     | `zmbackup backup distlist --account list@domain` / `zmbackup restore ldap --session <id> --account list@domain` |
 | Signature                  | Per user                          | Yes    | Yes     | `zmbackup backup signature --account user@domain` / `zmbackup restore ldap --session <id> --account user@domain` |
 | Zimbra domain LDAP config  | Per domain                        | Yes    | Yes     | `zmbackup backup domain --domain domain.com` / `zmbackup restore domain --session <id>`                  |
-| Zimbra component passwords | Internal services                 | No     | No      | —                                                                                                         |
-| SSL/TLS certificates       | Services                          | No     | No      | —                                                                                                         |
-| Java Keystores (JKS)       | Services                          | No     | No      | —                                                                                                         |
-| Zimbra server config       | `/opt/zimbra/conf`, `/etc/zimbra` | No     | No      | —                                                                                                         |
+| Zimbra component passwords | Internal services (`localconfig.xml`) | Yes | Yes | `zmbackup backup serverconfig` / `zmbackup restore serverconfig --session <id>`                     |
+| SSL/TLS certificates       | Host (`/opt/zimbra/ssl` by default) | Yes  | Yes     | `zmbackup backup serverconfig` / `zmbackup restore serverconfig --session <id>`                     |
+| Java Keystores (JKS)       | Host (`/opt/zimbra/conf` by default) | Yes | Yes    | `zmbackup backup serverconfig` / `zmbackup restore serverconfig --session <id>`                     |
+| Zimbra server config       | Host — see `serverConfig.paths` (default `/opt/zimbra/conf`, `/opt/zimbra/ssl`) | Yes | Yes | `zmbackup backup serverconfig` / `zmbackup restore serverconfig --session <id>`                     |
 
 **Notes:**
 
@@ -46,7 +46,21 @@ The table below documents what zmbackup covers and what falls outside its scope.
 - `--into <account>` restores a mailbox into a different destination account (restore-on-account).
 - Use `zmbackup list` to list available session IDs before running a restore.
 - **LDAP restores include password hashes.** The LDAP backup dumps the full LDAP entry as the LDAP admin, which includes the `userPassword` attribute (the hashed password). Restoring an LDAP entry will therefore overwrite the account's current password with whatever hash was stored at backup time. Be aware of this before running a restore in production.
-- Server-level configuration, certificates, and Zimbra component passwords are **never read or written** by zmbackup. Back these up independently (e.g. etckeeper for `/etc` directories).
+- **`serverconfig` backs up and restores host-level files, not Zimbra objects.** It archives every
+  path configured in `serverConfig.paths` (default: `/opt/zimbra/conf` and `/opt/zimbra/ssl`, which
+  together cover `localconfig.xml` — where every Zimbra component's service password actually lives
+  — TLS certificates, and Java keystores) as a single per-host archive, preserving file permissions.
+  There is no `--account`/`--domain` for it — one session covers everything configured. Add
+  `/etc/zimbra` to `serverConfig.paths` explicitly if you also want that directory covered; it's not
+  included by default because some installs put root-owned files there, and files this tool's
+  service account (`zimbraMailbox.backupUser`) can't read are silently skipped rather than causing
+  the backup to fail.
+- **Restoring `serverconfig` writes files directly back to their original host paths**, not through
+  any Zimbra API — unlike every other restore in this table. It does not stop or reload Zimbra
+  services for you; restart the affected services (or run `zmcertmgr`/`zmcontrol restart` as
+  appropriate) after restoring certificates, keystores, or `localconfig.xml`. A restore is
+  all-or-nothing: if the archive contains anything that doesn't resolve back under the currently
+  configured `serverConfig.paths`, nothing in it is written.
 
 ## Requirements
 
@@ -115,7 +129,8 @@ Commands:
 `distlist`, `signature`, `domain` - each taking a repeatable `--account` (or, for `domain`,
 `--domain`) to restrict which objects are backed up, and (except `domain`) a `--domain` to
 restrict discovery to one Zimbra domain. With no `--account`/`--domain`, every discovered object
-is backed up.
+is backed up. `serverconfig` is the exception: it takes no `--account`/`--domain` at all (there's
+nothing to discover) and always archives whatever `serverConfig.paths` is configured to.
 
 ```
 $ zmbackup backup full
@@ -123,19 +138,22 @@ $ zmbackup backup full --account user@domain.com
 $ zmbackup backup mailbox --domain domain.com
 $ zmbackup backup ldap --account user@domain.com
 $ zmbackup backup incremental
+$ zmbackup backup serverconfig
 ```
 
 `restore` takes `--session <sessionId>` (check available IDs with `zmbackup list` first) and,
 optionally, a repeatable `--account`/`--domain` to restrict which objects are restored; with no
-subcommand it restores both LDAP and mailbox content, or use the `ldap`, `domain`, or `mailbox`
-subcommands to restore one kind of content on its own. `--into <account>` restores a mailbox into
-a different destination account (requires exactly one `--account`).
+subcommand it restores both LDAP and mailbox content, or use the `ldap`, `domain`, `mailbox`, or
+`serverconfig` subcommands to restore one kind of content on its own. `--into <account>` restores
+a mailbox into a different destination account (requires exactly one `--account`).
+`restore serverconfig` takes only `--session` and writes files back to their original host paths.
 
 ```
 $ zmbackup list
 $ zmbackup restore --session full-20170621201603
 $ zmbackup restore mailbox --session full-20170621201603 --account user@domain.com
 $ zmbackup restore mailbox --session full-20170621201603 --account origin@domain.com --into dest@domain.com
+$ zmbackup restore serverconfig --session serverconfig-20170621201603
 ```
 
 `delete` removes a stored session; `housekeep` prunes old and empty sessions:

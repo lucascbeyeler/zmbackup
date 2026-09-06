@@ -18,6 +18,7 @@ import io.zmbackup.core.port.Blocklist;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.RunLock;
+import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
@@ -29,6 +30,7 @@ import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.EmailNotifier;
 import io.zmbackup.local.FileBlocklist;
 import io.zmbackup.local.LocalStorageProvider;
+import io.zmbackup.local.ServerConfigFileArchiver;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
@@ -106,11 +108,14 @@ public final class AppContext {
                     config.zimbraMailbox().trustAllCertificates());
             Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
             Notifier notifier = emailNotifier(config);
+            ServerConfigArchiver serverConfigArchiver = new ServerConfigFileArchiver(
+                    config.serverConfig().paths().stream().map(Path::of).toList());
             this.sessionService = new SessionService(storageProvider, metadataStore);
             this.backupService = BackupService.builder(
                             accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                     .blocklist(blocklist)
                     .notifier(notifier)
+                    .serverConfigArchiver(serverConfigArchiver)
                     .maxParallelProcesses(config.backup().maxParallelProcesses())
                     .lockBackup(config.backup().lockBackup())
                     .build();
@@ -119,7 +124,8 @@ public final class AppContext {
                     mailboxExporter,
                     storageProvider,
                     metadataStore,
-                    config.backup().maxParallelProcesses());
+                    config.backup().maxParallelProcesses(),
+                    serverConfigArchiver);
             this.housekeepService = new HousekeepService(storageProvider, metadataStore);
             this.migrationService = new MigrationService(storageProvider, metadataStore);
         } catch (IOException | RuntimeException e) {

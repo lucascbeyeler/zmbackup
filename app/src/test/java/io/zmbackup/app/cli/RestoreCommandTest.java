@@ -295,6 +295,82 @@ class RestoreCommandTest {
         assertEquals(List.of("POST /service/home/alice@example.com/"), mailboxRestorePosts);
     }
 
+    @Test
+    void serverConfigSubcommandRestoresArchivedFilesToTheirOriginalPaths() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path confDir = tempDir.resolve("fake-zimbra-conf");
+        Files.createDirectories(confDir);
+        Path localconfig = confDir.resolve("localconfig.xml");
+        Files.writeString(localconfig, "original-secret");
+        Path configFile = writeConfigWithServerConfigPaths(confDir);
+        StringWriter backupOut = new StringWriter();
+        int backupExit = commandLine(backupOut, new StringWriter())
+                .execute("--config", configFile.toString(), "backup", "serverconfig");
+        assertEquals(0, backupExit);
+        String sessionId = sessionIdOf(backupOut, "serverconfig-");
+
+        Files.writeString(localconfig, "corrupted");
+
+        StringWriter restoreOut = new StringWriter();
+        int restoreExit = commandLine(restoreOut, new StringWriter())
+                .execute("--config", configFile.toString(), "restore", "serverconfig", "--session", sessionId);
+
+        assertEquals(0, restoreExit);
+        assertTrue(restoreOut.toString().contains("completed"));
+        assertEquals("original-secret", Files.readString(localconfig));
+    }
+
+    @Test
+    void serverConfigSubcommandRejectsMalformedSessionId() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+
+        int exitCode = commandLine(new StringWriter(), err)
+                .execute("--config", configFile.toString(), "restore", "serverconfig", "--session", "not-a-session");
+
+        assertEquals(CommandLine.ExitCode.USAGE, exitCode);
+        assertTrue(err.toString().contains("Error! Invalid session ID: not-a-session"));
+    }
+
+    private Path writeConfigWithServerConfigPaths(Path serverConfigPath) throws IOException {
+        Path configFile = tempDir.resolve("zmbackup.yaml");
+        Files.writeString(
+                configFile,
+                """
+                zimbraLdap:
+                  url: ldap://127.0.0.1:%d
+                  bindDn: uid=zimbra,cn=admins,cn=zimbra
+                  bindPassword: secret
+                  sslEnabled: false
+                zimbraMailbox:
+                  backupUser: %s
+                  restBaseUrl: %s
+                  adminUser: zimbra
+                  adminPassword: secret
+                backup:
+                  workDir: %s
+                  logFile: %s
+                  blockedListFile: %s
+                  emailNotify:
+                    recipient: admin@example.com
+                    sender: root@example.com
+                serverConfig:
+                  paths:
+                    - %s
+                allowInsecure: true
+                """
+                        .formatted(
+                                directoryServer.getListenPort(),
+                                System.getProperty("user.name"),
+                                mailboxRestBaseUrl,
+                                tempDir,
+                                tempDir.resolve("zmbackup.log"),
+                                tempDir.resolve("blockedlist.conf"),
+                                serverConfigPath));
+        return configFile;
+    }
+
     private static String sessionIdOf(StringWriter out, String prefix) {
         String output = out.toString();
         int start = output.indexOf(prefix);

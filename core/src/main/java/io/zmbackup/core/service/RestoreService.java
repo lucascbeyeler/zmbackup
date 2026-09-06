@@ -4,11 +4,13 @@ import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.RestoreResult;
 import io.zmbackup.core.port.MetadataStore;
+import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -23,11 +25,26 @@ public class RestoreService {
     private static final Logger LOG = Logger.getLogger(RestoreService.class.getName());
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
+    private static final String ZIP_SUFFIX = "zip";
+    private static final String SERVER_CONFIG_IDENTIFIER = "serverconfig";
+
+    private static final ServerConfigArchiver NO_SERVER_CONFIG_ARCHIVER = new ServerConfigArchiver() {
+        @Override
+        public void export(OutputStream destination) throws IOException {
+            throw new IOException("serverConfig is not configured in zmbackup.yaml");
+        }
+
+        @Override
+        public List<String> restore(InputStream source) throws IOException {
+            throw new IOException("serverConfig is not configured in zmbackup.yaml");
+        }
+    };
 
     private final ZimbraLdapExporter ldapExporter;
     private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
+    private final ServerConfigArchiver serverConfigArchiver;
     private final int maxParallelProcesses;
 
     public RestoreService(
@@ -44,10 +61,27 @@ public class RestoreService {
             StorageProvider storageProvider,
             MetadataStore metadataStore,
             int maxParallelProcesses) {
+        this(
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                maxParallelProcesses,
+                NO_SERVER_CONFIG_ARCHIVER);
+    }
+
+    public RestoreService(
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            int maxParallelProcesses,
+            ServerConfigArchiver serverConfigArchiver) {
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
+        this.serverConfigArchiver = Objects.requireNonNull(serverConfigArchiver, "serverConfigArchiver must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
     }
 
@@ -86,6 +120,11 @@ public class RestoreService {
         return summarize(resolved, Parallel.run(maxParallelProcesses, tasks));
     }
 
+    public RestoreResult restoreServerConfig(String sessionId) throws IOException {
+        boolean succeeded = restoreServerConfigOne(sessionId);
+        return new RestoreResult(1, succeeded ? List.of() : List.of(SERVER_CONFIG_IDENTIFIER));
+    }
+
     public RestoreResult restoreFull(String sessionId, List<String> accounts) throws IOException {
         RestoreResult ldapResult = restoreLdap(sessionId, accounts);
         RestoreResult mailboxResult = restoreMailbox(sessionId, accounts);
@@ -110,6 +149,21 @@ public class RestoreService {
             return true;
         } catch (IOException e) {
             LOG.log(Level.WARNING, "Domain restore failed for " + domain, e);
+            return false;
+        }
+    }
+
+    private boolean restoreServerConfigOne(String sessionId) {
+        try (InputStream source = storageProvider.openRead(sessionId, SERVER_CONFIG_IDENTIFIER, ZIP_SUFFIX)) {
+            List<String> skipped = serverConfigArchiver.restore(source);
+            if (!skipped.isEmpty()) {
+                LOG.warning(() -> "Server config restore for session " + sessionId + " could not write "
+                        + skipped.size() + " file(s) - the running user likely lacks write permission on their"
+                        + " containing directory - and left them untouched: " + skipped);
+            }
+            return true;
+        } catch (IOException e) {
+            LOG.log(Level.WARNING, "Server config restore failed for session " + sessionId, e);
             return false;
         }
     }

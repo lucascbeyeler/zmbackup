@@ -293,6 +293,22 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
+    void backedUpSinceWorksForServerConfigWhichIncludesNeitherLdapNorMailbox() throws IOException {
+        assertEquals(
+                false,
+                store.backedUpSince(
+                        "serverconfig", BackupType.SERVER_CONFIG, Instant.now().minus(24, ChronoUnit.HOURS)));
+
+        Instant now = Instant.now();
+        store.save(session("serverconfig-1", BackupType.SERVER_CONFIG, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("serverconfig-1", "serverconfig", now));
+
+        assertEquals(
+                true,
+                store.backedUpSince("serverconfig", BackupType.SERVER_CONFIG, now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
     void constructingStoreCreatesIndexesOnFrequentlyQueriedBackupAccountColumns(@TempDir Path workDir)
             throws IOException, SQLException {
         Path databaseFile = workDir.resolve("sessions.sqlite3");

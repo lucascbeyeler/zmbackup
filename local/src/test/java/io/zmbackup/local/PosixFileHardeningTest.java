@@ -106,6 +106,18 @@ class PosixFileHardeningTest {
         assertEquals("rw-------", permissionsOf(file));
     }
 
+    @Test
+    void createTempFileCreatesAnOwnerOnlyFile() throws IOException {
+        Path file = PosixFileHardening.createTempFile("zmbackup-test-", ".tmp");
+
+        try {
+            assertTrue(Files.exists(file));
+            assertEquals("rw-------", permissionsOf(file));
+        } finally {
+            Files.deleteIfExists(file);
+        }
+    }
+
     private static String permissionsOf(Path path) throws IOException {
         Set<java.nio.file.attribute.PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
         return PosixFilePermissions.toString(permissions);

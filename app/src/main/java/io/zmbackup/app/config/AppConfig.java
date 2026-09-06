@@ -8,6 +8,7 @@ public record AppConfig(
         BackupConfig backup,
         StorageConfig storage,
         MetadataConfig metadata,
+        ServerConfigConfig serverConfig,
         boolean allowInsecure) {
 
     public AppConfig {
@@ -16,5 +17,6 @@ public record AppConfig(
         Objects.requireNonNull(backup, "backup must not be null");
         Objects.requireNonNull(storage, "storage must not be null");
         Objects.requireNonNull(metadata, "metadata must not be null");
+        Objects.requireNonNull(serverConfig, "serverConfig must not be null");
     }
 }

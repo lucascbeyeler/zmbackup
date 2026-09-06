@@ -17,7 +17,8 @@ import picocli.CommandLine.Spec;
             BackupAliasCommand.class,
             BackupDistlistCommand.class,
             BackupSignatureCommand.class,
-            BackupDomainCommand.class
+            BackupDomainCommand.class,
+            BackupServerConfigCommand.class
         })
 public final class BackupCommand implements Callable<Integer> {
 

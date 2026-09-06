@@ -43,8 +43,10 @@ class BackupServiceTest {
     private final FakeZimbraMailboxExporter mailboxExporter = new FakeZimbraMailboxExporter();
     private final InMemoryStorageProvider storageProvider = new InMemoryStorageProvider();
     private final InMemoryMetadataStore metadataStore = new InMemoryMetadataStore();
+    private final FakeServerConfigArchiver serverConfigArchiver = new FakeServerConfigArchiver();
     private final BackupService backupService = BackupService.builder(
                     accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+            .serverConfigArchiver(serverConfigArchiver)
             .build();
 
     @Test
@@ -122,6 +124,50 @@ class BackupServiceTest {
         assertTrue(result.isPresent());
         assertTrue(ldapExporter.domainExports.contains("example.com"));
         assertTrue(ldapExporter.exportedTypes.isEmpty());
+    }
+
+    @Test
+    void serverConfigTypeArchivesWithoutAnyDiscoveryAndNeedsNoIdentifiers() throws IOException {
+        Optional<BackupSession> result = backupService.backup(BackupType.SERVER_CONFIG);
+
+        assertTrue(result.isPresent());
+        BackupSession session = result.get();
+        assertTrue(session.sessionId().startsWith("serverconfig-"));
+        assertEquals(BackupType.SERVER_CONFIG, session.type());
+        assertEquals(SessionStatus.FINISHED, session.status());
+        assertEquals(1, serverConfigArchiver.exportCount);
+        assertTrue(accountDiscovery.discoverCalls.isEmpty());
+        List<BackupAccountRecord> records = metadataStore.findAccountsForSession(session.sessionId());
+        assertEquals(List.of("serverconfig"), namesOf(records).stream().sorted().toList());
+    }
+
+    @Test
+    void serverConfigBackupFailsSessionWhenArchiverFails() throws IOException {
+        serverConfigArchiver.failNextExport = true;
+
+        Optional<BackupSession> result = backupService.backup(BackupType.SERVER_CONFIG);
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+    }
+
+    @Test
+    void serverConfigBackupHonorsLockBackupAndForce() throws IOException {
+        BackupService lockingService = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .serverConfigArchiver(serverConfigArchiver)
+                .lockBackup(true)
+                .build();
+
+        Optional<BackupSession> first = lockingService.backup(BackupType.SERVER_CONFIG);
+        assertTrue(first.isPresent());
+
+        Optional<BackupSession> second = lockingService.backup(BackupType.SERVER_CONFIG);
+        assertTrue(second.isEmpty());
+
+        Optional<BackupSession> forced = lockingService.backup(BackupType.SERVER_CONFIG, List.of(), null, true);
+        assertTrue(forced.isPresent());
+        assertEquals(2, serverConfigArchiver.exportCount);
     }
 
     @Test
@@ -748,6 +794,27 @@ class BackupServiceTest {
         @Override
         public void restore(String account, InputStream source) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class FakeServerConfigArchiver implements io.zmbackup.core.port.ServerConfigArchiver {
+        int exportCount;
+        boolean failNextExport;
+
+        @Override
+        public void export(OutputStream destination) throws IOException {
+            exportCount++;
+            if (failNextExport) {
+                failNextExport = false;
+                throw new IOException("simulated server config export failure");
+            }
+            destination.write("server-config-archive".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+
+        @Override
+        public List<String> restore(InputStream source) throws IOException {
+            source.readAllBytes();
+            return List.of();
         }
     }
 

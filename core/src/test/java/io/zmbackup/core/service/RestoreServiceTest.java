@@ -10,6 +10,7 @@ import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.RestoreResult;
 import io.zmbackup.core.port.MetadataStore;
+import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.port.StorageProvider;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
@@ -34,8 +35,9 @@ class RestoreServiceTest {
     private final FakeZimbraMailboxExporter mailboxExporter = new FakeZimbraMailboxExporter();
     private final InMemoryStorageProvider storageProvider = new InMemoryStorageProvider();
     private final InMemoryMetadataStore metadataStore = new InMemoryMetadataStore();
-    private final RestoreService restoreService =
-            new RestoreService(ldapExporter, mailboxExporter, storageProvider, metadataStore);
+    private final FakeServerConfigArchiver serverConfigArchiver = new FakeServerConfigArchiver();
+    private final RestoreService restoreService = new RestoreService(
+            ldapExporter, mailboxExporter, storageProvider, metadataStore, 1, serverConfigArchiver);
 
     @Test
     void restoreLdapRestoresExplicitAccounts() throws IOException {
@@ -120,6 +122,46 @@ class RestoreServiceTest {
         RestoreResult result = restoreService.restoreDomain("domain-1", List.of("bad.com"));
 
         assertEquals(List.of("bad.com"), result.failedAccounts());
+    }
+
+    @Test
+    void restoreServerConfigRestoresTheSingleArchiveForTheSession() throws IOException {
+        storageProvider.put("serverconfig-1", "serverconfig", "zip", "archive-bytes");
+
+        RestoreResult result = restoreService.restoreServerConfig("serverconfig-1");
+
+        assertTrue(result.allSucceeded());
+        assertEquals(1, result.total());
+        assertEquals(List.of("archive-bytes"), serverConfigArchiver.restored);
+    }
+
+    @Test
+    void restoreServerConfigFailsWhenArchiveIsMissing() throws IOException {
+        RestoreResult result = restoreService.restoreServerConfig("serverconfig-1");
+
+        assertEquals(1, result.total());
+        assertEquals(List.of("serverconfig"), result.failedAccounts());
+    }
+
+    @Test
+    void restoreServerConfigStillSucceedsWhenSomeFilesAreSkipped() throws IOException {
+        storageProvider.put("serverconfig-1", "serverconfig", "zip", "archive-bytes");
+        serverConfigArchiver.nextRestoreSkips = List.of("opt/zimbra/conf/crontabs/crontab.logger");
+
+        RestoreResult result = restoreService.restoreServerConfig("serverconfig-1");
+
+        assertTrue(result.allSucceeded());
+        assertEquals(1, result.total());
+    }
+
+    @Test
+    void restoreServerConfigFailsWhenArchiverThrows() throws IOException {
+        storageProvider.put("serverconfig-1", "serverconfig", "zip", "archive-bytes");
+        serverConfigArchiver.failNextRestore = true;
+
+        RestoreResult result = restoreService.restoreServerConfig("serverconfig-1");
+
+        assertEquals(List.of("serverconfig"), result.failedAccounts());
     }
 
     @Test
@@ -223,6 +265,29 @@ class RestoreServiceTest {
     private static BackupAccountRecord recordFor(String sessionId, String email) {
         Instant now = Instant.now();
         return new BackupAccountRecord(null, sessionId, email, "1K", now, now);
+    }
+
+    private static final class FakeServerConfigArchiver implements ServerConfigArchiver {
+        final List<String> restored = new ArrayList<>();
+        boolean failNextRestore;
+        List<String> nextRestoreSkips = List.of();
+
+        @Override
+        public void export(OutputStream destination) throws IOException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> restore(InputStream source) throws IOException {
+            if (failNextRestore) {
+                failNextRestore = false;
+                throw new IOException("simulated server config restore failure");
+            }
+            restored.add(new String(source.readAllBytes()));
+            List<String> skipped = nextRestoreSkips;
+            nextRestoreSkips = List.of();
+            return skipped;
+        }
     }
 
     private static final class FakeZimbraLdapExporter implements ZimbraLdapExporter {
