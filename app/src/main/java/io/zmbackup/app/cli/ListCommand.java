@@ -46,6 +46,11 @@ public final class ListCommand implements Callable<Integer> {
                     session.type());
         }
         out.println(BORDER);
+        for (BackupSession ghost : context.sessionService().findGhostSessions()) {
+            out.println("Warning: session " + ghost.sessionId() + " has no backup content in storage but its "
+                    + "metadata row still exists - run 'zmbackup delete --session " + ghost.sessionId()
+                    + "' to remove it.");
+        }
         return 0;
     }
 

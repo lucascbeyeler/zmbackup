@@ -292,12 +292,29 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
     }
 
     @Override
-    public boolean backedUpSince(String identifier, Instant since) throws IOException {
-        String sql = "select 1 from backup_account where email = ? and conclusion_date > ? limit 1";
+    public boolean backedUpSince(String identifier, BackupType type, Instant since) throws IOException {
+        List<String> conflictingPrefixes = type.conflictingSessionPrefixes();
+        String prefixClause = conflictingPrefixes.stream()
+                .map(prefix -> "ba.sessionID like ?")
+                .collect(Collectors.joining(" or "));
+        String sql =
+                """
+                select 1
+                from backup_account ba
+                where ba.email = ?
+                  and ba.conclusion_date > ?
+                  and (%s)
+                limit 1
+                """
+                        .formatted(prefixClause);
         lock.lock();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, identifier);
             statement.setString(2, toDb(since));
+            int paramIndex = 3;
+            for (String prefix : conflictingPrefixes) {
+                statement.setString(paramIndex++, prefix + "%");
+            }
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next();
             }

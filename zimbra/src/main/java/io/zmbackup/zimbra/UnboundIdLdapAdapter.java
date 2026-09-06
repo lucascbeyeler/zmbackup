@@ -1,17 +1,25 @@
 package io.zmbackup.zimbra;
 
+import com.unboundid.ldap.sdk.BindRequest;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.ExtendedResult;
 import com.unboundid.ldap.sdk.Filter;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPConnectionOptions;
+import com.unboundid.ldap.sdk.LDAPConnectionPool;
+import com.unboundid.ldap.sdk.LDAPConnectionPoolStatistics;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.LDAPURL;
+import com.unboundid.ldap.sdk.PostConnectProcessor;
 import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldap.sdk.SearchRequest;
 import com.unboundid.ldap.sdk.SearchResult;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
+import com.unboundid.ldap.sdk.ServerSet;
+import com.unboundid.ldap.sdk.SimpleBindRequest;
+import com.unboundid.ldap.sdk.SingleServerSet;
+import com.unboundid.ldap.sdk.StartTLSPostConnectProcessor;
 import com.unboundid.ldap.sdk.extensions.StartTLSExtendedRequest;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
@@ -22,6 +30,7 @@ import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.ZimbraLdapExporter;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,13 +39,16 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
 
-public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporter {
+public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporter, Closeable {
 
     private static final long CONNECT_TIMEOUT_MILLIS = 30_000;
 
     private static final long DEFAULT_RESPONSE_TIMEOUT_MILLIS = 600_000;
+
+    private static final int MAX_POOL_CONNECTIONS = 256;
 
     private final String host;
     private final int port;
@@ -47,6 +59,8 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     private final boolean trustAllCertificates;
     private final boolean backupInactiveAccounts;
     private final long responseTimeoutMillis;
+    private final Object poolLock = new Object();
+    private volatile LDAPConnectionPool pool;
 
     public UnboundIdLdapAdapter(
             String url,
@@ -119,9 +133,9 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         } catch (LDAPException e) {
             throw new IOException("Invalid LDAP filter for object type " + type, e);
         }
-        try (LDAPConnection connection = connect()) {
+        try {
             SearchRequest searchRequest = new SearchRequest("", SearchScope.SUB, filter);
-            SearchResult searchResult = connection.search(searchRequest);
+            SearchResult searchResult = pool().search(searchRequest);
             LDIFWriter ldifWriter = new LDIFWriter(destination);
             for (Entry entry : searchResult.getSearchEntries()) {
                 ldifWriter.writeEntry(entry);
@@ -135,10 +149,10 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
 
     @Override
     public void exportDomain(String domain, OutputStream destination) throws IOException {
-        try (LDAPConnection connection = connect()) {
+        try {
             SearchRequest searchRequest = new SearchRequest(
                     domainBaseDn(domain), SearchScope.BASE, LdapObjectType.DOMAIN.objectFilter());
-            SearchResult searchResult = connection.search(searchRequest);
+            SearchResult searchResult = pool().search(searchRequest);
             LDIFWriter ldifWriter = new LDIFWriter(destination);
             for (Entry entry : searchResult.getSearchEntries()) {
                 ldifWriter.writeEntry(entry);
@@ -153,10 +167,14 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     @Override
     public void restore(LdapObjectType type, InputStream source) throws IOException {
         Entry entry = readEntry(source);
-        try (LDAPConnection connection = connect()) {
-            deleteRecursively(connection, entry.getDN());
-            connection.add(entry);
+        try {
+            LDAPConnectionPool connectionPool = pool();
+            deleteRecursively(connectionPool, entry.getDN());
+            connectionPool.add(entry);
         } catch (LDAPException e) {
+            if (e.getResultCode() == ResultCode.ENTRY_ALREADY_EXISTS) {
+                return;
+            }
             throw new IOException(
                     "Failed to restore " + entry.getDN() + " to Zimbra LDAP at " + host + ":" + port, e);
         }
@@ -165,8 +183,8 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     @Override
     public void restoreDomain(InputStream source) throws IOException {
         Entry entry = readEntry(source);
-        try (LDAPConnection connection = connect()) {
-            connection.add(entry);
+        try {
+            pool().add(entry);
         } catch (LDAPException e) {
             if (e.getResultCode() == ResultCode.ENTRY_ALREADY_EXISTS) {
                 return;
@@ -188,14 +206,14 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
-    private static void deleteRecursively(LDAPConnection connection, String dn) {
+    private static void deleteRecursively(LDAPConnectionPool connectionPool, String dn) {
         try {
             SearchResult children =
-                    connection.search(dn, SearchScope.ONE, Filter.createPresenceFilter("objectClass"));
+                    connectionPool.search(dn, SearchScope.ONE, Filter.createPresenceFilter("objectClass"));
             for (SearchResultEntry child : children.getSearchEntries()) {
-                deleteRecursively(connection, child.getDN());
+                deleteRecursively(connectionPool, child.getDN());
             }
-            connection.delete(dn);
+            connectionPool.delete(dn);
         } catch (LDAPException ignored) {
         }
     }
@@ -224,10 +242,10 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     }
 
     private List<String> search(String baseDn, LdapObjectType type) throws IOException {
-        try (LDAPConnection connection = connect()) {
+        try {
             SearchRequest searchRequest =
                     new SearchRequest(baseDn, SearchScope.SUB, searchFilter(type), type.attributeName());
-            SearchResult searchResult = connection.search(searchRequest);
+            SearchResult searchResult = pool().search(searchRequest);
             List<String> values = new ArrayList<>();
             for (Entry entry : searchResult.getSearchEntries()) {
                 String value = entry.getAttributeValue(type.attributeName());
@@ -244,10 +262,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
     LDAPConnection connect() throws IOException {
         LDAPConnection connection = null;
         try {
-            LDAPConnectionOptions options = new LDAPConnectionOptions();
-            options.setConnectTimeoutMillis((int) CONNECT_TIMEOUT_MILLIS);
-            options.setResponseTimeoutMillis(responseTimeoutMillis);
-            connection = new LDAPConnection(options, host, port);
+            connection = new LDAPConnection(connectionOptions(), host, port);
             if (startTls) {
                 SSLContext sslContext = startTlsSslContext();
                 ExtendedResult startTlsResult =
@@ -268,6 +283,38 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         }
     }
 
+    private LDAPConnectionPool pool() throws IOException {
+        LDAPConnectionPool existing = pool;
+        if (existing != null) {
+            return existing;
+        }
+        synchronized (poolLock) {
+            if (pool == null) {
+                pool = createPool();
+            }
+            return pool;
+        }
+    }
+
+    private LDAPConnectionPool createPool() throws IOException {
+        try {
+            ServerSet serverSet = new SingleServerSet(host, port, SocketFactory.getDefault(), connectionOptions());
+            BindRequest bindRequest = new SimpleBindRequest(bindDn, bindPassword);
+            PostConnectProcessor postConnectProcessor =
+                    startTls ? new StartTLSPostConnectProcessor(startTlsSslContext()) : null;
+            return new LDAPConnectionPool(serverSet, bindRequest, 1, MAX_POOL_CONNECTIONS, postConnectProcessor);
+        } catch (LDAPException | GeneralSecurityException e) {
+            throw new IOException("Failed to connect to Zimbra LDAP at " + host + ":" + port, e);
+        }
+    }
+
+    private LDAPConnectionOptions connectionOptions() {
+        LDAPConnectionOptions options = new LDAPConnectionOptions();
+        options.setConnectTimeoutMillis((int) CONNECT_TIMEOUT_MILLIS);
+        options.setResponseTimeoutMillis(responseTimeoutMillis);
+        return options;
+    }
+
     private SSLContext startTlsSslContext() throws GeneralSecurityException {
         if (caCertificatePath != null) {
             return new SSLUtil(new PEMFileTrustManager(new File(caCertificatePath))).createSSLContext();
@@ -276,5 +323,17 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
             return new SSLUtil(new TrustAllTrustManager()).createSSLContext();
         }
         return new SSLUtil().createSSLContext();
+    }
+
+    @Override
+    public void close() {
+        LDAPConnectionPool existing = pool;
+        if (existing != null) {
+            existing.close();
+        }
+    }
+
+    LDAPConnectionPoolStatistics poolStatistics() throws IOException {
+        return pool().getConnectionPoolStatistics();
     }
 }

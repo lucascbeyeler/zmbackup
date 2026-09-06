@@ -74,6 +74,7 @@ class MainTest {
                                 Instant.parse("2026-01-01T12:00:00Z"),
                                 Instant.parse("2026-01-01T12:05:00Z"),
                                 "10M"));
+        Files.createDirectories(tempDir.resolve("full-20260101120000"));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
 
@@ -81,6 +82,29 @@ class MainTest {
 
         assertEquals(0, exitCode);
         assertTrue(out.toString().contains("full-20260101120000"));
+    }
+
+    @Test
+    void listWarnsAboutASessionWithNoBackupContentInStorage() throws IOException {
+        Path configFile = writeConfig();
+        new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3"))
+                .save(
+                        new BackupSession(
+                                "full-20260101120000",
+                                BackupType.FULL,
+                                SessionStatus.FINISHED,
+                                Instant.parse("2026-01-01T12:00:00Z"),
+                                Instant.parse("2026-01-01T12:05:00Z"),
+                                "10M"));
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "list");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString()
+                .contains("Warning: session full-20260101120000 has no backup content in storage"));
+        assertTrue(out.toString().contains("zmbackup delete --session full-20260101120000"));
     }
 
     @Test
@@ -95,6 +119,7 @@ class MainTest {
                                 Instant.parse("2026-09-04T22:16:23.305397329Z"),
                                 Instant.parse("2026-09-04T22:17:34.609010890Z"),
                                 "1.7G"));
+        Files.createDirectories(tempDir.resolve("full-20260904221623"));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
 

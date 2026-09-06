@@ -82,6 +82,24 @@ class LocalStorageProviderTest {
     }
 
     @Test
+    void sessionExistsIsFalseUntilContentIsWritten() throws IOException {
+        assertFalse(provider.sessionExists("session1"));
+
+        write("session1", "user@example.com", "ldiff", "content");
+
+        assertTrue(provider.sessionExists("session1"));
+    }
+
+    @Test
+    void sessionExistsIsFalseAfterDeleteSession() throws IOException {
+        write("session1", "user@example.com", "ldiff", "content");
+
+        provider.deleteSession("session1");
+
+        assertFalse(provider.sessionExists("session1"));
+    }
+
+    @Test
     void sizeOfAccountSumsOnlyThatAccountsFiles() throws IOException {
         write("session1", "user@example.com", "ldiff", "a".repeat(1024));
         write("session1", "user@example.com", "tgz", "b".repeat(1024));

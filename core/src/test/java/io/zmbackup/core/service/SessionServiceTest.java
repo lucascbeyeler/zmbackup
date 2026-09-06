@@ -103,6 +103,46 @@ class SessionServiceTest {
         assertEquals(0, sessionService.truncateDatabase());
     }
 
+    @Test
+    void findGhostSessionsReturnsCompletedSessionsWithNoBackupContentInStorage() throws IOException {
+        BackupSession ghost = session("ldap-ghost", Instant.now());
+        metadataStore.save(ghost);
+        BackupSession healthy = session("ldap-healthy", Instant.now());
+        metadataStore.save(healthy);
+        storageProvider.content.put("ldap-healthy/alice@example.com.ldiff", new byte[0]);
+
+        List<BackupSession> ghosts = sessionService.findGhostSessions();
+
+        assertEquals(List.of(ghost), ghosts);
+    }
+
+    @Test
+    void findGhostSessionsIgnoresSessionsStillInProgress() throws IOException {
+        metadataStore.save(new BackupSession(
+                "ldap-in-progress", BackupType.LDAP, SessionStatus.IN_PROGRESS, Instant.now(), null, null));
+
+        assertEquals(List.of(), sessionService.findGhostSessions());
+    }
+
+    @Test
+    void findGhostSessionsIsEmptyWhenNoSessionsStored() throws IOException {
+        assertEquals(List.of(), sessionService.findGhostSessions());
+    }
+
+    @Test
+    void findGhostSessionsSkipsAndLogsASessionWhoseStorageCheckFailsRatherThanAbortingTheWholeScan()
+            throws IOException {
+        BackupSession unreachable = session("ldap-unreachable", Instant.now());
+        metadataStore.save(unreachable);
+        storageProvider.failOnSessionExists.add("ldap-unreachable");
+        BackupSession ghost = session("ldap-ghost", Instant.now());
+        metadataStore.save(ghost);
+
+        List<BackupSession> ghosts = sessionService.findGhostSessions();
+
+        assertEquals(List.of(ghost), ghosts);
+    }
+
     private static BackupSession session(String sessionId, Instant startedAt) {
         return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, startedAt, startedAt, "1K");
     }
@@ -111,6 +151,7 @@ class SessionServiceTest {
         final Map<String, byte[]> content = new LinkedHashMap<>();
         final Set<String> deletedSessions = new java.util.HashSet<>();
         final Set<String> failOnDelete = new java.util.HashSet<>();
+        final Set<String> failOnSessionExists = new java.util.HashSet<>();
 
         @Override
         public OutputStream openWrite(String sessionId, String account, String suffix) {
@@ -125,6 +166,14 @@ class SessionServiceTest {
         @Override
         public boolean exists(String sessionId, String account, String suffix) {
             return content.containsKey(sessionId + "/" + account + "." + suffix);
+        }
+
+        @Override
+        public boolean sessionExists(String sessionId) throws IOException {
+            if (failOnSessionExists.contains(sessionId)) {
+                throw new IOException("simulated storage failure checking " + sessionId);
+            }
+            return content.keySet().stream().anyMatch(key -> key.startsWith(sessionId + "/"));
         }
 
         @Override
@@ -208,7 +257,7 @@ class SessionServiceTest {
         }
 
         @Override
-        public boolean backedUpSince(String identifier, Instant since) {
+        public boolean backedUpSince(String identifier, BackupType type, Instant since) {
             throw new UnsupportedOperationException();
         }
     }

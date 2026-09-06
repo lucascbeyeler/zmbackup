@@ -130,19 +130,77 @@ class DynamoDBMetadataStoreTest {
     }
 
     @Test
-    void deleteSessionDeletesEachAccountThenTheSessionItself() throws IOException {
+    void deleteSessionBatchDeletesAccountsThenDeletesTheSessionItself() throws IOException {
         wireMockServer.stubFor(post(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
-                .willReturn(jsonResponse("{\"Items\":[" + accountItem("full-20260101120000", "alice@example.com")
-                        + "]}")));
+                .willReturn(jsonResponse("{\"Items\":["
+                        + accountItem("full-20260101120000", "alice@example.com") + ","
+                        + accountItem("full-20260101120000", "bob@example.com") + "]}")));
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem"))
+                .willReturn(jsonResponse("{\"UnprocessedItems\":{}}")));
         wireMockServer.stubFor(post(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem"))
                 .willReturn(jsonResponse("{}")));
 
         store().deleteSession("full-20260101120000");
 
-        wireMockServer.verify(2, postRequestedFor(anyPath())
+        wireMockServer.verify(1, postRequestedFor(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem"))
+                .withRequestBody(containing("alice@example.com"))
+                .withRequestBody(containing("bob@example.com")));
+        wireMockServer.verify(1, postRequestedFor(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem")));
+    }
+
+    @Test
+    void deleteSessionSplitsMoreThanTwentyFiveAccountsIntoMultipleBatchWriteItemCalls() throws IOException {
+        StringBuilder items = new StringBuilder();
+        for (int i = 0; i < 30; i++) {
+            if (i > 0) {
+                items.append(',');
+            }
+            items.append(accountItem("full-20260101120000", "user" + i + "@example.com"));
+        }
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .willReturn(jsonResponse("{\"Items\":[" + items + "]}")));
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem"))
+                .willReturn(jsonResponse("{\"UnprocessedItems\":{}}")));
+        stubTarget("DeleteItem", "{}");
+
+        store().deleteSession("full-20260101120000");
+
+        wireMockServer.verify(2, postRequestedFor(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem")));
+    }
+
+    @Test
+    void deleteSessionRetriesUnprocessedBatchWriteItemsUntilTheyAreAllServed() throws IOException {
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .willReturn(jsonResponse(
+                        "{\"Items\":[" + accountItem("full-20260101120000", "alice@example.com") + "]}")));
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem"))
+                .inScenario("unprocessed-writes")
+                .whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)
+                .willReturn(jsonResponse("{\"UnprocessedItems\":{\"" + ACCOUNT_TABLE + "\":[{\"DeleteRequest\":{"
+                        + "\"Key\":{\"email\":{\"S\":\"alice@example.com\"},"
+                        + "\"sessionId\":{\"S\":\"full-20260101120000\"}}}}]}}"))
+                .willSetStateTo("served"));
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem"))
+                .inScenario("unprocessed-writes")
+                .whenScenarioStateIs("served")
+                .willReturn(jsonResponse("{\"UnprocessedItems\":{}}")));
+        stubTarget("DeleteItem", "{}");
+
+        store().deleteSession("full-20260101120000");
+
+        wireMockServer.verify(2, postRequestedFor(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.BatchWriteItem")));
     }
 
     @Test
@@ -260,8 +318,34 @@ class DynamoDBMetadataStoreTest {
                         + accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
                         + "]}")));
 
-        assertTrue(store().backedUpSince("alice@example.com", Instant.parse("2025-12-01T00:00:00Z")));
-        assertFalse(store().backedUpSince("alice@example.com", Instant.parse("2026-06-01T00:00:00Z")));
+        assertTrue(store().backedUpSince(
+                "alice@example.com", BackupType.FULL, Instant.parse("2025-12-01T00:00:00Z")));
+        assertFalse(store().backedUpSince(
+                "alice@example.com", BackupType.FULL, Instant.parse("2026-06-01T00:00:00Z")));
+    }
+
+    @Test
+    void backedUpSinceIsFalseForANonOverlappingBackupType() throws IOException {
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .willReturn(jsonResponse("{\"Items\":["
+                        + accountItem("ldap-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
+                        + "]}")));
+
+        assertFalse(store().backedUpSince(
+                "alice@example.com", BackupType.MAILBOX, Instant.parse("2025-12-01T00:00:00Z")));
+    }
+
+    @Test
+    void backedUpSinceIsTrueForMailboxWhenAFullBackupAlreadyCoveredItToday() throws IOException {
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .willReturn(jsonResponse("{\"Items\":["
+                        + accountItem("full-20260101120000", "alice@example.com", "2026-01-01T12:00:00Z")
+                        + "]}")));
+
+        assertTrue(store().backedUpSince(
+                "alice@example.com", BackupType.MAILBOX, Instant.parse("2025-12-01T00:00:00Z")));
     }
 
     private DynamoDBMetadataStore store() {

@@ -1,4 +1,4 @@
-package io.zmbackup.local;
+package io.zmbackup.core.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

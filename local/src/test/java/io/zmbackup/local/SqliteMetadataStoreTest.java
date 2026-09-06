@@ -219,7 +219,9 @@ class SqliteMetadataStoreTest {
 
     @Test
     void backedUpSinceIsFalseWhenAccountNeverBackedUp() throws IOException {
-        assertEquals(false, store.backedUpSince("user@example.com", Instant.now().minus(24, ChronoUnit.HOURS)));
+        assertEquals(
+                false,
+                store.backedUpSince("user@example.com", BackupType.LDAP, Instant.now().minus(24, ChronoUnit.HOURS)));
     }
 
     @Test
@@ -228,7 +230,8 @@ class SqliteMetadataStoreTest {
         store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
         store.recordAccountBackup(accountRecord("ldap-1", "user@example.com", now));
 
-        assertEquals(true, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+        assertEquals(
+                true, store.backedUpSince("user@example.com", BackupType.LDAP, now.minus(24, ChronoUnit.HOURS)));
     }
 
     @Test
@@ -238,7 +241,8 @@ class SqliteMetadataStoreTest {
         store.recordAccountBackup(accountRecord("ldap-1", "user@example.com", old));
 
         assertEquals(
-                false, store.backedUpSince("user@example.com", Instant.now().minus(24, ChronoUnit.HOURS)));
+                false,
+                store.backedUpSince("user@example.com", BackupType.LDAP, Instant.now().minus(24, ChronoUnit.HOURS)));
     }
 
     @Test
@@ -247,7 +251,8 @@ class SqliteMetadataStoreTest {
         store.save(session("full-1", BackupType.FULL, SessionStatus.FAILED, now));
         store.recordAccountBackup(accountRecord("full-1", "user@example.com", now));
 
-        assertEquals(true, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+        assertEquals(
+                true, store.backedUpSince("user@example.com", BackupType.FULL, now.minus(24, ChronoUnit.HOURS)));
     }
 
     @Test
@@ -256,7 +261,28 @@ class SqliteMetadataStoreTest {
         store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
         store.recordAccountBackup(accountRecord("ldap-1", "other@example.com", now));
 
-        assertEquals(false, store.backedUpSince("user@example.com", now.minus(24, ChronoUnit.HOURS)));
+        assertEquals(
+                false, store.backedUpSince("user@example.com", BackupType.LDAP, now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void backedUpSinceIsFalseForANonOverlappingBackupType() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("ldap-1", BackupType.LDAP, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("ldap-1", "user@example.com", now));
+
+        assertEquals(
+                false, store.backedUpSince("user@example.com", BackupType.MAILBOX, now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void backedUpSinceIsTrueForMailboxWhenAFullBackupAlreadyCoveredItToday() throws IOException {
+        Instant now = Instant.now();
+        store.save(session("full-1", BackupType.FULL, SessionStatus.FINISHED, now));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com", now));
+
+        assertEquals(
+                true, store.backedUpSince("user@example.com", BackupType.MAILBOX, now.minus(24, ChronoUnit.HOURS)));
     }
 
     @Test

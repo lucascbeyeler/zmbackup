@@ -138,7 +138,7 @@ class S3StorageProviderTest {
     }
 
     @Test
-    void existsReturnsTrueOn200AndFalseOn404() {
+    void existsReturnsTrueOn200AndFalseOn404() throws IOException {
         String key = "sessions/" + SESSION_ID + "/" + ACCOUNT + ".tgz";
         wireMockServer.stubFor(head(urlPathEqualTo("/" + BUCKET + "/" + key))
                 .willReturn(aResponse().withStatus(200)));
@@ -151,6 +151,49 @@ class S3StorageProviderTest {
                 .willReturn(aResponse().withStatus(404)));
 
         assertFalse(provider.exists(SESSION_ID, ACCOUNT, "tgz"));
+    }
+
+    @Test
+    void existsThrowsOnANonNotFoundErrorInsteadOfReturningFalse() {
+        String key = "sessions/" + SESSION_ID + "/" + ACCOUNT + ".tgz";
+        wireMockServer.stubFor(
+                head(urlPathEqualTo("/" + BUCKET + "/" + key)).willReturn(aResponse().withStatus(500)));
+        S3StorageProvider provider = provider();
+
+        assertThrows(IOException.class, () -> provider.exists(SESSION_ID, ACCOUNT, "tgz"));
+    }
+
+    @Test
+    void sessionExistsReturnsTrueWhenAnObjectExistsUnderThePrefix() throws IOException {
+        String prefix = "sessions/" + SESSION_ID + "/";
+        wireMockServer.stubFor(get(urlPathEqualTo("/" + BUCKET))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/xml")
+                        .withBody(listBucketResult(false, null, entry(prefix + ACCOUNT + ".tgz", 100)))));
+        S3StorageProvider provider = provider();
+
+        assertTrue(provider.sessionExists(SESSION_ID));
+    }
+
+    @Test
+    void sessionExistsReturnsFalseWhenNoObjectExistsUnderThePrefix() throws IOException {
+        wireMockServer.stubFor(get(urlPathEqualTo("/" + BUCKET))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/xml")
+                        .withBody(listBucketResult(false, null))));
+        S3StorageProvider provider = provider();
+
+        assertFalse(provider.sessionExists(SESSION_ID));
+    }
+
+    @Test
+    void sessionExistsThrowsOnAnErrorResponseInsteadOfReturningFalse() {
+        wireMockServer.stubFor(get(urlPathEqualTo("/" + BUCKET)).willReturn(aResponse().withStatus(500)));
+        S3StorageProvider provider = provider();
+
+        assertThrows(IOException.class, () -> provider.sessionExists(SESSION_ID));
     }
 
     @Test

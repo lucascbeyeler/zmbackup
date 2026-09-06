@@ -42,6 +42,13 @@ public enum BackupType {
                 .toList();
     }
 
+    public List<String> conflictingSessionPrefixes() {
+        return Arrays.stream(values())
+                .filter(other -> (includesLdap && other.includesLdap) || (includesMailbox && other.includesMailbox))
+                .map(BackupType::sessionPrefix)
+                .toList();
+    }
+
     public static BackupType fromSessionPrefix(String sessionPrefix) {
         for (BackupType type : values()) {
             if (type.sessionPrefix.equals(sessionPrefix)) {

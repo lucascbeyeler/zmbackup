@@ -138,6 +138,11 @@ class MigrationServiceTest {
         }
 
         @Override
+        public boolean sessionExists(String sessionId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public String sizeOfAccount(String sessionId, String account) {
             return accountSizes.getOrDefault(sessionId + "/" + account, "0B");
         }
@@ -217,7 +222,7 @@ class MigrationServiceTest {
         }
 
         @Override
-        public boolean backedUpSince(String identifier, Instant since) {
+        public boolean backedUpSince(String identifier, BackupType type, Instant since) {
             throw new UnsupportedOperationException();
         }
     }

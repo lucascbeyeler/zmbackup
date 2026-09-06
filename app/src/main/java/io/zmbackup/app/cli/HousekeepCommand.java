@@ -38,6 +38,12 @@ public final class HousekeepCommand implements Callable<Integer> {
             int emptyFilesRemoved = housekeepService.cleanEmpty();
             out.println(emptyFilesRemoved + " empty file(s) removed.");
 
+            for (BackupSession ghost : context.sessionService().findGhostSessions()) {
+                out.println("Warning: session " + ghost.sessionId() + " has no backup content in storage but its "
+                        + "metadata row still exists - run 'zmbackup delete --session " + ghost.sessionId()
+                        + "' to remove it.");
+            }
+
             return 0;
         });
     }

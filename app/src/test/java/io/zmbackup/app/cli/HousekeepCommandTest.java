@@ -70,6 +70,30 @@ class HousekeepCommandTest {
     }
 
     @Test
+    void warnsAboutASessionWithNoBackupContentInStorage() throws Exception {
+        Path configFile = writeConfig(30);
+        AppContext context = AppContext.fromConfigFile(configFile);
+        Instant now = Instant.now();
+
+        BackupSession ghost = session("ldap-ghost", now);
+        context.metadataStore().save(ghost);
+        context.metadataStore()
+                .recordAccountBackup(
+                        new BackupAccountRecord(null, "ldap-ghost", "alice@example.com", "1K", now, now));
+
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "housekeep");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString()
+                .contains("Warning: session ldap-ghost has no backup content in storage"));
+        assertTrue(out.toString().contains("zmbackup delete --session ldap-ghost"));
+        assertTrue(context.metadataStore().findSession("ldap-ghost").isPresent());
+    }
+
+    @Test
     void failsWithoutRunningWhenAnotherProcessHoldsTheLock() throws Exception {
         Path configFile = writeConfig(7);
         StringWriter out = new StringWriter();
