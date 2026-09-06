@@ -145,6 +145,11 @@ class CloudMigrationServiceTest {
         }
 
         @Override
+        public boolean sessionExists(String sessionId) {
+            return files.keySet().stream().anyMatch(key -> key.startsWith(sessionId + "/"));
+        }
+
+        @Override
         public String sizeOfAccount(String sessionId, String account) {
             throw new UnsupportedOperationException();
         }
@@ -215,7 +220,7 @@ class CloudMigrationServiceTest {
         }
 
         @Override
-        public boolean backedUpSince(String identifier, Instant since) {
+        public boolean backedUpSince(String identifier, BackupType type, Instant since) {
             throw new UnsupportedOperationException();
         }
     }

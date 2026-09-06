@@ -115,11 +115,13 @@ public class RestoreService {
     }
 
     private boolean restoreMailboxOne(String sessionId, String account, String destination) {
-        if (!storageProvider.exists(sessionId, account, TGZ_SUFFIX)) {
-            return true;
-        }
-        try (InputStream source = storageProvider.openRead(sessionId, account, TGZ_SUFFIX)) {
-            mailboxExporter.restore(destination, source);
+        try {
+            if (!storageProvider.exists(sessionId, account, TGZ_SUFFIX)) {
+                return true;
+            }
+            try (InputStream source = storageProvider.openRead(sessionId, account, TGZ_SUFFIX)) {
+                mailboxExporter.restore(destination, source);
+            }
             return true;
         } catch (IOException e) {
             LOG.log(Level.WARNING, "Mailbox restore failed for " + account, e);

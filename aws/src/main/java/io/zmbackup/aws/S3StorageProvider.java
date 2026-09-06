@@ -1,5 +1,6 @@
 package io.zmbackup.aws;
 
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +21,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 public final class S3StorageProvider implements StorageProvider {
@@ -68,15 +70,34 @@ public final class S3StorageProvider implements StorageProvider {
     }
 
     @Override
-    public boolean exists(String sessionId, String account, String suffix) {
+    public boolean exists(String sessionId, String account, String suffix) throws IOException {
         try {
             s3Client.headObject(HeadObjectRequest.builder()
                     .bucket(bucket)
                     .key(objectKey(sessionId, account, suffix))
                     .build());
             return true;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return false;
+            }
+            throw new IOException(e);
         } catch (SdkException e) {
-            return false;
+            throw new IOException(e);
+        }
+    }
+
+    @Override
+    public boolean sessionExists(String sessionId) throws IOException {
+        try {
+            ListObjectsV2Response response = s3Client.listObjectsV2(ListObjectsV2Request.builder()
+                    .bucket(bucket)
+                    .prefix(sessionPrefix(sessionId))
+                    .maxKeys(1)
+                    .build());
+            return response.hasContents() && !response.contents().isEmpty();
+        } catch (SdkException e) {
+            throw new IOException(e);
         }
     }
 

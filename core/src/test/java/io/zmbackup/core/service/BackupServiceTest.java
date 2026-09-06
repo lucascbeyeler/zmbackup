@@ -279,6 +279,64 @@ class BackupServiceTest {
     }
 
     @Test
+    void lockBackupDoesNotSkipADifferentNonOverlappingBackupType() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .build();
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.MAILBOX);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void lockBackupSkipsMailboxAlreadyCoveredByAFullBackupToday() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "full-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .build();
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.MAILBOX);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void forceBypassesLockBackupForASameTypeRerun() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .build();
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP, List.of(), null, true);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
     void lockBackupDisabledDoesNotSkipRecentlyBackedUpAccount() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
@@ -723,6 +781,11 @@ class BackupServiceTest {
         }
 
         @Override
+        public boolean sessionExists(String sessionId) {
+            return content.keySet().stream().anyMatch(key -> key.startsWith(sessionId + "/"));
+        }
+
+        @Override
         public String sizeOfAccount(String sessionId, String account) {
             String prefix = sessionId + "/" + account + ".";
             long total = content.entrySet().stream()
@@ -826,12 +889,19 @@ class BackupServiceTest {
         }
 
         @Override
-        public boolean backedUpSince(String identifier, Instant since) {
+        public boolean backedUpSince(String identifier, BackupType type, Instant since) {
+            List<String> conflicting = type.conflictingSessionPrefixes();
             return accounts.values().stream()
                     .flatMap(List::stream)
                     .anyMatch(record -> record.email().equals(identifier)
                             && record.completedAt() != null
-                            && record.completedAt().isAfter(since));
+                            && record.completedAt().isAfter(since)
+                            && conflicting.contains(sessionPrefixOf(record.sessionId())));
+        }
+
+        private static String sessionPrefixOf(String sessionId) {
+            int dash = sessionId.indexOf('-');
+            return dash < 0 ? sessionId : sessionId.substring(0, dash);
         }
     }
 }

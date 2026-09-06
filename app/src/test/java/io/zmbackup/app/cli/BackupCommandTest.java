@@ -385,6 +385,34 @@ class BackupCommandTest {
         assertTrue(out.toString().contains("FINISHED"));
     }
 
+    @Test
+    void secondLdapRunTheSameDaySkipsAlreadyBackedUpAccountUnlessForced() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        Path configFile = writeConfig();
+        CommandLine first = commandLine(new StringWriter(), new StringWriter());
+        assertEquals(0, first.execute("--config", configFile.toString(), "backup", "ldap"));
+
+        StringWriter secondOut = new StringWriter();
+        CommandLine second = commandLine(secondOut, new StringWriter());
+        int secondExitCode = second.execute("--config", configFile.toString(), "backup", "ldap");
+
+        assertEquals(0, secondExitCode);
+        assertTrue(secondOut.toString().contains("Nothing found to back up"));
+
+        StringWriter forcedOut = new StringWriter();
+        CommandLine forced = commandLine(forcedOut, new StringWriter());
+        int forcedExitCode = forced.execute("--config", configFile.toString(), "backup", "ldap", "--force");
+
+        assertEquals(0, forcedExitCode);
+        assertTrue(forcedOut.toString().contains("FINISHED"));
+    }
+
     private static String sessionSuffixOf(StringWriter out, String prefix) {
         String output = out.toString();
         int start = output.indexOf(prefix) + prefix.length();

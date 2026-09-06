@@ -10,7 +10,9 @@ public interface StorageProvider {
 
     InputStream openRead(String sessionId, String account, String suffix) throws IOException;
 
-    boolean exists(String sessionId, String account, String suffix);
+    boolean exists(String sessionId, String account, String suffix) throws IOException;
+
+    boolean sessionExists(String sessionId) throws IOException;
 
     String sizeOfAccount(String sessionId, String account) throws IOException;
 

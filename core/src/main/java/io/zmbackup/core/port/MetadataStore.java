@@ -2,6 +2,7 @@ package io.zmbackup.core.port;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
+import io.zmbackup.core.domain.BackupType;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -27,7 +28,7 @@ public interface MetadataStore {
 
     Optional<Instant> lastSuccessfulBackupTime(String email) throws IOException;
 
-    boolean backedUpSince(String identifier, Instant since) throws IOException;
+    boolean backedUpSince(String identifier, BackupType type, Instant since) throws IOException;
 
     default void vacuum() throws IOException {}
 }

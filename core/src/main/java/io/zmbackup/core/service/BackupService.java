@@ -154,16 +154,21 @@ public class BackupService {
     }
 
     public Optional<BackupSession> backup(BackupType type) throws IOException {
-        return backup(type, List.of(), null);
+        return backup(type, List.of(), null, false);
     }
 
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers) throws IOException {
-        return backup(type, identifiers, null);
+        return backup(type, identifiers, null, false);
     }
 
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain)
             throws IOException {
-        List<String> resolved = resolveIdentifiers(type, identifiers, domain);
+        return backup(type, identifiers, domain, false);
+    }
+
+    public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain, boolean force)
+            throws IOException {
+        List<String> resolved = resolveIdentifiers(type, identifiers, domain, force);
         if (resolved.isEmpty()) {
             return Optional.empty();
         }
@@ -240,23 +245,30 @@ public class BackupService {
         }
     }
 
+    private void logIfNothingExported(String identifier, boolean exported) {
+        if (!exported) {
+            LOG.info(() -> "No new mailbox content to export for " + identifier);
+        }
+    }
+
     private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
         Instant startedAt = Instant.now();
         try {
             if (type == BackupType.MAILBOX) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    mailboxExporter.export(identifier, destination);
+                    logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
                 }
             } else if (type == BackupType.INCREMENTAL) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    mailboxExporter.export(identifier, destination, incrementalCutoff(identifier));
+                    logIfNothingExported(
+                            identifier, mailboxExporter.export(identifier, destination, incrementalCutoff(identifier)));
                 }
             } else if (type == BackupType.FULL) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
                     ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
                 }
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    mailboxExporter.export(identifier, destination);
+                    logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
                 }
             } else {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
@@ -285,7 +297,7 @@ public class BackupService {
                 .orElse(null);
     }
 
-    private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain)
+    private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain, boolean force)
             throws IOException {
         if (!identifiers.isEmpty()) {
             return identifiers;
@@ -301,7 +313,7 @@ public class BackupService {
                     ? accountDiscovery.discover(objectType)
                     : accountDiscovery.discoverForDomain(objectType, domain);
         }
-        return filterAlreadyBackedUpToday(filterBlocked(filterMalformed(objectType, discovered)));
+        return filterAlreadyBackedUpToday(type, filterBlocked(filterMalformed(objectType, discovered)), force);
     }
 
     private List<String> filterMalformed(LdapObjectType objectType, List<String> identifiers) {
@@ -332,14 +344,15 @@ public class BackupService {
         return allowed;
     }
 
-    private List<String> filterAlreadyBackedUpToday(List<String> identifiers) throws IOException {
-        if (!lockBackup) {
+    private List<String> filterAlreadyBackedUpToday(BackupType type, List<String> identifiers, boolean force)
+            throws IOException {
+        if (!lockBackup || force) {
             return identifiers;
         }
         Instant since = Instant.now().minus(LOCK_BACKUP_WINDOW);
         List<String> allowed = new ArrayList<>(identifiers.size());
         for (String identifier : identifiers) {
-            if (metadataStore.backedUpSince(identifier, since)) {
+            if (metadataStore.backedUpSince(identifier, type, since)) {
                 LOG.info(() -> identifier + " already has backup today - skipping.");
             } else {
                 allowed.add(identifier);

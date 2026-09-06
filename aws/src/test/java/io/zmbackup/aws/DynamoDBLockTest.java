@@ -4,6 +4,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 class DynamoDBLockTest {
 
@@ -99,6 +101,91 @@ class DynamoDBLockTest {
                                 + "\"message\":\"The conditional request failed\"}")));
         DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24));
 
+        lock.close();
+    }
+
+    @Test
+    @Timeout(5)
+    void heartbeatPeriodicallyRenewsTheLease() throws Exception {
+        stubTarget("PutItem", 200, "{}");
+        stubTarget("DeleteItem", 200, "{}");
+
+        DynamoDBLock lock = DynamoDBLock.acquire(
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30));
+        try {
+            Thread.sleep(220);
+        } finally {
+            lock.close();
+        }
+
+        int putItemCalls = wireMockServer
+                .findAll(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                        .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem")))
+                .size();
+        assertTrue(putItemCalls >= 3, "expected at least 2 renewals beyond the initial acquire, got " + putItemCalls);
+    }
+
+    @Test
+    @Timeout(5)
+    void closeStopsFurtherHeartbeatRenewals() throws Exception {
+        stubTarget("PutItem", 200, "{}");
+        stubTarget("DeleteItem", 200, "{}");
+        DynamoDBLock lock = DynamoDBLock.acquire(
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30));
+
+        lock.close();
+        int callsRightAfterClose = wireMockServer
+                .findAll(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                        .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem")))
+                .size();
+        Thread.sleep(200);
+        int callsAfterWaiting = wireMockServer
+                .findAll(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                        .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem")))
+                .size();
+
+        assertEquals(callsRightAfterClose, callsAfterWaiting);
+    }
+
+    @Test
+    @Timeout(5)
+    void heartbeatStopsRenewingOnceTheLeaseIsReclaimedByAnotherProcess() throws Exception {
+        wireMockServer.stubFor(post(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem"))
+                .inScenario("heartbeat-lost")
+                .whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/x-amz-json-1.0")
+                        .withBody("{}"))
+                .willSetStateTo("lost"));
+        wireMockServer.stubFor(post(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem"))
+                .inScenario("heartbeat-lost")
+                .whenScenarioStateIs("lost")
+                .willReturn(aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/x-amz-json-1.0")
+                        .withHeader("x-amzn-errortype", "ConditionalCheckFailedException")
+                        .withBody("{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\","
+                                + "\"message\":\"The conditional request failed\"}")));
+        stubTarget("DeleteItem", 200, "{}");
+
+        DynamoDBLock lock = DynamoDBLock.acquire(
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30));
+        Thread.sleep(150);
+        int callsAfterFirstFailure = wireMockServer
+                .findAll(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                        .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem")))
+                .size();
+        Thread.sleep(200);
+        int callsAfterWaitingLonger = wireMockServer
+                .findAll(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                        .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem")))
+                .size();
+
+        assertEquals(2, callsAfterFirstFailure);
+        assertEquals(callsAfterFirstFailure, callsAfterWaitingLonger);
         lock.close();
     }
 

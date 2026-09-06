@@ -23,7 +23,10 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.KeysAndAttributes;
@@ -32,12 +35,14 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
+import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 public final class DynamoDBMetadataStore implements MetadataStore {
 
     static final String SESSION_ID_INDEX = "sessionId-index";
 
     private static final int BATCH_GET_SIZE = 100;
+    private static final int BATCH_WRITE_SIZE = 25;
     private static final int MAX_UNPROCESSED_KEYS_RETRIES = 8;
     private static final long UNPROCESSED_KEYS_BASE_BACKOFF_MILLIS = 50;
 
@@ -138,9 +143,7 @@ public final class DynamoDBMetadataStore implements MetadataStore {
 
     @Override
     public void deleteSession(String sessionId) throws IOException {
-        for (BackupAccountRecord record : findAccountsForSession(sessionId)) {
-            deleteAccountItem(record.email(), sessionId);
-        }
+        deleteAccountItems(findAccountsForSession(sessionId));
         deleteSessionItem(sessionId);
     }
 
@@ -227,9 +230,12 @@ public final class DynamoDBMetadataStore implements MetadataStore {
     }
 
     @Override
-    public boolean backedUpSince(String identifier, Instant since) throws IOException {
+    public boolean backedUpSince(String identifier, BackupType type, Instant since) throws IOException {
+        Set<String> conflictingPrefixes = new HashSet<>(type.conflictingSessionPrefixes());
         for (BackupAccountRecord record : queryAccountsByEmail(identifier)) {
-            if (record.completedAt() != null && record.completedAt().isAfter(since)) {
+            if (record.completedAt() != null
+                    && record.completedAt().isAfter(since)
+                    && conflictingPrefixes.contains(sessionPrefixOf(record.sessionId()))) {
                 return true;
             }
         }
@@ -321,12 +327,42 @@ public final class DynamoDBMetadataStore implements MetadataStore {
         }
     }
 
-    private void deleteAccountItem(String email, String sessionId) throws IOException {
-        try {
-            client.deleteItem(DeleteItemRequest.builder()
-                    .tableName(accountTable)
-                    .key(Map.of("email", AttributeValue.fromS(email), "sessionId", AttributeValue.fromS(sessionId)))
+    private void deleteAccountItems(List<BackupAccountRecord> records) throws IOException {
+        if (records.isEmpty()) {
+            return;
+        }
+        List<WriteRequest> writeRequests = new ArrayList<>(records.size());
+        for (BackupAccountRecord record : records) {
+            writeRequests.add(WriteRequest.builder()
+                    .deleteRequest(DeleteRequest.builder()
+                            .key(Map.of(
+                                    "email", AttributeValue.fromS(record.email()),
+                                    "sessionId", AttributeValue.fromS(record.sessionId())))
+                            .build())
                     .build());
+        }
+        for (int start = 0; start < writeRequests.size(); start += BATCH_WRITE_SIZE) {
+            batchWriteAccountItems(writeRequests.subList(start, Math.min(start + BATCH_WRITE_SIZE, writeRequests.size())));
+        }
+    }
+
+    private void batchWriteAccountItems(List<WriteRequest> writeRequests) throws IOException {
+        try {
+            Map<String, List<WriteRequest>> requestItems = new HashMap<>(Map.of(accountTable, writeRequests));
+            int attempt = 0;
+            while (!requestItems.isEmpty()) {
+                if (attempt > 0) {
+                    sleepBeforeRetry(attempt);
+                }
+                if (attempt >= MAX_UNPROCESSED_KEYS_RETRIES) {
+                    throw new IOException("Gave up waiting for DynamoDB to process BatchWriteItem requests against "
+                            + accountTable + " after " + attempt + " retries");
+                }
+                BatchWriteItemResponse response =
+                        client.batchWriteItem(BatchWriteItemRequest.builder().requestItems(requestItems).build());
+                requestItems = response.unprocessedItems();
+                attempt++;
+            }
         } catch (SdkException e) {
             throw new IOException(e);
         }

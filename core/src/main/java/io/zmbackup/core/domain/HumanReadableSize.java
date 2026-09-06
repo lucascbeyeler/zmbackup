@@ -1,13 +1,13 @@
-package io.zmbackup.aws;
+package io.zmbackup.core.domain;
 
-final class HumanReadableSize {
+public final class HumanReadableSize {
 
     private static final String[] UNITS = {"K", "M", "G", "T", "P"};
 
     private HumanReadableSize() {
     }
 
-    static String format(long bytes) {
+    public static String format(long bytes) {
         if (bytes < 1024) {
             return bytes + "B";
         }

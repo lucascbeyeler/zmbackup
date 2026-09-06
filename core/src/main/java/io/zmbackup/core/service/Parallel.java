@@ -40,9 +40,7 @@ final class Parallel {
                 try {
                     long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
                     T result = future.get(remainingMillis, TimeUnit.MILLISECONDS);
-                    if (firstFailure == null) {
-                        results.add(result);
-                    }
+                    results.add(result);
                 } catch (ExecutionException e) {
                     if (firstFailure == null) {
                         Throwable cause = e.getCause();

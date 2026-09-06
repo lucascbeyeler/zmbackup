@@ -53,4 +53,30 @@ class BackupTypeTest {
     void mailboxSessionPrefixesListsOnlyTypesThatIncludeMailbox() {
         assertEquals(List.of("full", "inc", "mbox"), BackupType.mailboxSessionPrefixes());
     }
+
+    @Test
+    void ldapAndMailboxDoNotConflictWithEachOther() {
+        assertFalse(BackupType.LDAP.conflictingSessionPrefixes().contains("mbox"));
+        assertFalse(BackupType.MAILBOX.conflictingSessionPrefixes().contains("ldap"));
+    }
+
+    @Test
+    void fullAndIncrementalConflictWithBothLdapAndMailbox() {
+        assertEquals(List.of("full", "inc", "mbox", "ldap", "alias", "distlist", "signature", "domain"),
+                BackupType.FULL.conflictingSessionPrefixes());
+        assertEquals(List.of("full", "inc", "mbox", "ldap", "alias", "distlist", "signature", "domain"),
+                BackupType.INCREMENTAL.conflictingSessionPrefixes());
+    }
+
+    @Test
+    void mailboxConflictsOnlyWithMailboxCoveringTypes() {
+        assertEquals(List.of("full", "inc", "mbox"), BackupType.MAILBOX.conflictingSessionPrefixes());
+    }
+
+    @Test
+    void ldapConflictsWithEveryLdapCoveringTypeButNotMailbox() {
+        assertEquals(
+                List.of("full", "inc", "ldap", "alias", "distlist", "signature", "domain"),
+                BackupType.LDAP.conflictingSessionPrefixes());
+    }
 }

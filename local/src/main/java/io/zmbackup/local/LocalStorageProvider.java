@@ -1,11 +1,13 @@
 package io.zmbackup.local;
 
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
@@ -36,8 +38,23 @@ public class LocalStorageProvider implements StorageProvider {
     }
 
     @Override
-    public boolean exists(String sessionId, String account, String suffix) {
-        return Files.exists(accountFile(sessionId, account, suffix));
+    public boolean exists(String sessionId, String account, String suffix) throws IOException {
+        try {
+            Files.readAttributes(accountFile(sessionId, account, suffix), BasicFileAttributes.class);
+            return true;
+        } catch (NoSuchFileException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean sessionExists(String sessionId) throws IOException {
+        try {
+            return Files.readAttributes(sessionDir(sessionId), BasicFileAttributes.class)
+                    .isDirectory();
+        } catch (NoSuchFileException e) {
+            return false;
+        }
     }
 
     @Override

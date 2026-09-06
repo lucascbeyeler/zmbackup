@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
+import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.RestoreResult;
 import io.zmbackup.core.port.MetadataStore;
@@ -136,6 +137,16 @@ class RestoreServiceTest {
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"));
 
         assertTrue(result.allSucceeded());
+        assertTrue(mailboxExporter.restoredInto.isEmpty());
+    }
+
+    @Test
+    void restoreMailboxRecordsFailureRatherThanSuccessWhenExistsCheckFails() throws IOException {
+        storageProvider.failOnExists.add("mbox-1/alice@example.com.tgz");
+
+        RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"));
+
+        assertEquals(List.of("alice@example.com"), result.failedAccounts());
         assertTrue(mailboxExporter.restoredInto.isEmpty());
     }
 
@@ -271,6 +282,7 @@ class RestoreServiceTest {
 
     private static final class InMemoryStorageProvider implements StorageProvider {
         final Map<String, byte[]> content = new LinkedHashMap<>();
+        final Set<String> failOnExists = new HashSet<>();
 
         void put(String sessionId, String account, String suffix, String value) {
             content.put(key(sessionId, account, suffix), value.getBytes());
@@ -298,8 +310,16 @@ class RestoreServiceTest {
         }
 
         @Override
-        public boolean exists(String sessionId, String account, String suffix) {
+        public boolean exists(String sessionId, String account, String suffix) throws IOException {
+            if (failOnExists.contains(key(sessionId, account, suffix))) {
+                throw new IOException("simulated transient storage error checking " + key(sessionId, account, suffix));
+            }
             return content.containsKey(key(sessionId, account, suffix));
+        }
+
+        @Override
+        public boolean sessionExists(String sessionId) {
+            return content.keySet().stream().anyMatch(key -> key.startsWith(sessionId + "/"));
         }
 
         @Override
@@ -376,7 +396,7 @@ class RestoreServiceTest {
         }
 
         @Override
-        public boolean backedUpSince(String identifier, Instant since) {
+        public boolean backedUpSince(String identifier, BackupType type, Instant since) {
             throw new UnsupportedOperationException();
         }
     }
