@@ -27,7 +27,7 @@ setup() {
 @test "install_java_ubuntu: prints manual command hint naming the JDK package" {
   export MOCK_APT_FAIL=1
   run install_java_ubuntu
-  [[ "$output" == *"openjdk-21-jdk"* ]]
+  [[ "$output" == *"openjdk-17-jdk"* ]]
 }
 
 @test "install_java_redhat: succeeds when yum succeeds" {
@@ -47,5 +47,5 @@ setup() {
 @test "install_java_redhat: prints manual command hint naming the JDK package" {
   export MOCK_YUM_FAIL=1
   run install_java_redhat
-  [[ "$output" == *"java-21-openjdk-devel"* ]]
+  [[ "$output" == *"java-17-openjdk-devel"* ]]
 }
