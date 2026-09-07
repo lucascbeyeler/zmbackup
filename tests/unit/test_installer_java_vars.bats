@@ -45,8 +45,8 @@ setup() {
   [ "$ZMBKP_JAR_NAME" = "zmbackup.jar" ]
 }
 
-@test "vars: JAVA_MIN_VERSION is 21" {
-  [ "$JAVA_MIN_VERSION" = "21" ]
+@test "vars: JAVA_MIN_VERSION is 17" {
+  [ "$JAVA_MIN_VERSION" = "17" ]
 }
 
 @test "vars: OSE_USER is zimbra" {

@@ -19,33 +19,33 @@ setup() {
   [[ "$output" == *"NOT FOUND"* ]]
 }
 
-@test "check_java_runtime: sets NEED_JAVA=N when an OpenJDK 21 runtime is present" {
-  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "21.0.5" 2024-10-15
-OpenJDK Runtime Environment (build 21.0.5+11)'
+@test "check_java_runtime: sets NEED_JAVA=N when an OpenJDK 17 runtime is present" {
+  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "17.0.9" 2023-10-17
+OpenJDK Runtime Environment (build 17.0.9+9)'
   check_java_runtime
   [ "$NEED_JAVA" = "N" ]
 }
 
-@test "check_java_runtime: reports OK when an OpenJDK 21 runtime is present" {
-  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "21.0.5" 2024-10-15'
+@test "check_java_runtime: reports OK when an OpenJDK 17 runtime is present" {
+  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "17.0.9" 2023-10-17'
   run check_java_runtime
   [[ "$output" == *"OK"* ]]
 }
 
-@test "check_java_runtime: sets NEED_JAVA=Y when the runtime is older than 21" {
-  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "17.0.9" 2023-10-17'
+@test "check_java_runtime: sets NEED_JAVA=Y when the runtime is older than 17" {
+  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "11.0.20" 2023-07-18'
   check_java_runtime
   [ "$NEED_JAVA" = "Y" ]
 }
 
-@test "check_java_runtime: reports TOO OLD when the runtime is older than 21" {
-  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "17.0.9" 2023-10-17'
+@test "check_java_runtime: reports TOO OLD when the runtime is older than 17" {
+  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "11.0.20" 2023-07-18'
   run check_java_runtime
   [[ "$output" == *"TOO OLD"* ]]
 }
 
 @test "check_java_runtime: accepts a newer major version than the minimum" {
-  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "23.0.1" 2024-10-15'
+  export MOCK_JAVA_VERSION_OUTPUT='openjdk version "21.0.5" 2024-10-15'
   check_java_runtime
   [ "$NEED_JAVA" = "N" ]
 }

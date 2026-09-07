@@ -68,7 +68,7 @@ The table below documents what zmbackup covers.
 
 ## Requirements
 
-- **Java 21 (JDK)** - required to build and run zmbackup; the Gradle toolchain will download it automatically if it isn't already installed.
+- **Java 17 (JDK)** - required to build and run zmbackup; the Gradle toolchain will download it automatically if it isn't already installed.
 
 ## Installation
 
@@ -79,7 +79,7 @@ git clone -b master https://github.com/lucascbeyeler/zmbackup.git
 ```
 
 Inside the project folder, execute the script **install-java.sh** and follow all the instructions
-to install the project. It checks for (and, if missing, installs) a Java 21 JDK, builds
+to install the project. It checks for (and, if missing, installs) a Java 17 JDK, builds
 `zmbackup.jar` with the bundled Gradle wrapper, then installs the jar, a thin `zmbackup` launcher,
 `zmbackup.yaml`, the blocked list and a cron file.
 

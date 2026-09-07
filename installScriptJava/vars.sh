@@ -14,7 +14,7 @@ ZMBKP_LIB="/usr/local/lib/zmbackup"
 ZMBKP_JAR_NAME="zmbackup.jar"
 ZMBKP_CRON_FILE="/etc/cron.d/zmbackup"
 
-JAVA_MIN_VERSION="21"
+JAVA_MIN_VERSION="17"
 
 OSE_USER="zimbra"
 OSE_INSTALL_DIR="/opt/zimbra"
