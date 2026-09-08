@@ -6,7 +6,10 @@ import java.util.List;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Command(name = "incremental", description = "Back up mail received since each account's last successful backup.")
+@Command(
+        name = "incremental",
+        description = "Back up mail received since each account's last successful backup. "
+                + "An account with no prior successful backup gets a full backup (LDAP entry and mailbox) instead.")
 public final class BackupIncrementalCommand extends AbstractAccountScopedBackupCommand {
 
     @Option(names = "--account", description = "Back up only this account (repeatable); default: every account.")

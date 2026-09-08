@@ -619,9 +619,23 @@ class BackupServiceTest {
         Optional<BackupSession> result = backupService.backup(BackupType.INCREMENTAL, List.of("alice@example.com"));
 
         assertTrue(result.isPresent());
+        assertTrue(result.get().sessionId().startsWith("inc-"));
         assertEquals(SessionStatus.FINISHED, result.get().status());
+        assertEquals(Set.of(LdapObjectType.ACCOUNT), ldapExporter.exportedTypesFor("alice@example.com"));
         assertTrue(mailboxExporter.exported.containsKey("alice@example.com"));
         assertEquals(null, mailboxExporter.exported.get("alice@example.com"));
+    }
+
+    @Test
+    void incrementalTypeSkipsMailboxAndRecordWhenLdapExportFailsOnFirstRun() throws IOException {
+        ldapExporter.failing.add("bad@example.com");
+
+        Optional<BackupSession> result = backupService.backup(BackupType.INCREMENTAL, List.of("bad@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertTrue(metadataStore.findAccountsForSession(result.get().sessionId()).isEmpty());
+        assertFalse(mailboxExporter.exported.containsKey("bad@example.com"));
     }
 
     @Test
