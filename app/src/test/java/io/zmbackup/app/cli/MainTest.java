@@ -259,6 +259,9 @@ class MainTest {
 
         assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
         assertTrue(err.toString().contains("(Run with --stacktrace to get the full stack trace.)"));
+        assertTrue(
+                err.toString().contains("(zmbackup pid " + ProcessHandle.current().pid() + ")"),
+                "default output must include the failing process's own PID");
         assertFalse(err.toString().contains("\tat io.zmbackup"), "default output must not include stack frames");
 
         StringWriter verboseErr = new StringWriter();

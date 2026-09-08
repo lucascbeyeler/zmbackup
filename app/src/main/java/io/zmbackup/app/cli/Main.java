@@ -57,7 +57,8 @@ public final class Main implements Callable<Integer> {
                 ex.printStackTrace(commandLine.getErr());
             } else {
                 commandLine.getErr().println(ex.getClass().getName()
-                        + (ex.getMessage() != null ? ": " + ex.getMessage() : ""));
+                        + (ex.getMessage() != null ? ": " + ex.getMessage() : "")
+                        + " (zmbackup pid " + ProcessHandle.current().pid() + ")");
                 commandLine.getErr().println("(Run with --stacktrace to get the full stack trace.)");
             }
             return CommandLine.ExitCode.SOFTWARE;
