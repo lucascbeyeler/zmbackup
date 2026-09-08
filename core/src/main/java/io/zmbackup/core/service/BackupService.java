@@ -281,17 +281,21 @@ public class BackupService {
                     logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
                 }
             } else if (type == BackupType.INCREMENTAL) {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    logIfNothingExported(
-                            identifier, mailboxExporter.export(identifier, destination, incrementalCutoff(identifier)));
+                Optional<Instant> lastBackup = metadataStore.lastSuccessfulBackupTime(identifier);
+                if (lastBackup.isEmpty()) {
+                    LOG.info(() -> "No prior successful backup found for " + identifier
+                            + " - running a full backup instead of an incremental one.");
+                    fullExport(sessionId, identifier);
+                } else {
+                    try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
+                        logIfNothingExported(
+                                identifier,
+                                mailboxExporter.export(
+                                        identifier, destination, lastBackup.get().minus(INCREMENTAL_LOOKBACK)));
+                    }
                 }
             } else if (type == BackupType.FULL) {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
-                    ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
-                }
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
-                }
+                fullExport(sessionId, identifier);
             } else if (type == BackupType.SERVER_CONFIG) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, ZIP_SUFFIX)) {
                     serverConfigArchiver.export(destination);
@@ -316,11 +320,13 @@ public class BackupService {
         return true;
     }
 
-    private Instant incrementalCutoff(String email) throws IOException {
-        return metadataStore
-                .lastSuccessfulBackupTime(email)
-                .map(lastBackup -> lastBackup.minus(INCREMENTAL_LOOKBACK))
-                .orElse(null);
+    private void fullExport(String sessionId, String identifier) throws IOException {
+        try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
+            ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
+        }
+        try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
+            logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
+        }
     }
 
     private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain, boolean force)
