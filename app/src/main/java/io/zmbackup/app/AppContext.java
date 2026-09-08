@@ -157,7 +157,7 @@ public final class AppContext {
         return new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
     }
 
-    public RunLock acquireRunLock() throws IOException {
+    public static RunLock acquireRunLock(AppConfig config) throws IOException {
         if (config.metadata().backend() == MetadataBackend.DYNAMODB) {
             DynamoDbConfig dynamodb = config.metadata().dynamodb();
             return DynamoDBLock.acquire(

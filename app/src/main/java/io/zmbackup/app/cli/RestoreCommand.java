@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.RestoreResult;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -65,9 +64,8 @@ public final class RestoreCommand implements Callable<Integer> {
             return CommandLine.ExitCode.USAGE;
         }
 
-        AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
-        return LockedExecution.run(context, err, () -> {
+        return LockedExecution.run(parent.configFile(), err, context -> {
             RestoreResult result = destination != null
                     ? context.restoreService().restoreMailbox(sessionId, accounts, destination)
                     : context.restoreService().restoreFull(sessionId, accounts);

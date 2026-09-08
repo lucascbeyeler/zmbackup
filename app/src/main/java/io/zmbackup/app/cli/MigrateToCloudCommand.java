@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.CloudMigrationResult;
 import io.zmbackup.core.service.CloudMigrationService;
 import io.zmbackup.local.LocalStorageProvider;
@@ -36,10 +35,9 @@ public final class MigrateToCloudCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
 
-        return LockedExecution.run(context, spec.commandLine().getErr(), () -> {
+        return LockedExecution.run(parent.configFile(), spec.commandLine().getErr(), context -> {
             try (SqliteMetadataStore sourceMetadata = new SqliteMetadataStore(sourceDb)) {
                 LocalStorageProvider sourceStorage = new LocalStorageProvider(sourceDir);
                 CloudMigrationService migrationService = new CloudMigrationService(

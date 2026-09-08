@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.service.HousekeepService;
 import java.io.PrintWriter;
@@ -22,11 +21,10 @@ public final class HousekeepCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
-        HousekeepService housekeepService = context.housekeepService();
 
-        return LockedExecution.run(context, spec.commandLine().getErr(), () -> {
+        return LockedExecution.run(parent.configFile(), spec.commandLine().getErr(), context -> {
+            HousekeepService housekeepService = context.housekeepService();
             out.println("Removing old backup sessions - please wait.");
             List<BackupSession> rotated =
                     housekeepService.rotateOldSessions(context.config().backup().rotateDays());
