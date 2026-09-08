@@ -1,6 +1,7 @@
 package io.zmbackup.app.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.app.AppContext;
@@ -66,6 +67,9 @@ class TruncateCommandTest {
 
             assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
             assertTrue(err.toString().contains("already running"));
+            assertFalse(
+                    Files.exists(tempDir.resolve("sessions.sqlite3")),
+                    "lock contention must be detected before the SQLite metadata store is ever opened");
         }
     }
 

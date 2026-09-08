@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.RestoreResult;
 import java.io.PrintWriter;
 import java.util.concurrent.Callable;
@@ -32,8 +31,7 @@ public final class RestoreServerConfigCommand implements Callable<Integer> {
         if (!CliValidation.validateSessionId(sessionId, err)) {
             return CommandLine.ExitCode.USAGE;
         }
-        AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        return LockedExecution.run(context, err, () -> {
+        return LockedExecution.run(parent.parent().configFile(), err, context -> {
             RestoreResult result = context.restoreService().restoreServerConfig(sessionId);
             return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
         });

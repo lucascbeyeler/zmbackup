@@ -12,7 +12,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
-final class PosixFileHardening {
+public final class PosixFileHardening {
 
     private static final Set<PosixFilePermission> DIRECTORY_PERMISSIONS = PosixFilePermissions.fromString("rwx------");
     private static final Set<PosixFilePermission> FILE_PERMISSIONS = PosixFilePermissions.fromString("rw-------");
@@ -22,7 +22,7 @@ final class PosixFileHardening {
 
     private PosixFileHardening() {}
 
-    static void createDirectories(Path dir) throws IOException {
+    public static void createDirectories(Path dir) throws IOException {
         if (POSIX_SUPPORTED) {
             Files.createDirectories(dir, PosixFilePermissions.asFileAttribute(DIRECTORY_PERMISSIONS));
         } else {

@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,13 +25,12 @@ public final class MigrateCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
         PrintWriter err = spec.commandLine().getErr();
-        Path workDir = context.config().backup().workDir();
-        Path sessionsTxt = workDir.resolve(SESSIONS_TXT);
 
-        return LockedExecution.run(context, err, () -> {
+        return LockedExecution.run(parent.configFile(), err, context -> {
+            Path workDir = context.config().backup().workDir();
+            Path sessionsTxt = workDir.resolve(SESSIONS_TXT);
             if (!Files.exists(sessionsTxt)) {
                 out.println("No " + SESSIONS_TXT + " found in " + workDir + " - nothing to migrate.");
                 return 0;

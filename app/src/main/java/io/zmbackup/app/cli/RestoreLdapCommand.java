@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.RestoreResult;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -34,8 +33,7 @@ public final class RestoreLdapCommand implements Callable<Integer> {
         if (!CliValidation.validateSessionId(sessionId, err) || !CliValidation.validateEmails(accounts, err)) {
             return CommandLine.ExitCode.USAGE;
         }
-        AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
-        return LockedExecution.run(context, err, () -> {
+        return LockedExecution.run(parent.parent().configFile(), err, context -> {
             RestoreResult result = context.restoreService().restoreLdap(sessionId, accounts);
             return RestoreRunner.printResult(spec.commandLine().getOut(), sessionId, result);
         });

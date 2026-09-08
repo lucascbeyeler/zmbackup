@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.BackupType;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -31,11 +30,10 @@ abstract class AbstractBackupCommand implements Callable<Integer> {
 
     @Override
     public final Integer call() throws Exception {
-        AppContext context = AppContext.fromConfigFile(parent.parent().configFile());
         return LockedExecution.run(
-                context,
+                parent.parent().configFile(),
                 spec.commandLine().getErr(),
-                () -> BackupRunner.run(
+                context -> BackupRunner.run(
                         context,
                         spec.commandLine().getOut(),
                         spec.commandLine().getErr(),

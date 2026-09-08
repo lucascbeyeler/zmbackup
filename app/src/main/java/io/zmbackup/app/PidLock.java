@@ -2,6 +2,7 @@ package io.zmbackup.app;
 
 import io.zmbackup.core.port.LockContentionException;
 import io.zmbackup.core.port.RunLock;
+import io.zmbackup.local.PosixFileHardening;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -24,6 +25,7 @@ public final class PidLock implements RunLock {
     }
 
     public static PidLock acquire(Path workDir) throws IOException {
+        PosixFileHardening.createDirectories(workDir);
         Path lockFile = workDir.resolve(LOCK_FILENAME);
         FileChannel channel = FileChannel.open(
                 lockFile, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);

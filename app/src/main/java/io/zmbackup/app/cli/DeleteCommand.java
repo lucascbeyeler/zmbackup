@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import java.io.PrintWriter;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
@@ -29,10 +28,9 @@ public final class DeleteCommand implements Callable<Integer> {
             return CommandLine.ExitCode.USAGE;
         }
 
-        AppContext context = AppContext.fromConfigFile(parent.configFile());
         PrintWriter out = spec.commandLine().getOut();
 
-        return LockedExecution.run(context, err, () -> {
+        return LockedExecution.run(parent.configFile(), err, context -> {
             out.println("Removing session " + sessionId + " - please wait.");
             if (context.sessionService().deleteSession(sessionId)) {
                 out.println("Backup session " + sessionId + " removed.");

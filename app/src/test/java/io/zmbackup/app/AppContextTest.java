@@ -208,7 +208,7 @@ class AppContextTest {
 
             assertInstanceOf(S3StorageProvider.class, context.storageProvider());
             assertInstanceOf(DynamoDBMetadataStore.class, context.metadataStore());
-            try (RunLock lock = context.acquireRunLock()) {
+            try (RunLock lock = AppContext.acquireRunLock(config)) {
                 assertInstanceOf(DynamoDBLock.class, lock);
             }
         } finally {

@@ -1,6 +1,5 @@
 package io.zmbackup.app.cli;
 
-import io.zmbackup.app.AppContext;
 import java.io.PrintWriter;
 import java.util.concurrent.Callable;
 import picocli.CommandLine;
@@ -39,8 +38,7 @@ public final class TruncateCommand implements Callable<Integer> {
             return CommandLine.ExitCode.USAGE;
         }
 
-        AppContext context = AppContext.fromConfigFile(parent.configFile());
-        return LockedExecution.run(context, err, () -> {
+        return LockedExecution.run(parent.configFile(), err, context -> {
             out.println("TEST/DEV USE ONLY - truncating the backup metadata database. "
                     + "The backup files on disk are not affected.");
             int removed = context.sessionService().truncateDatabase();
