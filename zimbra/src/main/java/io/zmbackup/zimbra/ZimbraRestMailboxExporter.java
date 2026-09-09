@@ -88,7 +88,7 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         }
     }
 
-    private static final class NoHostnameCheckTrustManager extends X509ExtendedTrustManager {
+    static final class NoHostnameCheckTrustManager extends X509ExtendedTrustManager {
         private final X509TrustManager delegate;
 
         NoHostnameCheckTrustManager(X509TrustManager delegate) {
