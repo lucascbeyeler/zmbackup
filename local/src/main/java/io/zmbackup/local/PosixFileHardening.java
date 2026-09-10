@@ -57,6 +57,13 @@ public final class PosixFileHardening {
         return Files.createTempFile(prefix, suffix);
     }
 
+    static Path createTempDirectory(String prefix) throws IOException {
+        if (posixSupported) {
+            return Files.createTempDirectory(prefix, PosixFilePermissions.asFileAttribute(DIRECTORY_PERMISSIONS));
+        }
+        return Files.createTempDirectory(prefix);
+    }
+
     static void restrictExistingFile(Path file) throws IOException {
         if (posixSupported) {
             Files.setPosixFilePermissions(file, FILE_PERMISSIONS);

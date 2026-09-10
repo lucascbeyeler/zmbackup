@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -168,6 +169,59 @@ class BackupServiceTest {
         Optional<BackupSession> forced = lockingService.backup(BackupType.SERVER_CONFIG, List.of(), null, true);
         assertTrue(forced.isPresent());
         assertEquals(2, serverConfigArchiver.exportCount);
+    }
+
+    @Test
+    void selfTypeArchivesWithoutAnyDiscoveryAndNeedsNoIdentifiers() throws IOException {
+        Optional<BackupSession> result = backupService.backup(BackupType.SELF);
+
+        assertTrue(result.isPresent());
+        BackupSession session = result.get();
+        assertTrue(session.sessionId().startsWith("self-"));
+        assertEquals(BackupType.SELF, session.type());
+        assertEquals(SessionStatus.FINISHED, session.status());
+        assertEquals(1, metadataStore.selfBackupExportCount);
+        assertTrue(accountDiscovery.discoverCalls.isEmpty());
+        List<BackupAccountRecord> records = metadataStore.findAccountsForSession(session.sessionId());
+        assertEquals(List.of("self"), namesOf(records).stream().sorted().toList());
+    }
+
+    @Test
+    void selfBackupFailsSessionWhenMetadataStoreExportFails() throws IOException {
+        metadataStore.failNextSelfBackupExport = true;
+
+        Optional<BackupSession> result = backupService.backup(BackupType.SELF);
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+    }
+
+    @Test
+    void selfBackupIsANoOpWhenMetadataStoreDoesNotSupportIt() throws IOException {
+        metadataStore.selfBackupSupported = false;
+
+        Optional<BackupSession> result = backupService.backup(BackupType.SELF);
+
+        assertTrue(result.isEmpty());
+        assertEquals(0, metadataStore.selfBackupExportCount);
+    }
+
+    @Test
+    void selfBackupHonorsLockBackupAndForce() throws IOException {
+        BackupService lockingService = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .lockBackup(true)
+                .build();
+
+        Optional<BackupSession> first = lockingService.backup(BackupType.SELF);
+        assertTrue(first.isPresent());
+
+        Optional<BackupSession> second = lockingService.backup(BackupType.SELF);
+        assertTrue(second.isEmpty());
+
+        Optional<BackupSession> forced = lockingService.backup(BackupType.SELF, List.of(), null, true);
+        assertTrue(forced.isPresent());
+        assertEquals(2, metadataStore.selfBackupExportCount);
     }
 
     @Test
@@ -978,6 +1032,25 @@ class BackupServiceTest {
                             && record.completedAt() != null
                             && record.completedAt().isAfter(since)
                             && conflicting.contains(sessionPrefixOf(record.sessionId())));
+        }
+
+        boolean selfBackupSupported = true;
+        int selfBackupExportCount = 0;
+        boolean failNextSelfBackupExport = false;
+
+        @Override
+        public boolean supportsSelfBackup() {
+            return selfBackupSupported;
+        }
+
+        @Override
+        public void exportSelfBackup(OutputStream destination) throws IOException {
+            selfBackupExportCount++;
+            if (failNextSelfBackupExport) {
+                failNextSelfBackupExport = false;
+                throw new IOException("simulated self-backup failure");
+            }
+            destination.write("fake-sqlite-snapshot".getBytes(StandardCharsets.UTF_8));
         }
 
         private static String sessionPrefixOf(String sessionId) {

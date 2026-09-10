@@ -5,6 +5,7 @@ import java.util.Objects;
 
 public record BackupConfig(
         Path workDir,
+        Path metadataDir,
         Path logFile,
         Path blockedListFile,
         int maxParallelProcesses,
@@ -16,6 +17,7 @@ public record BackupConfig(
 
     public BackupConfig {
         Objects.requireNonNull(workDir, "workDir must not be null");
+        Objects.requireNonNull(metadataDir, "metadataDir must not be null");
         Objects.requireNonNull(logFile, "logFile must not be null");
         Objects.requireNonNull(blockedListFile, "blockedListFile must not be null");
         Objects.requireNonNull(emailNotify, "emailNotify must not be null");

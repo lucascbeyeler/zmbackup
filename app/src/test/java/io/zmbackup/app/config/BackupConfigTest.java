@@ -22,6 +22,7 @@ class BackupConfigTest {
                 IllegalArgumentException.class,
                 () -> new BackupConfig(
                         Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/backup"),
                         Path.of("/opt/zimbra/log/zmbackup.log"),
                         Path.of("/etc/zmbackup/blockedlist.conf"),
                         0,
@@ -38,6 +39,7 @@ class BackupConfigTest {
                 IllegalArgumentException.class,
                 () -> new BackupConfig(
                         Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/backup"),
                         Path.of("/opt/zimbra/log/zmbackup.log"),
                         Path.of("/etc/zmbackup/blockedlist.conf"),
                         257,
@@ -51,6 +53,7 @@ class BackupConfigTest {
     @Test
     void acceptsMaxParallelProcessesAtTheCeiling() {
         BackupConfig config = new BackupConfig(
+                Path.of("/opt/zimbra/backup"),
                 Path.of("/opt/zimbra/backup"),
                 Path.of("/opt/zimbra/log/zmbackup.log"),
                 Path.of("/etc/zmbackup/blockedlist.conf"),
@@ -68,6 +71,7 @@ class BackupConfigTest {
                 IllegalArgumentException.class,
                 () -> new BackupConfig(
                         Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/backup"),
                         Path.of("/opt/zimbra/log/zmbackup.log"),
                         Path.of("/etc/zmbackup/blockedlist.conf"),
                         3,
@@ -84,6 +88,22 @@ class BackupConfigTest {
                 NullPointerException.class,
                 () -> new BackupConfig(
                         null,
+                        Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/log/zmbackup.log"),
+                        Path.of("/etc/zmbackup/blockedlist.conf"),
+                        3,
+                        30,
+                        true,
+                        EMAIL_NOTIFY));
+    }
+
+    @Test
+    void rejectsNullMetadataDir() {
+        assertThrows(
+                NullPointerException.class,
+                () -> new BackupConfig(
+                        Path.of("/opt/zimbra/backup"),
+                        null,
                         Path.of("/opt/zimbra/log/zmbackup.log"),
                         Path.of("/etc/zmbackup/blockedlist.conf"),
                         3,
@@ -98,6 +118,7 @@ class BackupConfigTest {
                 NullPointerException.class,
                 () -> new BackupConfig(
                         Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/backup"),
                         null,
                         Path.of("/etc/zmbackup/blockedlist.conf"),
                         3,
@@ -111,7 +132,8 @@ class BackupConfigTest {
         assertThrows(
                 NullPointerException.class,
                 () -> new BackupConfig(
-                        Path.of("/opt/zimbra/backup"), Path.of("/opt/zimbra/log/zmbackup.log"), null, 3, 30, true,
+                        Path.of("/opt/zimbra/backup"), Path.of("/opt/zimbra/backup"),
+                        Path.of("/opt/zimbra/log/zmbackup.log"), null, 3, 30, true,
                         EMAIL_NOTIFY));
     }
 
@@ -120,6 +142,7 @@ class BackupConfigTest {
         assertThrows(
                 NullPointerException.class,
                 () -> new BackupConfig(
+                        Path.of("/opt/zimbra/backup"),
                         Path.of("/opt/zimbra/backup"),
                         Path.of("/opt/zimbra/log/zmbackup.log"),
                         Path.of("/etc/zmbackup/blockedlist.conf"),
@@ -133,6 +156,7 @@ class BackupConfigTest {
     void acceptsZeroRotateDaysAndOneMaxParallelProcess() {
         BackupConfig config = new BackupConfig(
                 Path.of("/opt/zimbra/backup"),
+                Path.of("/opt/zimbra/backup"),
                 Path.of("/opt/zimbra/log/zmbackup.log"),
                 Path.of("/etc/zmbackup/blockedlist.conf"),
                 1,
@@ -142,5 +166,21 @@ class BackupConfigTest {
 
         assertEquals(1, config.maxParallelProcesses());
         assertEquals(0, config.rotateDays());
+    }
+
+    @Test
+    void acceptsMetadataDirDifferentFromWorkDir() {
+        BackupConfig config = new BackupConfig(
+                Path.of("/mnt/nas/zmbackup"),
+                Path.of("/var/zmbackup"),
+                Path.of("/opt/zimbra/log/zmbackup.log"),
+                Path.of("/etc/zmbackup/blockedlist.conf"),
+                3,
+                30,
+                true,
+                EMAIL_NOTIFY);
+
+        assertEquals(Path.of("/mnt/nas/zmbackup"), config.workDir());
+        assertEquals(Path.of("/var/zmbackup"), config.metadataDir());
     }
 }

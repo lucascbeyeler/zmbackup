@@ -148,6 +148,28 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
+    void supportsSelfBackupReturnsTrue() {
+        assertTrue(store.supportsSelfBackup());
+    }
+
+    @Test
+    void exportSelfBackupProducesAReadableSnapshotWithStoredDataIntact(@TempDir Path tempDir) throws IOException {
+        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
+
+        Path exported = tempDir.resolve("self-export.sqlite3");
+        try (var destination = Files.newOutputStream(exported)) {
+            store.exportSelfBackup(destination);
+        }
+
+        try (SqliteMetadataStore snapshot = new SqliteMetadataStore(exported)) {
+            assertEquals(1, snapshot.listSessions().size());
+            assertEquals("full-1", snapshot.listSessions().get(0).sessionId());
+            assertEquals(1, snapshot.findAccountsForSession("full-1").size());
+        }
+    }
+
+    @Test
     void recordedAccountBackupCanBeFoundBySession() throws IOException {
         store.save(session("full-1", SessionStatus.FINISHED, "10M"));
         BackupAccountRecord record = accountRecord("full-1", "user@example.com");

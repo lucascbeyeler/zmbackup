@@ -12,7 +12,8 @@ public enum BackupType {
     DISTRIBUTION_LIST("distlist", true, false),
     SIGNATURE("signature", true, false),
     DOMAIN("domain", true, false),
-    SERVER_CONFIG("serverconfig", false, false);
+    SERVER_CONFIG("serverconfig", false, false),
+    SELF("self", false, false);
 
     private final String sessionPrefix;
     private final boolean includesLdap;

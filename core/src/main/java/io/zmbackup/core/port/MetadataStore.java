@@ -4,6 +4,7 @@ import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -31,4 +32,12 @@ public interface MetadataStore {
     boolean backedUpSince(String identifier, BackupType type, Instant since) throws IOException;
 
     default void vacuum() throws IOException {}
+
+    default boolean supportsSelfBackup() {
+        return false;
+    }
+
+    default void exportSelfBackup(OutputStream destination) throws IOException {
+        throw new IOException("This metadata backend does not support self-backup");
+    }
 }

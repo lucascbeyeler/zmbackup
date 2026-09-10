@@ -54,6 +54,12 @@ zimbraMailbox:
 backup:
   # Directory backups and session metadata are stored under.
   workDir: {OSE_DEFAULT_BKP_DIR}
+  # Directory the SQLite metadata store (sessions.sqlite3) and the PID lock file are kept in.
+  # Optional, defaults to workDir above. Point this at local disk when workDir is a network share
+  # (NFS/SMB) - both files rely on OS-level file locking, which is unreliable over network
+  # filesystems - see zmbackupdocs specs/09-concurrency-security.md. Use `backup self` to copy the
+  # SQLite database itself out to the regular backup destination alongside everything else.
+  # metadataDir: /var/zmbackup
   # Path zmbackup writes its logs to.
   logFile: {OSE_INSTALL_DIR}/log/zmbackup.log
   # Path to the file listing accounts that should never be backed up.

@@ -1,6 +1,7 @@
 package io.zmbackup.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,6 +71,23 @@ class AppContextTest {
     }
 
     @Test
+    void wiresComponentsWithSeparateMetadataDirPlacesDatabaseAndLockThereInsteadOfWorkDir() throws Exception {
+        Path workDir = tempDir.resolve("workdir");
+        Path metadataDir = tempDir.resolve("metadatadir");
+        Files.createDirectories(workDir);
+        AppConfig config = configWithWorkDirAndMetadataDir(workDir, metadataDir);
+
+        try (RunLock lock = AppContext.acquireRunLock(config)) {
+            new AppContext(config);
+
+            assertTrue(Files.exists(metadataDir.resolve("sessions.sqlite3")));
+            assertFalse(Files.exists(workDir.resolve("sessions.sqlite3")));
+            assertTrue(Files.exists(metadataDir.resolve("zmbackup.pid")));
+            assertFalse(Files.exists(workDir.resolve("zmbackup.pid")));
+        }
+    }
+
+    @Test
     void fromConfigFileLoadsAndWiresComponents() throws IOException {
         Path configFile = tempDir.resolve("zmbackup.yaml");
         Files.writeString(
@@ -118,6 +136,7 @@ class AppContextTest {
                         null,
                         false),
                 new BackupConfig(
+                        tempDir,
                         tempDir,
                         tempDir.resolve("zmbackup.log"),
                         tempDir.resolve("blockedlist.conf"),
@@ -239,6 +258,7 @@ class AppContextTest {
                         false),
                 new BackupConfig(
                         workDir,
+                        workDir,
                         workDir.resolve("zmbackup.log"),
                         workDir.resolve("blockedlist.conf"),
                         3,
@@ -269,12 +289,45 @@ class AppContextTest {
         return configWithWorkDir(workDir, System.getProperty("user.name"));
     }
 
+    private static AppConfig configWithWorkDirAndMetadataDir(Path workDir, Path metadataDir) {
+        return new AppConfig(
+                new ZimbraLdapConfig(
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
+                new ZimbraMailboxConfig(
+                        System.getProperty("user.name"),
+                        true,
+                        "https://127.0.0.1:7071",
+                        "zimbra",
+                        "secret",
+                        null,
+                        false),
+                new BackupConfig(
+                        workDir,
+                        metadataDir,
+                        workDir.resolve("zmbackup.log"),
+                        workDir.resolve("blockedlist.conf"),
+                        3,
+                        30,
+                        true,
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.ALL,
+                                "admin@example.com",
+                                "root@example.com",
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
+                LOCAL_STORAGE,
+                SQLITE_METADATA,
+                DEFAULT_SERVER_CONFIG,
+                false);
+    }
+
     private static AppConfig configWithWorkDir(Path workDir, String backupUser) {
         return new AppConfig(
                 new ZimbraLdapConfig(
                         "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
                 new ZimbraMailboxConfig(backupUser, true, "https://127.0.0.1:7071", "zimbra", "secret", null, false),
                 new BackupConfig(
+                        workDir,
                         workDir,
                         workDir.resolve("zmbackup.log"),
                         workDir.resolve("blockedlist.conf"),
@@ -313,6 +366,7 @@ class AppContextTest {
                         false),
                 new BackupConfig(
                         workDir,
+                        workDir,
                         workDir.resolve("zmbackup.log"),
                         workDir.resolve("blockedlist.conf"),
                         3,
@@ -343,6 +397,7 @@ class AppContextTest {
                         null,
                         true),
                 new BackupConfig(
+                        workDir,
                         workDir,
                         workDir.resolve("zmbackup.log"),
                         workDir.resolve("blockedlist.conf"),
