@@ -36,7 +36,7 @@ public final class LocalSyslogAppender extends UnsynchronizedAppenderBase<ILoggi
         command.add("-i");
         command.add("-p");
         command.add(priority);
-        command.add(event.getFormattedMessage());
+        command.add(ZmlogLayout.messageOf(event));
         try {
             Process process = new ProcessBuilder(command)
                     .redirectOutput(Redirect.DISCARD)
