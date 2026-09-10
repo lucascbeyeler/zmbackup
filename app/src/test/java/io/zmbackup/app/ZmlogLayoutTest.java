@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.LoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
+import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
 class ZmlogLayoutTest {
@@ -37,6 +39,23 @@ class ZmlogLayoutTest {
         String line = layoutOf(Level.DEBUG, "detail");
 
         assertTrue(line.contains("[local7.info] detail"), "unexpected line: " + line);
+    }
+
+    @Test
+    void appendsTheStackTraceWhenTheEventCarriesAThrowable() {
+        LoggingEvent event = new LoggingEvent();
+        event.setLevel(Level.WARN);
+        event.setMessage("Backup failed for account@example.com");
+        event.setTimeStamp(System.currentTimeMillis());
+        event.setThrowableProxy(new ThrowableProxy(new IOException("connection reset")));
+
+        String line = new ZmlogLayout().doLayout(event);
+
+        assertTrue(
+                line.contains("[local7.warn] Backup failed for account@example.com"
+                        + System.lineSeparator() + "java.io.IOException: connection reset"),
+                "unexpected line: " + line);
+        assertTrue(line.contains("\tat "), "expected a stack frame in: " + line);
     }
 
     private static String layoutOf(Level level, String message) {

@@ -2,6 +2,8 @@ package io.zmbackup.app;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import ch.qos.logback.core.LayoutBase;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -17,8 +19,17 @@ public final class ZmlogLayout extends LayoutBase<ILoggingEvent> {
     public String doLayout(ILoggingEvent event) {
         String timestamp = TIMESTAMP.format(
                 Instant.ofEpochMilli(event.getTimeStamp()).atZone(ZoneId.systemDefault()));
-        return timestamp + " [" + FACILITY + "." + severityOf(event.getLevel()) + "] " + event.getFormattedMessage()
+        return timestamp + " [" + FACILITY + "." + severityOf(event.getLevel()) + "] " + messageOf(event)
                 + System.lineSeparator();
+    }
+
+    static String messageOf(ILoggingEvent event) {
+        IThrowableProxy throwableProxy = event.getThrowableProxy();
+        if (throwableProxy == null) {
+            return event.getFormattedMessage();
+        }
+        return event.getFormattedMessage() + System.lineSeparator()
+                + ThrowableProxyUtil.asString(throwableProxy).stripTrailing();
     }
 
     static String severityOf(Level level) {

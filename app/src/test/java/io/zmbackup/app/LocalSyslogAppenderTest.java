@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.LoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.core.Context;
 import ch.qos.logback.core.ContextBase;
 import ch.qos.logback.core.status.Status;
@@ -56,6 +57,23 @@ class LocalSyslogAppenderTest {
 
         List<Status> statuses = context.getStatusManager().getCopyOfStatusList();
         assertTrue(statuses.stream().anyMatch(s -> s.getLevel() == Status.ERROR), "expected an error status");
+    }
+
+    @Test
+    void includesTheStackTraceWhenTheEventCarriesAThrowable() throws Exception {
+        Path receivedArgs = tempDir.resolve("received-args.log");
+        LocalSyslogAppender appender = new LocalSyslogAppender(stubLoggerCommand(receivedArgs));
+        appender.start();
+
+        LoggingEvent event = eventOf(Level.WARN, "Backup failed for account@example.com");
+        event.setThrowableProxy(new ThrowableProxy(new IOException("connection reset")));
+        appender.doAppend(event);
+
+        String content = Files.readString(receivedArgs);
+        assertTrue(
+                content.contains("Backup failed for account@example.com" + System.lineSeparator()
+                        + "java.io.IOException: connection reset"),
+                "unexpected content: " + content);
     }
 
     private static LoggingEvent eventOf(Level level, String message) {
