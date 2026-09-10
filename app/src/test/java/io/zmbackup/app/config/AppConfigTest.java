@@ -17,6 +17,7 @@ class AppConfigTest {
 
     private static final BackupConfig BACKUP_CONFIG = new BackupConfig(
             Path.of("/opt/zimbra/backup"),
+            Path.of("/opt/zimbra/backup"),
             Path.of("/opt/zimbra/log/zmbackup.log"),
             Path.of("/etc/zmbackup/blockedlist.conf"),
             3,

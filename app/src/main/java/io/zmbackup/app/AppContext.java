@@ -154,7 +154,7 @@ public final class AppContext {
             return new DynamoDBMetadataStore(
                     dynamodb.region(), dynamodb.sessionTable(), dynamodb.accountTable(), dynamodb.endpointOverride());
         }
-        return new SqliteMetadataStore(config.backup().workDir().resolve(METADATA_STORE_FILENAME));
+        return new SqliteMetadataStore(config.backup().metadataDir().resolve(METADATA_STORE_FILENAME));
     }
 
     public static RunLock acquireRunLock(AppConfig config) throws IOException {
@@ -163,7 +163,7 @@ public final class AppContext {
             return DynamoDBLock.acquire(
                     dynamodb.region(), dynamodb.lockTable(), dynamodb.endpointOverride(), DYNAMODB_LOCK_LEASE);
         }
-        return PidLock.acquire(config.backup().workDir());
+        return PidLock.acquire(config.backup().metadataDir());
     }
 
     private static void checkBackupUser(AppConfig config) {

@@ -59,7 +59,9 @@ public class BackupService {
     private static final String LDIFF_SUFFIX = "ldiff";
     private static final String TGZ_SUFFIX = "tgz";
     private static final String ZIP_SUFFIX = "zip";
+    private static final String SQLITE_SUFFIX = "sqlite3";
     private static final String SERVER_CONFIG_IDENTIFIER = "serverconfig";
+    private static final String SELF_IDENTIFIER = "self";
 
     private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
@@ -300,6 +302,10 @@ public class BackupService {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, ZIP_SUFFIX)) {
                     serverConfigArchiver.export(destination);
                 }
+            } else if (type == BackupType.SELF) {
+                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, SQLITE_SUFFIX)) {
+                    metadataStore.exportSelfBackup(destination);
+                }
             } else {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
                     if (type == BackupType.DOMAIN) {
@@ -334,6 +340,12 @@ public class BackupService {
         if (type == BackupType.SERVER_CONFIG) {
             return filterAlreadyBackedUpToday(
                     type, filterBlocked(List.of(SERVER_CONFIG_IDENTIFIER)), force);
+        }
+        if (type == BackupType.SELF) {
+            if (!metadataStore.supportsSelfBackup()) {
+                return List.of();
+            }
+            return filterAlreadyBackedUpToday(type, filterBlocked(List.of(SELF_IDENTIFIER)), force);
         }
         if (!identifiers.isEmpty()) {
             return identifiers;
@@ -412,6 +424,8 @@ public class BackupService {
             case DOMAIN -> LdapObjectType.DOMAIN;
             case SERVER_CONFIG -> throw new IllegalStateException(
                     "SERVER_CONFIG has no LDAP object type - it is handled directly in backupOne");
+            case SELF -> throw new IllegalStateException(
+                    "SELF has no LDAP object type - it is handled directly in backupOne");
         };
     }
 }

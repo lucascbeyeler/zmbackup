@@ -91,4 +91,16 @@ class BackupTypeTest {
     void serverConfigConflictsOnlyWithItselfDespiteHavingNoLdapOrMailboxFlag() {
         assertEquals(List.of("serverconfig"), BackupType.SERVER_CONFIG.conflictingSessionPrefixes());
     }
+
+    @Test
+    void selfIncludesNeitherLdapNorMailbox() {
+        assertFalse(BackupType.SELF.includesLdap());
+        assertFalse(BackupType.SELF.includesMailbox());
+        assertEquals("self", BackupType.SELF.sessionPrefix());
+    }
+
+    @Test
+    void selfConflictsOnlyWithItselfDespiteHavingNoLdapOrMailboxFlag() {
+        assertEquals(List.of("self"), BackupType.SELF.conflictingSessionPrefixes());
+    }
 }

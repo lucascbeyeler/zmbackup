@@ -7,6 +7,7 @@ import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.MetadataStore;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -330,6 +331,32 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             throw new IOException(e);
         } finally {
             lock.unlock();
+        }
+    }
+
+    @Override
+    public boolean supportsSelfBackup() {
+        return true;
+    }
+
+    @Override
+    public void exportSelfBackup(OutputStream destination) throws IOException {
+        Path snapshotDir = PosixFileHardening.createTempDirectory("zmbackup-self-");
+        Path snapshot = snapshotDir.resolve("sessions.sqlite3");
+        try {
+            lock.lock();
+            try (PreparedStatement statement = connection.prepareStatement("VACUUM INTO ?")) {
+                statement.setString(1, snapshot.toString());
+                statement.execute();
+            } catch (SQLException e) {
+                throw new IOException(e);
+            } finally {
+                lock.unlock();
+            }
+            Files.copy(snapshot, destination);
+        } finally {
+            Files.deleteIfExists(snapshot);
+            Files.deleteIfExists(snapshotDir);
         }
     }
 

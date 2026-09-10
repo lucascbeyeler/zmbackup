@@ -117,8 +117,10 @@ public final class YamlConfigLoader {
     }
 
     private static BackupConfig parseBackup(Map<String, Object> root) {
+        Path workDir = requirePath(root, "backup.workDir");
         return new BackupConfig(
-                requirePath(root, "backup.workDir"),
+                workDir,
+                optionalPath(root, "backup.metadataDir", workDir),
                 requirePath(root, "backup.logFile"),
                 requirePath(root, "backup.blockedListFile"),
                 optionalInt(root, "backup.maxParallelProcesses", 3),
@@ -171,6 +173,11 @@ public final class YamlConfigLoader {
 
     private static Path requirePath(Map<String, Object> root, String dottedPath) {
         return Path.of(requireString(root, dottedPath));
+    }
+
+    private static Path optionalPath(Map<String, Object> root, String dottedPath, Path defaultValue) {
+        String value = optionalString(root, dottedPath);
+        return value == null ? defaultValue : Path.of(value);
     }
 
     private static String optionalString(Map<String, Object> root, String dottedPath) {

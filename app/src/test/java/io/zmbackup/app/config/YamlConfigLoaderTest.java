@@ -39,6 +39,7 @@ class YamlConfigLoaderTest {
               trustAllCertificates: true
             backup:
               workDir: /opt/zimbra/backup
+              metadataDir: /var/zmbackup
               logFile: /opt/zimbra/log/zmbackup.log
               blockedListFile: /etc/zmbackup/blockedlist.conf
               maxParallelProcesses: 5
@@ -114,6 +115,7 @@ class YamlConfigLoaderTest {
         assertEquals(true, config.zimbraMailbox().trustAllCertificates());
 
         assertEquals(Path.of("/opt/zimbra/backup"), config.backup().workDir());
+        assertEquals(Path.of("/var/zmbackup"), config.backup().metadataDir());
         assertEquals(Path.of("/opt/zimbra/log/zmbackup.log"), config.backup().logFile());
         assertEquals(Path.of("/etc/zmbackup/blockedlist.conf"), config.backup().blockedListFile());
         assertEquals(5, config.backup().maxParallelProcesses());
@@ -176,6 +178,7 @@ class YamlConfigLoaderTest {
         assertTrue(config.zimbraMailbox().backupInactiveAccounts());
         assertEquals(null, config.zimbraMailbox().caCertificatePath());
         assertEquals(false, config.zimbraMailbox().trustAllCertificates());
+        assertEquals(config.backup().workDir(), config.backup().metadataDir());
         assertEquals(3, config.backup().maxParallelProcesses());
         assertEquals(30, config.backup().rotateDays());
         assertTrue(config.backup().lockBackup());
