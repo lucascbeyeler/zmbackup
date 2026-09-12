@@ -13,6 +13,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -47,6 +48,33 @@ class MigrateCommandTest {
         assertEquals(BackupType.FULL, session.type());
         assertEquals(SessionStatus.FINISHED, session.status());
         assertEquals(1, context.metadataStore().findAccountsForSession("full-20260101120000").size());
+    }
+
+    @Test
+    void normalizesAPreExistingBashToolSqlite3DatabaseBeforeImportingSessionsTxt() throws Exception {
+        Path configFile = writeConfig();
+        Path databaseFile = tempDir.resolve("sessions.sqlite3");
+        try (var store = new io.zmbackup.local.SqliteMetadataStore(databaseFile)) {
+            // just to create the schema
+        }
+        try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('mbox-20260101120000', '2026-01-01 12:00:00', '2026-01-01 12:05:00', "
+                            + "'5M', 'Mailbox', 'FINISHED')");
+        }
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out);
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "migrate");
+
+        assertEquals(0, exitCode);
+        assertTrue(out.toString().contains("Normalized 1 legacy backup_session/backup_account row(s)"));
+        AppContext context = AppContext.fromConfigFile(configFile);
+        var session = context.metadataStore().findSession("mbox-20260101120000").orElseThrow();
+        assertEquals(BackupType.MAILBOX, session.type());
+        assertEquals(Instant.parse("2026-01-01T12:00:00Z"), session.startedAt());
     }
 
     @Test

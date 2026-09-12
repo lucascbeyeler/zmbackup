@@ -17,13 +17,25 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class SqliteMetadataStore implements MetadataStore, Closeable {
+
+    private static final Logger LOG = Logger.getLogger(SqliteMetadataStore.class.getName());
+
+    private static final DateTimeFormatter LEGACY_BASH_TOOL_DATETIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private static final String CREATE_BACKUP_SESSION =
             """
@@ -225,6 +237,148 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
     }
 
     @Override
+    public int migrateLegacyRows() throws IOException {
+        lock.lock();
+        try {
+            int converted = normalizeLegacySessionRows();
+            converted += normalizeLegacyAccountRows();
+            return converted;
+        } catch (SQLException e) {
+            throw new IOException(e);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private int normalizeLegacySessionRows() throws SQLException {
+        List<String[]> rows = new ArrayList<>();
+        try (Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "select sessionID, initial_date, conclusion_date, type from backup_session")) {
+            while (rs.next()) {
+                rows.add(new String[] {
+                    rs.getString("sessionID"), rs.getString("initial_date"), rs.getString("conclusion_date"),
+                    rs.getString("type")
+                });
+            }
+        }
+
+        int converted = 0;
+        String updateSql =
+                "update backup_session set initial_date = ?, conclusion_date = ?, type = ? where sessionID = ?";
+        try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+            for (String[] row : rows) {
+                String sessionId = row[0];
+                String initialDate = row[1];
+                String conclusionDate = row[2];
+                String type = row[3];
+                String normalizedType = normalizeLegacyType(sessionId, type);
+                String normalizedInitial = normalizeLegacyTimestamp(sessionId, "initial_date", initialDate);
+                String normalizedConclusion = normalizeLegacyTimestamp(sessionId, "conclusion_date", conclusionDate);
+                if (normalizedType.equals(type)
+                        && normalizedInitial.equals(initialDate)
+                        && Objects.equals(normalizedConclusion, conclusionDate)) {
+                    continue;
+                }
+                update.setString(1, normalizedInitial);
+                update.setString(2, normalizedConclusion);
+                update.setString(3, normalizedType);
+                update.setString(4, sessionId);
+                update.executeUpdate();
+                converted++;
+            }
+        }
+        return converted;
+    }
+
+    private int normalizeLegacyAccountRows() throws SQLException {
+        List<String[]> rows = new ArrayList<>();
+        try (Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "select id, sessionID, initial_date, conclusion_date from backup_account")) {
+            while (rs.next()) {
+                rows.add(new String[] {
+                    rs.getString("id"), rs.getString("sessionID"), rs.getString("initial_date"),
+                    rs.getString("conclusion_date")
+                });
+            }
+        }
+
+        int converted = 0;
+        String updateSql = "update backup_account set initial_date = ?, conclusion_date = ? where id = ?";
+        try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+            for (String[] row : rows) {
+                String id = row[0];
+                String sessionId = row[1];
+                String initialDate = row[2];
+                String conclusionDate = row[3];
+                String normalizedInitial = normalizeLegacyTimestamp(sessionId, "initial_date", initialDate);
+                String normalizedConclusion = normalizeLegacyTimestamp(sessionId, "conclusion_date", conclusionDate);
+                if (normalizedInitial.equals(initialDate) && Objects.equals(normalizedConclusion, conclusionDate)) {
+                    continue;
+                }
+                update.setString(1, normalizedInitial);
+                update.setString(2, normalizedConclusion);
+                update.setString(3, id);
+                update.executeUpdate();
+                converted++;
+            }
+        }
+        return converted;
+    }
+
+    private static String normalizeLegacyType(String sessionId, String currentValue) {
+        if (isKnownSessionPrefix(currentValue)) {
+            return currentValue;
+        }
+        int dash = sessionId.indexOf('-');
+        if (dash > 0) {
+            String prefixFromSessionId = sessionId.substring(0, dash);
+            if (isKnownSessionPrefix(prefixFromSessionId)) {
+                return prefixFromSessionId;
+            }
+        }
+        LOG.log(
+                Level.WARNING,
+                "Could not derive a known backup type for legacy session '" + sessionId + "' (type column was '"
+                        + currentValue + "') - leaving it unchanged; run 'zmbackup list' to see the resulting error.");
+        return currentValue;
+    }
+
+    private static boolean isKnownSessionPrefix(String value) {
+        try {
+            BackupType.fromSessionPrefix(value);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static String normalizeLegacyTimestamp(String sessionId, String column, String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            Instant.parse(value);
+            return value;
+        } catch (DateTimeParseException isoUnparsable) {
+            try {
+                return LocalDateTime.parse(value, LEGACY_BASH_TOOL_DATETIME)
+                        .atZone(ZoneOffset.UTC)
+                        .toInstant()
+                        .toString();
+            } catch (DateTimeParseException stillUnparsable) {
+                LOG.log(
+                        Level.WARNING,
+                        "Could not normalize legacy timestamp '" + value + "' in " + column + " for session '"
+                                + sessionId + "' - leaving it unchanged; run 'zmbackup list' to see the resulting"
+                                + " error.");
+                return value;
+            }
+        }
+    }
+
+    @Override
     public void recordAccountBackup(BackupAccountRecord record) throws IOException {
         String sql =
                 "insert into backup_account (sessionID, account_size, email, initial_date, conclusion_date) "
@@ -382,13 +536,32 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
     }
 
     private static BackupSession mapSession(ResultSet rs) throws SQLException {
+        String sessionId = rs.getString("sessionID");
+        BackupType type;
+        try {
+            type = BackupType.fromSessionPrefix(rs.getString("type"));
+        } catch (IllegalArgumentException e) {
+            throw unreadableLegacyRow(sessionId, "type", rs.getString("type"), e);
+        }
+        Instant initialDate;
+        Instant conclusionDate;
+        try {
+            initialDate = fromDb(rs.getString("initial_date"));
+            conclusionDate = fromDb(rs.getString("conclusion_date"));
+        } catch (DateTimeParseException e) {
+            throw unreadableLegacyRow(sessionId, "initial_date/conclusion_date", rs.getString("initial_date"), e);
+        }
         return new BackupSession(
-                rs.getString("sessionID"),
-                BackupType.fromSessionPrefix(rs.getString("type")),
-                SessionStatus.fromDbValue(rs.getString("status")),
-                fromDb(rs.getString("initial_date")),
-                fromDb(rs.getString("conclusion_date")),
+                sessionId, type, SessionStatus.fromDbValue(rs.getString("status")), initialDate, conclusionDate,
                 rs.getString("size"));
+    }
+
+    private static SQLException unreadableLegacyRow(String sessionId, String column, String value, Exception cause) {
+        return new SQLException(
+                "backup_session row '" + sessionId + "' has an unreadable " + column + " column ('" + value
+                        + "') - this is very likely a bash-tool SESSION_TYPE=SQLITE3 database that was never"
+                        + " normalized by 'zmbackup migrate'; run 'zmbackup migrate' against this workDir to fix it.",
+                cause);
     }
 
     private static BackupAccountRecord mapAccount(ResultSet rs) throws SQLException {

@@ -89,6 +89,25 @@ install (or upgrade), via the `zmbackup migrate` command. That command is also s
 hand at any time - `$ zmbackup migrate` - and is a no-op once there's nothing left to import (it
 renames `sessions.txt` to `sessions.txt.migrated` after a successful import, so re-running it,
 e.g. after `install-java.sh --force-upgrade`, doesn't import the same sessions twice).
+`zmbackup migrate` also normalizes a pre-existing `SESSION_TYPE=SQLITE3` bash-tool database in
+place, so either 1.2.x session-store mode carries its history forward.
+
+**Before cutting over from 1.2.x, read this:**
+
+- **Never run the bash tool and this Java build against the same `WORKDIR` at the same time.**
+  There is no cross-tool locking between them (the bash tool's own `checkpid` was never actually
+  wired up, and this build's `PidLock` only protects against other Java invocations) - a leftover
+  bash cron job racing a Java invocation, or two processes writing the same session-ID directory,
+  can corrupt `sessions.sqlite3` or a backup's on-disk files. Cut cron over atomically (disable the
+  old bash cron entries in the same change that enables the new ones) rather than leaving both
+  running "just in case."
+- **This build enforces TLS/certificate validation the bash tool never did.** The bash tool's LDAP
+  calls hardcoded `TLS_REQCERT never` (trust-all, with no way to turn it off); this build defaults
+  to real CA validation and refuses to start against a self-signed Zimbra certificate unless
+  `zimbraLdap.caCertificatePath` is set, or both `trustAllCertificates: true` and the top-level
+  `allowInsecure: true` are explicitly set (same story for `zimbraMailbox`'s REST connection). If
+  your Zimbra install uses a self-signed certificate, configure `caCertificatePath` (preferred)
+  *before* your first real backup, or the LDAP/REST connection will simply fail to start.
 
 `zmbackup truncate` permanently empties `sessions.sqlite3` (every session and account record) and
 refuses to do anything unless run as `zmbackup truncate --force-clean`. **This is for
@@ -125,7 +144,8 @@ Commands:
   delete     Delete a stored backup session.
   housekeep  Prune old and empty backup sessions.
   accounts   List Zimbra accounts from LDAP (diagnostic; not a backup operation).
-  migrate    Import a bash-tool sessions.txt into the SQLite metadata store.
+  migrate    Import a bash-tool sessions.txt, and/or normalize a pre-existing bash-tool
+             SESSION_TYPE=SQLITE3 database, into the SQLite metadata store.
   truncate   Empty the backup metadata database. TEST/DEV USE ONLY.
 ```
 

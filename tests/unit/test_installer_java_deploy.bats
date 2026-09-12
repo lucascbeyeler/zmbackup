@@ -139,6 +139,15 @@ user@example.com"
   grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
 }
 
+@test "deploy_new_java: prints the no-concurrent-run and TLS-certificate reminder when migrating an existing sessions.txt" {
+  mkdir -p "$OSE_DEFAULT_BKP_DIR"
+  touch "${OSE_DEFAULT_BKP_DIR}/sessions.txt"
+  MOCK_SU_OUTPUT=""
+  run deploy_new_java
+  [[ "$output" == *"Never run the 1.2.x bash tool and this build against the same backup directory"* ]]
+  [[ "$output" == *"caCertificatePath"* ]]
+}
+
 @test "deploy_new_java: does not invoke migrate when there is no sessions.txt" {
   MOCK_SUDO_LOG="$(mktemp)"
   MOCK_SU_OUTPUT=""
@@ -239,12 +248,12 @@ user@example.com"
   [ ! -s "$MOCK_SUDO_LOG" ]
 }
 
-@test "uninstall_java: invokes zmbackup truncate --force-clean when the user opts in" {
+@test "uninstall_java: invokes zmbackup truncate --force-clean when the user types the confirmation string" {
   MOCK_SU_OUTPUT=""
   deploy_new_java
   MOCK_SUDO_LOG="$(mktemp)"
   export MOCK_SUDO_LOG
-  printf 'Y\nY\n' | uninstall_java
+  printf 'TRUNCATE\nY\n' | uninstall_java
   grep -q "zmbackup truncate --force-clean" "$MOCK_SUDO_LOG"
 }
 
@@ -254,5 +263,14 @@ user@example.com"
   MOCK_SUDO_LOG="$(mktemp)"
   export MOCK_SUDO_LOG
   printf 'N\nN\n' | uninstall_java
+  ! grep -q "zmbackup truncate" "$MOCK_SUDO_LOG"
+}
+
+@test "uninstall_java: does not invoke zmbackup truncate when the user answers a plain y instead of the confirmation string" {
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  printf 'y\nN\n' | uninstall_java
   ! grep -q "zmbackup truncate" "$MOCK_SUDO_LOG"
 }

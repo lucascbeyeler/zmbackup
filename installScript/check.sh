@@ -21,14 +21,20 @@ function check_env() {
     export UPGRADE="N"
     export UNINSTALL="Y"
   elif [[ $1 == '--force-upgrade' ]]; then
-    VERSION=$(su -s /bin/bash -c "zmbackup -h" "$OSE_USER")
-    if [[ "$VERSION" != "$ZMBKP_VERSION" ]]; then
-      printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
-      export UPGRADE="Y"
+    if [[ ! -f "$ZMBKP_CONF"/zmbackup.yaml ]] || [[ ! -f "$ZMBKP_LIB/$ZMBKP_JAR_NAME" ]]; then
+      printf "[BASH-TOOL INSTALL FOUND] - EXECUTING FRESH JAVA INSTALL ROUTINE\n"
+      export UPGRADE="N"
       export UNINSTALL="N"
     else
-      echo "[NEWEST VERSION] - Nothing to do..."
-      exit 0
+      VERSION=$(su -s /bin/bash -c "zmbackup -h" "$OSE_USER")
+      if [[ "$VERSION" != "$ZMBKP_VERSION" ]]; then
+        printf "[OLD VERSION] - EXECUTING UPGRADE ROUTINE\n"
+        export UPGRADE="Y"
+        export UNINSTALL="N"
+      else
+        echo "[NEWEST VERSION] - Nothing to do..."
+        exit 0
+      fi
     fi
   fi
   printf "  Checking OS...	          "

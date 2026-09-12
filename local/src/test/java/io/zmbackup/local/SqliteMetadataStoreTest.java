@@ -2,6 +2,7 @@ package io.zmbackup.local;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
@@ -328,6 +329,86 @@ class SqliteMetadataStoreTest {
         assertEquals(
                 true,
                 store.backedUpSince("serverconfig", BackupType.SERVER_CONFIG, now.minus(24, ChronoUnit.HOURS)));
+    }
+
+    @Test
+    void migrateLegacyRowsRewritesBashToolHumanReadableTypeAndSqliteDatetimeTimestamps(@TempDir Path workDir)
+            throws IOException, SQLException {
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+        try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
+            // just to create the schema
+        }
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('full-20260101120000', '2026-01-01 12:00:00', '2026-01-01 12:05:00', "
+                            + "'10M', 'Full Account', 'FINISHED')");
+            statement.execute(
+                    "insert into backup_account(sessionID, account_size, email, initial_date, conclusion_date) "
+                            + "values ('full-20260101120000', '10M', 'user@example.com', '2026-01-01 12:00:00', "
+                            + "'2026-01-01 12:05:00')");
+        }
+
+        try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
+            int converted = store.migrateLegacyRows();
+
+            assertEquals(2, converted);
+            BackupSession session = store.findSession("full-20260101120000").orElseThrow();
+            assertEquals(BackupType.FULL, session.type());
+            assertEquals(Instant.parse("2026-01-01T12:00:00Z"), session.startedAt());
+            assertEquals(Instant.parse("2026-01-01T12:05:00Z"), session.completedAt());
+            BackupAccountRecord account = store.findAccountsForSession("full-20260101120000").get(0);
+            assertEquals(Instant.parse("2026-01-01T12:00:00Z"), account.startedAt());
+            assertEquals(Instant.parse("2026-01-01T12:05:00Z"), account.completedAt());
+
+            assertEquals(0, store.migrateLegacyRows());
+        }
+    }
+
+    @Test
+    void migrateLegacyRowsDerivesTypeFromSessionIdWhenColumnIsUnrecognized(@TempDir Path workDir)
+            throws IOException, SQLException {
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+        try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
+            // just to create the schema
+        }
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('mbox-20260101120000', '2026-01-01T12:00:00Z', null, "
+                            + "'1M', 'Mailbox', 'IN PROGRESS')");
+        }
+
+        try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
+            store.migrateLegacyRows();
+
+            assertEquals(BackupType.MAILBOX, store.findSession("mbox-20260101120000").orElseThrow().type());
+        }
+    }
+
+    @Test
+    void mapSessionSurfacesAClearErrorForAnUnnormalizedLegacyRow(@TempDir Path workDir)
+            throws IOException, SQLException {
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+        try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
+            // just to create the schema
+        }
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('full-20260101120000', '2026-01-01 12:00:00', null, "
+                            + "'10M', 'Full Account', 'FINISHED')");
+        }
+
+        try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
+            IOException e = assertThrows(IOException.class, () -> store.findSession("full-20260101120000"));
+
+            assertTrue(e.getMessage().contains("full-20260101120000"));
+            assertTrue(e.getMessage().contains("zmbackup migrate"));
+        }
     }
 
     @Test

@@ -4,6 +4,14 @@ function migrate_legacy_sessions() {
   if [[ -f "$OSE_DEFAULT_BKP_DIR/sessions.txt" ]]; then
     echo "Found an existing sessions.txt - migrating it into the SQLite metadata store..."
     sudo -H -u "$OSE_USER" bash -c "zmbackup migrate"
+    echo ""
+    echo "IMPORTANT - before your first backup with this Java build:"
+    echo "  - Never run the 1.2.x bash tool and this build against the same backup directory at the"
+    echo "    same time - there is no cross-tool locking between them. Cut cron over atomically."
+    echo "  - This build enforces LDAP/REST TLS certificate validation the bash tool never did. If"
+    echo "    your Zimbra install uses a self-signed certificate, set zimbraLdap.caCertificatePath"
+    echo "    (and zimbraMailbox.caCertificatePath) in zmbackup.yaml before running a real backup,"
+    echo "    or the connection will simply refuse to start."
   fi
 }
 
@@ -75,13 +83,18 @@ function deploy_upgrade_java() {
 }
 
 function truncate_database() {
-  printf "Also empty the backup metadata database (sessions.sqlite3)? This only makes sense for a "
-  printf "\ntest/development install being torn down - it is irreversible and must NEVER be used on "
-  printf "\na production server. [y/N]"
+  printf "Also empty the backup metadata database (sessions.sqlite3)? This PERMANENTLY DELETES every "
+  printf "\nbackup session/account record and CANNOT be undone. Backup files under workDir are NOT "
+  printf "\ndeleted by this, but without their metadata zmbackup can no longer list or restore them - "
+  printf "\nthey become unusable through this tool. This only makes sense for a test/development "
+  printf "\ninstall being torn down and must NEVER be used on a production server.\n"
+  printf "Type TRUNCATE (all caps) to confirm, or press Enter to skip: "
   read -r OPT
-  if [[ $OPT == 'y' || $OPT == 'Y' ]]; then
+  if [[ $OPT == 'TRUNCATE' ]]; then
     echo "Truncating the backup metadata database..."
     sudo -H -u "$OSE_USER" bash -c "zmbackup truncate --force-clean"
+  else
+    echo "Skipping database truncation."
   fi
 }
 
