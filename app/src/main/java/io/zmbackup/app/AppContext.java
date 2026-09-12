@@ -85,6 +85,7 @@ public final class AppContext {
         this.config = config;
         installLogging(config.backup().logFile());
         checkInsecureSettings(config);
+        checkAdminCredentialTemplating(config);
         this.storageProvider = buildStorageProvider(config);
         MetadataStore builtMetadataStore = buildMetadataStore(config);
         this.metadataStore = builtMetadataStore;
@@ -214,6 +215,26 @@ public final class AppContext {
                     config,
                     "metadata.dynamodb.endpointOverride does not use https://: DynamoDB requests will be sent in"
                             + " cleartext. Configure an https:// endpoint for production use.");
+        }
+    }
+
+    private static void checkAdminCredentialTemplating(AppConfig config) {
+        if (config.zimbraMailbox().adminUser().equals(config.zimbraMailbox().backupUser())) {
+            LOG.warn(
+                    "zimbraMailbox.adminUser ('{}') is the same value as zimbraMailbox.backupUser: this is the"
+                            + " exact pre-#407 mistemplating bug (adminUser wrongly templated from the OS service"
+                            + " account instead of a real Zimbra admin address) and every mailbox export/restore"
+                            + " will fail with a REST 401. Set zimbraMailbox.adminUser to a real admin@<domain>"
+                            + " account if this was not intentional.",
+                    config.zimbraMailbox().adminUser());
+        }
+        if (config.zimbraMailbox().adminPassword().equals(config.zimbraLdap().bindPassword())) {
+            LOG.warn(
+                    "zimbraMailbox.adminPassword is the same value as zimbraLdap.bindPassword: this is the exact"
+                            + " pre-#407 mistemplating bug (adminPassword wrongly templated from the LDAP bind"
+                            + " password) and every mailbox export/restore will fail with a REST 401. Set"
+                            + " zimbraMailbox.adminPassword to the real Zimbra admin account's own password if"
+                            + " this was not intentional.");
         }
     }
 

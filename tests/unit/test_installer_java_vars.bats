@@ -86,3 +86,7 @@ setup() {
 @test "vars: TERM is set to linux" {
   [ "$TERM" = "linux" ]
 }
+
+@test "vars: OSE_INSTALL_ADDRESS extracts only the resolved address from GNU-style ping output" {
+  [ "$OSE_INSTALL_ADDRESS" = "192.168.1.1" ]
+}

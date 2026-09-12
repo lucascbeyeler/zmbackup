@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.AppenderBase;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.zmbackup.app.config.AppConfig;
@@ -34,9 +36,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 
 class AppContextTest {
 
@@ -242,6 +247,88 @@ class AppContextTest {
         ConfigException exception = assertThrows(ConfigException.class, () -> new AppContext(config));
 
         assertTrue(exception.getMessage().startsWith("storage.s3.endpointOverride"));
+    }
+
+    @Test
+    void warnsWhenAdminUserIsTheSameValueAsBackupUser() throws IOException {
+        AppConfig config = configWithAdminCredentials(tempDir, System.getProperty("user.name"), "different-secret");
+        List<String> warnings = captureAppContextWarnings(() -> new AppContext(config));
+
+        assertTrue(warnings.stream().anyMatch(message -> message.contains("zimbraMailbox.adminUser")
+                && message.contains("zimbraMailbox.backupUser")));
+    }
+
+    @Test
+    void warnsWhenAdminPasswordIsTheSameValueAsLdapBindPassword() throws IOException {
+        AppConfig config = configWithAdminCredentials(tempDir, "zimbra", "secret");
+        List<String> warnings = captureAppContextWarnings(() -> new AppContext(config));
+
+        assertTrue(warnings.stream().anyMatch(message -> message.contains("zimbraMailbox.adminPassword")
+                && message.contains("zimbraLdap.bindPassword")));
+    }
+
+    @Test
+    void doesNotWarnWhenAdminCredentialsDifferFromBackupUserAndBindPassword() throws IOException {
+        AppConfig config = configWithAdminCredentials(tempDir, "zimbra", "different-secret");
+        List<String> warnings = captureAppContextWarnings(() -> new AppContext(config));
+
+        assertTrue(warnings.stream().noneMatch(message -> message.contains("mistemplating")));
+    }
+
+    private interface ThrowingRunnable {
+        void run() throws IOException;
+    }
+
+    private static List<String> captureAppContextWarnings(ThrowingRunnable action) throws IOException {
+        List<String> messages = new ArrayList<>();
+        AppenderBase<ILoggingEvent> appender = new AppenderBase<>() {
+            @Override
+            protected void append(ILoggingEvent event) {
+                messages.add(event.getFormattedMessage());
+            }
+        };
+        appender.start();
+        ch.qos.logback.classic.Logger logger =
+                (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(AppContext.class);
+        logger.addAppender(appender);
+        try {
+            action.run();
+        } finally {
+            logger.detachAppender(appender);
+        }
+        return messages;
+    }
+
+    private static AppConfig configWithAdminCredentials(Path workDir, String adminUser, String adminPassword) {
+        return new AppConfig(
+                new ZimbraLdapConfig(
+                        "ldap://127.0.0.1:389", "uid=zimbra,cn=admins,cn=zimbra", "secret", true, null, false, 600),
+                new ZimbraMailboxConfig(
+                        System.getProperty("user.name"),
+                        true,
+                        "https://127.0.0.1:7071",
+                        adminUser,
+                        adminPassword,
+                        null,
+                        false),
+                new BackupConfig(
+                        workDir,
+                        workDir,
+                        workDir.resolve("zmbackup.log"),
+                        workDir.resolve("blockedlist.conf"),
+                        3,
+                        30,
+                        true,
+                        new EmailNotifyConfig(
+                                EmailNotifyLevel.ALL,
+                                "admin@example.com",
+                                "root@example.com",
+                                EmailNotifyConfig.DEFAULT_SMTP_HOST,
+                                EmailNotifyConfig.DEFAULT_SMTP_PORT)),
+                LOCAL_STORAGE,
+                SQLITE_METADATA,
+                DEFAULT_SERVER_CONFIG,
+                false);
     }
 
     private static AppConfig configWithCloudBackends(Path workDir, URI endpointOverride, boolean allowInsecure) {

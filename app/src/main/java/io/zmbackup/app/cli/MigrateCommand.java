@@ -11,7 +11,10 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParentCommand;
 import picocli.CommandLine.Spec;
 
-@Command(name = "migrate", description = "Import a bash-tool sessions.txt into the SQLite metadata store.")
+@Command(
+        name = "migrate",
+        description = "Import a bash-tool sessions.txt, and/or normalize a pre-existing bash-tool"
+                + " SESSION_TYPE=SQLITE3 database, into the SQLite metadata store.")
 public final class MigrateCommand implements Callable<Integer> {
 
     private static final String SESSIONS_TXT = "sessions.txt";
@@ -31,8 +34,17 @@ public final class MigrateCommand implements Callable<Integer> {
         return LockedExecution.run(parent.configFile(), err, context -> {
             Path workDir = context.config().backup().workDir();
             Path sessionsTxt = workDir.resolve(SESSIONS_TXT);
+
+            int normalized = context.metadataStore().migrateLegacyRows();
+            if (normalized > 0) {
+                out.println("Normalized " + normalized + " legacy backup_session/backup_account row(s) written by"
+                        + " the bash tool's SESSION_TYPE=SQLITE3 writer.");
+            }
+
             if (!Files.exists(sessionsTxt)) {
-                out.println("No " + SESSIONS_TXT + " found in " + workDir + " - nothing to migrate.");
+                if (normalized == 0) {
+                    out.println("No " + SESSIONS_TXT + " found in " + workDir + " - nothing to migrate.");
+                }
                 return 0;
             }
 

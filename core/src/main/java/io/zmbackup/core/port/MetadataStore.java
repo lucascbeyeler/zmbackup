@@ -33,6 +33,10 @@ public interface MetadataStore {
 
     default void vacuum() throws IOException {}
 
+    default int migrateLegacyRows() throws IOException {
+        return 0;
+    }
+
     default boolean supportsSelfBackup() {
         return false;
     }
