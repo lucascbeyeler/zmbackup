@@ -102,10 +102,10 @@ class HousekeepCommandTest {
         cmd.setOut(new PrintWriter(out));
         cmd.setErr(new PrintWriter(err));
 
-        try (PidLock lock = PidLock.acquire(tempDir)) {
+        try (PidLock lock = PidLock.acquire(tempDir, "full")) {
             int exitCode = cmd.execute("--config", configFile.toString(), "housekeep");
 
-            assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
+            assertEquals(LockedExecution.LOCK_CONTENTION_EXIT_CODE, exitCode);
             assertTrue(err.toString().contains("already running"));
         }
     }

@@ -45,6 +45,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -54,6 +56,9 @@ public final class AppContext {
     private static final String METADATA_STORE_FILENAME = "sessions.sqlite3";
 
     private static final Duration DYNAMODB_LOCK_LEASE = Duration.ofHours(24);
+
+    public static final List<String> ALL_LOCK_RESOURCES =
+            Arrays.stream(BackupType.values()).map(BackupType::sessionPrefix).toList();
 
     private static final Notifier NO_NOTIFIER = new Notifier() {
         @Override
@@ -159,12 +164,16 @@ public final class AppContext {
     }
 
     public static RunLock acquireRunLock(AppConfig config) throws IOException {
+        return acquireRunLock(config, ALL_LOCK_RESOURCES);
+    }
+
+    public static RunLock acquireRunLock(AppConfig config, List<String> lockResources) throws IOException {
         if (config.metadata().backend() == MetadataBackend.DYNAMODB) {
             DynamoDbConfig dynamodb = config.metadata().dynamodb();
             return DynamoDBLock.acquire(
                     dynamodb.region(), dynamodb.lockTable(), dynamodb.endpointOverride(), DYNAMODB_LOCK_LEASE);
         }
-        return PidLock.acquire(config.backup().metadataDir());
+        return PidLock.acquireForResources(config.backup().metadataDir(), lockResources);
     }
 
     private static void checkBackupUser(AppConfig config) {

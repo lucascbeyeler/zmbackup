@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.sdk.Attribute;
+import io.zmbackup.app.PidLock;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -269,6 +270,43 @@ class BackupCommandTest {
     }
 
     @Test
+    void ldapBackupFailsWhenAnotherLdapBackupHoldsTheLock() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        try (PidLock lock = PidLock.acquire(tempDir, "ldap")) {
+            int exitCode = cmd.execute("--config", configFile.toString(), "backup", "ldap");
+
+            assertEquals(LockedExecution.LOCK_CONTENTION_EXIT_CODE, exitCode);
+            assertTrue(err.toString().contains("already running"));
+        }
+    }
+
+    @Test
+    void mailboxBackupSucceedsWhileANonConflictingLdapBackupHoldsTheLock() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"));
+        startMailboxServer("/service/home/alice@example.com/", 200, "tgz-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        try (PidLock lock = PidLock.acquire(tempDir, "ldap")) {
+            int exitCode = cmd.execute("--config", configFile.toString(), "backup", "mailbox");
+
+            assertEquals(0, exitCode);
+            assertTrue(out.toString().contains("FINISHED"));
+        }
+    }
+
+    @Test
     void aliasBacksUpExplicitAlias() throws Exception {
         directoryServer = startDirectoryServer();
         directoryServer.add(
@@ -333,6 +371,44 @@ class BackupCommandTest {
         String sessionId = "distlist-" + sessionSuffixOf(out, "distlist-");
         assertTrue(Files.exists(tempDir.resolve(sessionId + "/sales@other.com.ldiff")));
         assertTrue(Files.notExists(tempDir.resolve(sessionId + "/engineering@example.com.ldiff")));
+    }
+
+    @Test
+    void distlistWithRepeatedDomainOptionRestrictsDiscoveryToEveryGivenDomain() throws Exception {
+        directoryServer = startDirectoryServer();
+        directoryServer.add(
+                "cn=engineering,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraDistributionList"),
+                new Attribute("cn", "engineering"),
+                new Attribute("mail", "engineering@example.com"));
+        directoryServer.add(
+                "dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDomain"),
+                new Attribute("dc", "other"),
+                new Attribute("zimbraDomainName", "other.com"));
+        directoryServer.add(
+                "cn=sales,dc=other,dc=com",
+                new Attribute("objectClass", "zimbraDistributionList"),
+                new Attribute("cn", "sales"),
+                new Attribute("mail", "sales@other.com"));
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute(
+                "--config",
+                configFile.toString(),
+                "backup",
+                "distlist",
+                "--domain",
+                "example.com",
+                "--domain",
+                "other.com");
+
+        assertEquals(0, exitCode);
+        String sessionId = "distlist-" + sessionSuffixOf(out, "distlist-");
+        assertTrue(Files.exists(tempDir.resolve(sessionId + "/sales@other.com.ldiff")));
+        assertTrue(Files.exists(tempDir.resolve(sessionId + "/engineering@example.com.ldiff")));
     }
 
     @Test

@@ -11,7 +11,8 @@ import picocli.CommandLine.Spec;
 
 @Command(
         name = "truncate",
-        description = "Empty the backup metadata database. TEST/DEV USE ONLY - never run this against production.")
+        description = "Empty the backup metadata database only - backup files on disk are left untouched. "
+                + "TEST/DEV USE ONLY - never run this against production.")
 public final class TruncateCommand implements Callable<Integer> {
 
     @ParentCommand

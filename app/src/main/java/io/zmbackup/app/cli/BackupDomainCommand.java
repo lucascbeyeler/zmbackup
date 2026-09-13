@@ -10,7 +10,7 @@ import picocli.CommandLine.Option;
 public final class BackupDomainCommand extends AbstractBackupCommand {
 
     @Option(names = "--domain", description = "Back up only this domain (repeatable); default: every domain.")
-    private List<String> domains = new ArrayList<>();
+    private List<String> domainIdentifiers = new ArrayList<>();
 
     @Override
     BackupType type() {
@@ -19,11 +19,11 @@ public final class BackupDomainCommand extends AbstractBackupCommand {
 
     @Override
     List<String> identifiers() {
-        return domains;
+        return domainIdentifiers;
     }
 
     @Override
-    String domain() {
-        return null;
+    List<String> domains() {
+        return List.of();
     }
 }

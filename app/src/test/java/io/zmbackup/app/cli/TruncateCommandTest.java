@@ -62,10 +62,10 @@ class TruncateCommandTest {
         StringWriter err = new StringWriter();
         CommandLine cmd = commandLine(out, err);
 
-        try (PidLock lock = PidLock.acquire(tempDir)) {
+        try (PidLock lock = PidLock.acquire(tempDir, "full")) {
             int exitCode = cmd.execute("--config", configFile.toString(), "truncate", "--force-clean");
 
-            assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
+            assertEquals(LockedExecution.LOCK_CONTENTION_EXIT_CODE, exitCode);
             assertTrue(err.toString().contains("already running"));
             assertFalse(
                     Files.exists(tempDir.resolve("sessions.sqlite3")),

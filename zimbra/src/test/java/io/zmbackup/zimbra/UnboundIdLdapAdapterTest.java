@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.listener.InMemoryListenerConfig;
+import com.unboundid.ldap.listener.interceptor.InMemoryInterceptedAddRequest;
 import com.unboundid.ldap.listener.interceptor.InMemoryInterceptedDeleteRequest;
 import com.unboundid.ldap.listener.interceptor.InMemoryOperationInterceptor;
 import com.unboundid.ldap.sdk.Attribute;
@@ -473,6 +474,45 @@ class UnboundIdLdapAdapterTest {
 
         Entry stillPresent = directoryServer.getEntry("uid=alice,dc=example,dc=com");
         assertEquals("stale", stillPresent.getAttributeValue("description"));
+    }
+
+    @Test
+    void restoreReAddsOriginalEntryWhenTheReplacementAddFails() throws Exception {
+        directoryServer = startDirectoryServerWithInterceptor(new InMemoryOperationInterceptor() {
+            @Override
+            public void processAddRequest(InMemoryInterceptedAddRequest request) throws LDAPException {
+                Attribute description = request.getRequest().getAttribute("description");
+                if (request.getRequest().getDN().equals("uid=alice,dc=example,dc=com")
+                        && description != null
+                        && "corrupt".equals(description.getValue())) {
+                    throw new LDAPException(ResultCode.UNWILLING_TO_PERFORM, "simulated add failure");
+                }
+            }
+        });
+        directoryServer.add(
+                "uid=alice,dc=example,dc=com",
+                new Attribute("objectClass", "zimbraAccount"),
+                new Attribute("uid", "alice"),
+                new Attribute("zimbraMailDeliveryAddress", "alice@example.com"),
+                new Attribute("mail", "alice@example.com"),
+                new Attribute("description", "original"));
+        adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(), BIND_DN, BIND_PASSWORD, false, null, false, true);
+        String ldif =
+                "dn: uid=alice,dc=example,dc=com\n"
+                        + "objectClass: zimbraAccount\n"
+                        + "uid: alice\n"
+                        + "zimbraMailDeliveryAddress: alice@example.com\n"
+                        + "mail: alice@example.com\n"
+                        + "description: corrupt\n";
+
+        assertThrows(
+                IOException.class,
+                () -> adapter.restore(
+                        LdapObjectType.ACCOUNT, new ByteArrayInputStream(ldif.getBytes(StandardCharsets.UTF_8))));
+
+        Entry reAdded = directoryServer.getEntry("uid=alice,dc=example,dc=com");
+        assertEquals("original", reAdded.getAttributeValue("description"));
     }
 
     @Test

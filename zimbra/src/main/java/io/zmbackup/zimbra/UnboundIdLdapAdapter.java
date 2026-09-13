@@ -37,11 +37,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.GeneralSecurityException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 
 public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporter, Closeable {
 
@@ -170,14 +172,37 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
         Entry entry = readEntry(source);
         try {
             LDAPConnectionPool connectionPool = pool();
+            Entry replaced = fetchEntry(connectionPool, entry.getDN());
             deleteRecursively(connectionPool, entry.getDN());
-            connectionPool.add(entry);
-        } catch (LDAPException e) {
-            if (e.getResultCode() == ResultCode.ENTRY_ALREADY_EXISTS) {
-                return;
+            try {
+                connectionPool.add(entry);
+            } catch (LDAPException addFailure) {
+                if (addFailure.getResultCode() == ResultCode.ENTRY_ALREADY_EXISTS) {
+                    return;
+                }
+                if (replaced != null) {
+                    reAddBestEffort(connectionPool, replaced);
+                }
+                throw addFailure;
             }
+        } catch (LDAPException e) {
             throw new IOException(
                     "Failed to restore " + entry.getDN() + " to Zimbra LDAP at " + host + ":" + port, e);
+        }
+    }
+
+    private static Entry fetchEntry(LDAPConnectionPool connectionPool, String dn) {
+        try {
+            return connectionPool.getEntry(dn);
+        } catch (LDAPException e) {
+            return null;
+        }
+    }
+
+    private static void reAddBestEffort(LDAPConnectionPool connectionPool, Entry entry) {
+        try {
+            connectionPool.add(entry);
+        } catch (LDAPException ignored) {
         }
     }
 
@@ -280,8 +305,28 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
             if (connection != null) {
                 connection.close();
             }
-            throw new IOException("Failed to connect to Zimbra LDAP at " + host + ":" + port, e);
+            throw new IOException(connectFailureMessage(e), e);
         }
+    }
+
+    private String connectFailureMessage(Throwable failure) {
+        if (!isCertificateValidationFailure(failure)) {
+            return "Failed to connect to Zimbra LDAP at " + host + ":" + port;
+        }
+        return "Failed to connect to Zimbra LDAP at " + host + ":" + port + ": TLS certificate validation failed."
+                + " If this server uses a self-signed certificate - the common case when migrating from the 1.2"
+                + " bash tool, which always trusted the LDAP server certificate unconditionally - configure"
+                + " zimbraLdap.caCertificatePath, or set zimbraLdap.trustAllCertificates: true (and"
+                + " allowInsecure: true) to opt back into that behavior.";
+    }
+
+    private static boolean isCertificateValidationFailure(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CertificateException || cause instanceof SSLHandshakeException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private LDAPConnectionPool pool() throws IOException {
@@ -305,7 +350,7 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
                     startTls ? new StartTLSPostConnectProcessor(startTlsSslContext()) : null;
             return new LDAPConnectionPool(serverSet, bindRequest, 1, MAX_POOL_CONNECTIONS, postConnectProcessor);
         } catch (LDAPException | GeneralSecurityException e) {
-            throw new IOException("Failed to connect to Zimbra LDAP at " + host + ":" + port, e);
+            throw new IOException(connectFailureMessage(e), e);
         }
     }
 

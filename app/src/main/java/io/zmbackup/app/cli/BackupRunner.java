@@ -20,16 +20,16 @@ final class BackupRunner {
             PrintWriter err,
             BackupType type,
             List<String> identifiers,
-            String domain,
+            List<String> domains,
             boolean force)
             throws IOException {
         boolean valid = type == BackupType.DOMAIN
                 ? CliValidation.validateDomains(identifiers, err)
-                : CliValidation.validateEmails(identifiers, err) && CliValidation.validateDomain(domain, err);
+                : CliValidation.validateEmails(identifiers, err) && CliValidation.validateDomains(domains, err);
         if (!valid) {
             return CommandLine.ExitCode.USAGE;
         }
-        Optional<BackupSession> result = context.backupService().backup(type, identifiers, domain, force);
+        Optional<BackupSession> result = context.backupService().backup(type, identifiers, domains, force);
         if (result.isEmpty()) {
             out.println("Nothing found to back up for " + type.sessionPrefix() + ".");
             return 0;
