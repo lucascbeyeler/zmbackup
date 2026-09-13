@@ -87,8 +87,8 @@ class AppContextTest {
 
             assertTrue(Files.exists(metadataDir.resolve("sessions.sqlite3")));
             assertFalse(Files.exists(workDir.resolve("sessions.sqlite3")));
-            assertTrue(Files.exists(metadataDir.resolve("zmbackup.pid")));
-            assertFalse(Files.exists(workDir.resolve("zmbackup.pid")));
+            assertTrue(Files.exists(metadataDir.resolve("zmbackup-full.pid")));
+            assertFalse(Files.exists(workDir.resolve("zmbackup-full.pid")));
         }
     }
 

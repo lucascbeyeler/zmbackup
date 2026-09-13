@@ -26,20 +26,21 @@ abstract class AbstractBackupCommand implements Callable<Integer> {
 
     abstract List<String> identifiers();
 
-    abstract String domain();
+    abstract List<String> domains();
 
     @Override
     public final Integer call() throws Exception {
         return LockedExecution.run(
                 parent.parent().configFile(),
                 spec.commandLine().getErr(),
+                type().conflictingSessionPrefixes(),
                 context -> BackupRunner.run(
                         context,
                         spec.commandLine().getOut(),
                         spec.commandLine().getErr(),
                         type(),
                         identifiers(),
-                        domain(),
+                        domains(),
                         force));
     }
 }

@@ -101,10 +101,26 @@ class BackupServiceTest {
                 Map.entry(LdapObjectType.DISTRIBUTION_LIST, "example.com"), List.of("list@example.com"));
 
         Optional<BackupSession> result =
-                backupService.backup(BackupType.DISTRIBUTION_LIST, List.of(), "example.com");
+                backupService.backup(BackupType.DISTRIBUTION_LIST, List.of(), List.of("example.com"));
 
         assertTrue(result.isPresent());
         assertEquals(1, metadataStore.findAccountsForSession(result.get().sessionId()).size());
+    }
+
+    @Test
+    void scopesDiscoveryToMultipleDomainsWhenGiven() throws IOException {
+        accountDiscovery.byDomain.put(
+                Map.entry(LdapObjectType.ACCOUNT, "example.com"), List.of("alice@example.com"));
+        accountDiscovery.byDomain.put(
+                Map.entry(LdapObjectType.ACCOUNT, "other.com"), List.of("carol@other.com"));
+
+        Optional<BackupSession> result =
+                backupService.backup(BackupType.LDAP, List.of(), List.of("example.com", "other.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com", "carol@other.com"),
+                namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
     }
 
     @Test
@@ -166,7 +182,7 @@ class BackupServiceTest {
         Optional<BackupSession> second = lockingService.backup(BackupType.SERVER_CONFIG);
         assertTrue(second.isEmpty());
 
-        Optional<BackupSession> forced = lockingService.backup(BackupType.SERVER_CONFIG, List.of(), null, true);
+        Optional<BackupSession> forced = lockingService.backup(BackupType.SERVER_CONFIG, List.of(), List.of(), true);
         assertTrue(forced.isPresent());
         assertEquals(2, serverConfigArchiver.exportCount);
     }
@@ -219,7 +235,7 @@ class BackupServiceTest {
         Optional<BackupSession> second = lockingService.backup(BackupType.SELF);
         assertTrue(second.isEmpty());
 
-        Optional<BackupSession> forced = lockingService.backup(BackupType.SELF, List.of(), null, true);
+        Optional<BackupSession> forced = lockingService.backup(BackupType.SELF, List.of(), List.of(), true);
         assertTrue(forced.isPresent());
         assertEquals(2, metadataStore.selfBackupExportCount);
     }
@@ -311,7 +327,7 @@ class BackupServiceTest {
                 .maxParallelProcesses(1)
                 .build();
 
-        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of(), "example.com");
+        Optional<BackupSession> result = blocklisted.backup(BackupType.LDAP, List.of(), List.of("example.com"));
 
         assertTrue(result.isPresent());
         assertEquals(
@@ -429,7 +445,7 @@ class BackupServiceTest {
                 .lockBackup(true)
                 .build();
 
-        Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP, List.of(), null, true);
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.LDAP, List.of(), List.of(), true);
 
         assertTrue(result.isPresent());
         assertEquals(

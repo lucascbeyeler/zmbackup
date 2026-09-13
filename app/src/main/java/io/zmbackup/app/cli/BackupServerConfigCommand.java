@@ -21,7 +21,7 @@ public final class BackupServerConfigCommand extends AbstractBackupCommand {
     }
 
     @Override
-    String domain() {
-        return null;
+    List<String> domains() {
+        return List.of();
     }
 }

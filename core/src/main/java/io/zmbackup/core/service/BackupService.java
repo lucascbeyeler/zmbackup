@@ -22,9 +22,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -178,21 +180,21 @@ public class BackupService {
     }
 
     public Optional<BackupSession> backup(BackupType type) throws IOException {
-        return backup(type, List.of(), null, false);
+        return backup(type, List.of(), List.of(), false);
     }
 
     public Optional<BackupSession> backup(BackupType type, List<String> identifiers) throws IOException {
-        return backup(type, identifiers, null, false);
+        return backup(type, identifiers, List.of(), false);
     }
 
-    public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain)
+    public Optional<BackupSession> backup(BackupType type, List<String> identifiers, List<String> domains)
             throws IOException {
-        return backup(type, identifiers, domain, false);
+        return backup(type, identifiers, domains, false);
     }
 
-    public Optional<BackupSession> backup(BackupType type, List<String> identifiers, String domain, boolean force)
-            throws IOException {
-        List<String> resolved = resolveIdentifiers(type, identifiers, domain, force);
+    public Optional<BackupSession> backup(
+            BackupType type, List<String> identifiers, List<String> domains, boolean force) throws IOException {
+        List<String> resolved = resolveIdentifiers(type, identifiers, domains, force);
         if (resolved.isEmpty()) {
             return Optional.empty();
         }
@@ -335,8 +337,8 @@ public class BackupService {
         }
     }
 
-    private List<String> resolveIdentifiers(BackupType type, List<String> identifiers, String domain, boolean force)
-            throws IOException {
+    private List<String> resolveIdentifiers(
+            BackupType type, List<String> identifiers, List<String> domains, boolean force) throws IOException {
         if (type == BackupType.SERVER_CONFIG) {
             return filterAlreadyBackedUpToday(
                     type, filterBlocked(List.of(SERVER_CONFIG_IDENTIFIER)), force);
@@ -357,11 +359,17 @@ public class BackupService {
             discovered = accountDiscovery.listDomains();
         } else {
             objectType = objectTypeFor(type);
-            discovered = domain == null
-                    ? accountDiscovery.discover(objectType)
-                    : accountDiscovery.discoverForDomain(objectType, domain);
+            discovered = domains.isEmpty() ? accountDiscovery.discover(objectType) : discoverForDomains(objectType, domains);
         }
         return filterAlreadyBackedUpToday(type, filterBlocked(filterMalformed(objectType, discovered)), force);
+    }
+
+    private List<String> discoverForDomains(LdapObjectType objectType, List<String> domains) throws IOException {
+        Set<String> merged = new LinkedHashSet<>();
+        for (String domain : domains) {
+            merged.addAll(accountDiscovery.discoverForDomain(objectType, domain));
+        }
+        return new ArrayList<>(merged);
     }
 
     private List<String> filterMalformed(LdapObjectType objectType, List<String> identifiers) {

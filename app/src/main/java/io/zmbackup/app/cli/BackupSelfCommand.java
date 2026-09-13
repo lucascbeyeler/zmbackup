@@ -21,7 +21,7 @@ public final class BackupSelfCommand extends AbstractBackupCommand {
     }
 
     @Override
-    String domain() {
-        return null;
+    List<String> domains() {
+        return List.of();
     }
 }

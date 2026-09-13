@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 
@@ -149,6 +150,8 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while exporting mailbox for " + account, e);
+        } catch (IOException e) {
+            throw enrichIfCertificateFailure(e);
         }
 
         try (InputStream body = response.body()) {
@@ -178,6 +181,8 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while restoring mailbox for " + account, e);
+        } catch (IOException e) {
+            throw enrichIfCertificateFailure(e);
         }
 
         if (response.statusCode() / 100 != 2) {
@@ -207,6 +212,22 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
         } catch (URISyntaxException e) {
             throw new IOException("Invalid Zimbra REST URL for " + account, e);
         }
+    }
+
+    private IOException enrichIfCertificateFailure(IOException failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CertificateException || cause instanceof SSLHandshakeException) {
+                return new IOException(
+                        "Failed to reach Zimbra mailbox REST at " + baseUri + ": TLS certificate validation"
+                                + " failed. If this server uses a self-signed certificate - the common case when"
+                                + " migrating from the 1.2 bash tool, which always trusted it via a JVM-wide"
+                                + " truststore import - configure zimbraMailbox.caCertificatePath, or set"
+                                + " zimbraMailbox.trustAllCertificates: true (and allowInsecure: true) to opt back"
+                                + " into that behavior.",
+                        failure);
+            }
+        }
+        return failure;
     }
 
     private String basicAuthHeader() {
