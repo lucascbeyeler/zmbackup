@@ -85,7 +85,7 @@ class DynamoDBMetadataStoreTest {
                         + "\"status\":{\"S\":\"FINISHED\"},"
                         + "\"initialDate\":{\"S\":\"2026-01-01T12:00:00Z\"},"
                         + "\"conclusionDate\":{\"S\":\"2026-01-01T13:00:00Z\"},"
-                        + "\"size\":{\"S\":\"1.0M\"}"
+                        + "\"size\":{\"N\":\"1048576\"}"
                         + "}}");
 
         Optional<BackupSession> result = store().findSession("full-20260101120000");
@@ -93,7 +93,26 @@ class DynamoDBMetadataStoreTest {
         assertTrue(result.isPresent());
         assertEquals(BackupType.FULL, result.get().type());
         assertEquals(SessionStatus.FINISHED, result.get().status());
-        assertEquals("1.0M", result.get().size());
+        assertEquals(1048576L, result.get().size());
+    }
+
+    @Test
+    void findSessionFallsBackToParsingALegacyHumanReadableStringSizeAttribute() throws IOException {
+        stubTarget(
+                "GetItem",
+                "{\"Item\":{"
+                        + "\"sessionId\":{\"S\":\"full-20260101120000\"},"
+                        + "\"type\":{\"S\":\"full\"},"
+                        + "\"status\":{\"S\":\"FINISHED\"},"
+                        + "\"initialDate\":{\"S\":\"2026-01-01T12:00:00Z\"},"
+                        + "\"conclusionDate\":{\"S\":\"2026-01-01T13:00:00Z\"},"
+                        + "\"size\":{\"S\":\"1.0M\"}"
+                        + "}}");
+
+        Optional<BackupSession> result = store().findSession("full-20260101120000");
+
+        assertTrue(result.isPresent());
+        assertEquals(1048576L, result.get().size());
     }
 
     @Test
@@ -228,7 +247,7 @@ class DynamoDBMetadataStoreTest {
                 null,
                 "full-20260101120000",
                 "alice@example.com",
-                "1K",
+                1024L,
                 Instant.parse("2026-01-01T12:00:00Z"),
                 Instant.parse("2026-01-01T12:05:00Z"));
 
@@ -237,7 +256,25 @@ class DynamoDBMetadataStoreTest {
         wireMockServer.verify(postRequestedFor(anyPath())
                 .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem"))
                 .withRequestBody(containing("\"" + ACCOUNT_TABLE + "\""))
-                .withRequestBody(containing("alice@example.com")));
+                .withRequestBody(containing("alice@example.com"))
+                .withRequestBody(containing("\"accountSize\":{\"N\":\"1024\"}")));
+    }
+
+    @Test
+    void findAccountsForSessionFallsBackToParsingALegacyHumanReadableStringAccountSize() throws IOException {
+        wireMockServer.stubFor(post(anyPath())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.Query"))
+                .willReturn(jsonResponse("{\"Items\":[{"
+                        + "\"email\":{\"S\":\"alice@example.com\"},"
+                        + "\"sessionId\":{\"S\":\"full-20260101120000\"},"
+                        + "\"accountSize\":{\"S\":\"1K\"},"
+                        + "\"initialDate\":{\"S\":\"2026-01-01T11:00:00Z\"},"
+                        + "\"conclusionDate\":{\"S\":\"2026-01-01T12:00:00Z\"}}]}")));
+
+        List<BackupAccountRecord> records = store().findAccountsForSession("full-20260101120000");
+
+        assertEquals(1, records.size());
+        assertEquals(1024L, records.get(0).size());
     }
 
     @Test
@@ -392,7 +429,7 @@ class DynamoDBMetadataStoreTest {
     private static String accountItem(String sessionId, String email, String completedAt) {
         return "{\"email\":{\"S\":\"" + email + "\"},"
                 + "\"sessionId\":{\"S\":\"" + sessionId + "\"},"
-                + "\"accountSize\":{\"S\":\"1K\"},"
+                + "\"accountSize\":{\"N\":\"1024\"},"
                 + "\"initialDate\":{\"S\":\"2026-01-01T11:00:00Z\"},"
                 + "\"conclusionDate\":{\"S\":\"" + completedAt + "\"}}";
     }

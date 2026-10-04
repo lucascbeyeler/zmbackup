@@ -79,7 +79,7 @@ class HousekeepServiceTest {
         BackupSession session = session("ldap-full", Instant.now());
         metadataStore.save(session);
         metadataStore.recordAccountBackup(
-                new BackupAccountRecord(null, "ldap-full", "alice@example.com", "1K", Instant.now(), Instant.now()));
+                new BackupAccountRecord(null, "ldap-full", "alice@example.com", 1024L, Instant.now(), Instant.now()));
         storageProvider.content.put("ldap-full/alice@example.com.ldiff", new byte[] {1});
         storageProvider.content.put("ldap-full/bob@example.com.ldiff", new byte[0]);
 
@@ -114,7 +114,7 @@ class HousekeepServiceTest {
 
     private static BackupSession session(String sessionId, Instant completedAt) {
         return new BackupSession(
-                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, "1K");
+                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, 1024L);
     }
 
     private static final class InMemoryStorageProvider implements StorageProvider {
@@ -143,12 +143,12 @@ class HousekeepServiceTest {
         }
 
         @Override
-        public String sizeOfAccount(String sessionId, String account) {
+        public long sizeOfAccount(String sessionId, String account) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public String sizeOfSession(String sessionId) {
+        public long sizeOfSession(String sessionId) {
             throw new UnsupportedOperationException();
         }
 

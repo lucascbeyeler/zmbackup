@@ -74,7 +74,7 @@ class CloudMigrationServiceTest {
                 null,
                 "full-20260101120000",
                 "bob@example.com",
-                "1K",
+                1024L,
                 Instant.parse("2026-01-01T12:00:00Z"),
                 Instant.parse("2026-01-01T12:05:00Z")));
         sourceStorage.write("full-20260101120000", "bob@example.com", "ldiff", "bob-ldiff");
@@ -97,9 +97,9 @@ class CloudMigrationServiceTest {
                 SessionStatus.FINISHED,
                 Instant.parse("2026-01-01T12:00:00Z"),
                 Instant.parse("2026-01-01T12:05:00Z"),
-                "10M"));
+                10_000_000L));
         sourceMetadata.recordAccountBackup(new BackupAccountRecord(
-                null, sessionId, email, "1K", Instant.parse("2026-01-01T12:00:00Z"), Instant.parse(
+                null, sessionId, email, 1024L, Instant.parse("2026-01-01T12:00:00Z"), Instant.parse(
                         "2026-01-01T12:05:00Z")));
         if (ldiffContent != null) {
             sourceStorage.write(sessionId, email, "ldiff", ldiffContent);
@@ -150,12 +150,12 @@ class CloudMigrationServiceTest {
         }
 
         @Override
-        public String sizeOfAccount(String sessionId, String account) {
+        public long sizeOfAccount(String sessionId, String account) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public String sizeOfSession(String sessionId) {
+        public long sizeOfSession(String sessionId) {
             throw new UnsupportedOperationException();
         }
 

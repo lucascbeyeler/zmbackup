@@ -94,7 +94,7 @@ public final class MigrationService {
                 completedAt = null;
             }
 
-            String size = storageProvider.sizeOfSession(sessionId);
+            long size = storageProvider.sizeOfSession(sessionId);
             metadataStore.save(new BackupSession(sessionId, type, status, startedAt, completedAt, size));
             imported++;
 
@@ -108,7 +108,7 @@ public final class MigrationService {
                     continue;
                 }
                 Instant accountAt = parseAccountDate(accountLine[1], startedAt);
-                String accountSize = storageProvider.sizeOfAccount(sessionId, email);
+                long accountSize = storageProvider.sizeOfAccount(sessionId, email);
                 metadataStore.recordAccountBackup(
                         new BackupAccountRecord(null, sessionId, email, accountSize, accountAt, accountAt));
             }

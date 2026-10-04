@@ -2,6 +2,7 @@ package io.zmbackup.app.cli;
 
 import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.BackupSession;
+import io.zmbackup.core.domain.HumanReadableSize;
 import java.io.PrintWriter;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -42,7 +43,7 @@ public final class ListCommand implements Callable<Integer> {
                     session.sessionId(),
                     formatTimestamp(session.startedAt()),
                     formatTimestamp(session.completedAt()),
-                    session.size() == null ? "-" : session.size(),
+                    session.size() == null ? "-" : HumanReadableSize.format(session.size()),
                     session.type());
         }
         out.println(BORDER);

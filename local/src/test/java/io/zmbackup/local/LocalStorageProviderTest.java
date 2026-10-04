@@ -105,7 +105,7 @@ class LocalStorageProviderTest {
         write("session1", "user@example.com", "tgz", "b".repeat(1024));
         write("session1", "other@example.com", "ldiff", "c".repeat(4096));
 
-        assertEquals("2K", provider.sizeOfAccount("session1", "user@example.com"));
+        assertEquals(2048L, provider.sizeOfAccount("session1", "user@example.com"));
     }
 
     @Test
@@ -113,12 +113,12 @@ class LocalStorageProviderTest {
         write("session1", "alice@example.com", "ldiff", "a".repeat(1024));
         write("session1", "alice@example.com.au", "tgz", "b".repeat(4096));
 
-        assertEquals("1K", provider.sizeOfAccount("session1", "alice@example.com"));
+        assertEquals(1024L, provider.sizeOfAccount("session1", "alice@example.com"));
     }
 
     @Test
     void sizeOfAccountIsZeroWhenSessionDoesNotExist() throws IOException {
-        assertEquals("0B", provider.sizeOfAccount("missing-session", "user@example.com"));
+        assertEquals(0L, provider.sizeOfAccount("missing-session", "user@example.com"));
     }
 
     @Test
@@ -126,12 +126,12 @@ class LocalStorageProviderTest {
         write("session1", "user@example.com", "ldiff", "a".repeat(1024));
         write("session1", "other@example.com", "tgz", "b".repeat(1024));
 
-        assertEquals("2K", provider.sizeOfSession("session1"));
+        assertEquals(2048L, provider.sizeOfSession("session1"));
     }
 
     @Test
     void sizeOfSessionIsZeroWhenSessionDoesNotExist() throws IOException {
-        assertEquals("0B", provider.sizeOfSession("missing-session"));
+        assertEquals(0L, provider.sizeOfSession("missing-session"));
     }
 
     @Test

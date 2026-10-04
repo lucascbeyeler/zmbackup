@@ -14,9 +14,9 @@ public interface StorageProvider {
 
     boolean sessionExists(String sessionId) throws IOException;
 
-    String sizeOfAccount(String sessionId, String account) throws IOException;
+    long sizeOfAccount(String sessionId, String account) throws IOException;
 
-    String sizeOfSession(String sessionId) throws IOException;
+    long sizeOfSession(String sessionId) throws IOException;
 
     void deleteSession(String sessionId) throws IOException;
 

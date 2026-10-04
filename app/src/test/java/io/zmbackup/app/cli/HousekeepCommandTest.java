@@ -36,7 +36,7 @@ class HousekeepCommandTest {
         context.metadataStore().save(old);
         context.metadataStore()
                 .recordAccountBackup(
-                        new BackupAccountRecord(null, "ldap-old", "alice@example.com", "1K", now, now));
+                        new BackupAccountRecord(null, "ldap-old", "alice@example.com", 1024L, now, now));
         try (var writer = context.storageProvider().openWrite("ldap-old", "alice@example.com", "ldiff")) {
             writer.write("dn: uid=alice\n".getBytes());
         }
@@ -45,7 +45,7 @@ class HousekeepCommandTest {
         context.metadataStore().save(recent);
         context.metadataStore()
                 .recordAccountBackup(
-                        new BackupAccountRecord(null, "ldap-recent", "bob@example.com", "1K", now, now));
+                        new BackupAccountRecord(null, "ldap-recent", "bob@example.com", 1024L, now, now));
         context.storageProvider().openWrite("ldap-recent", "bob@example.com", "ldiff").close();
         context.storageProvider().openWrite("ldap-recent", "carol@example.com", "ldiff").close();
         try (var writer = context.storageProvider().openWrite("ldap-recent", "dan@example.com", "ldiff")) {
@@ -79,7 +79,7 @@ class HousekeepCommandTest {
         context.metadataStore().save(ghost);
         context.metadataStore()
                 .recordAccountBackup(
-                        new BackupAccountRecord(null, "ldap-ghost", "alice@example.com", "1K", now, now));
+                        new BackupAccountRecord(null, "ldap-ghost", "alice@example.com", 1024L, now, now));
 
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out);
@@ -112,7 +112,7 @@ class HousekeepCommandTest {
 
     private static BackupSession session(String sessionId, Instant completedAt) {
         return new BackupSession(
-                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, "1K");
+                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, 1024L);
     }
 
     private Path writeConfig(int rotateDays) throws IOException {

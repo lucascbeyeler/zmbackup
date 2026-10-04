@@ -46,7 +46,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void savedSessionCanBeFoundById() throws IOException {
-        BackupSession session = session("full-1", SessionStatus.FINISHED, "10M");
+        BackupSession session = session("full-1", SessionStatus.FINISHED, 10_485_760L);
 
         store.save(session);
 
@@ -62,7 +62,7 @@ class SqliteMetadataStoreTest {
     void saveReplacesExistingSessionWithSameId() throws IOException {
         store.save(session("full-1", SessionStatus.IN_PROGRESS, null));
 
-        BackupSession finished = session("full-1", SessionStatus.FINISHED, "10M");
+        BackupSession finished = session("full-1", SessionStatus.FINISHED, 10_485_760L);
         store.save(finished);
 
         assertEquals(Optional.of(finished), store.findSession("full-1"));
@@ -70,7 +70,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void listSessionsReturnsAllSavedSessions() throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
         store.save(session("full-2", SessionStatus.IN_PROGRESS, null));
 
         List<BackupSession> sessions = store.listSessions();
@@ -87,9 +87,9 @@ class SqliteMetadataStoreTest {
     void findSessionsCompletedBeforeReturnsOnlyOlderCompletedSessions() throws IOException {
         Instant now = Instant.now();
         store.save(new BackupSession(
-                "old", BackupType.FULL, SessionStatus.FINISHED, now.minus(2, ChronoUnit.DAYS), now.minus(1, ChronoUnit.DAYS), "1M"));
+                "old", BackupType.FULL, SessionStatus.FINISHED, now.minus(2, ChronoUnit.DAYS), now.minus(1, ChronoUnit.DAYS), 1_048_576L));
         store.save(new BackupSession(
-                "recent", BackupType.FULL, SessionStatus.FINISHED, now, now, "1M"));
+                "recent", BackupType.FULL, SessionStatus.FINISHED, now, now, 1_048_576L));
         store.save(session("in-progress", SessionStatus.IN_PROGRESS, null));
 
         List<BackupSession> before = store.findSessionsCompletedBefore(now.minus(1, ChronoUnit.HOURS));
@@ -100,7 +100,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void deleteSessionRemovesSessionAndItsAccountRecords() throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
         store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
 
         store.deleteSession("full-1");
@@ -116,7 +116,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void truncateRemovesEverySessionAndAccountRecordAndReturnsCount() throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
         store.save(session("full-2", SessionStatus.IN_PROGRESS, null));
         store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
 
@@ -134,7 +134,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void vacuumLeavesStoredDataIntact() throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
         store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
 
         store.vacuum();
@@ -155,7 +155,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void exportSelfBackupProducesAReadableSnapshotWithStoredDataIntact(@TempDir Path tempDir) throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
         store.recordAccountBackup(accountRecord("full-1", "user@example.com"));
 
         Path exported = tempDir.resolve("self-export.sqlite3");
@@ -172,7 +172,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void recordedAccountBackupCanBeFoundBySession() throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
         BackupAccountRecord record = accountRecord("full-1", "user@example.com");
 
         store.recordAccountBackup(record);
@@ -188,7 +188,7 @@ class SqliteMetadataStoreTest {
 
     @Test
     void findAccountsForSessionIsEmptyWhenSessionHasNoAccounts() throws IOException {
-        store.save(session("full-1", SessionStatus.FINISHED, "10M"));
+        store.save(session("full-1", SessionStatus.FINISHED, 10_485_760L));
 
         assertEquals(List.of(), store.findAccountsForSession("full-1"));
     }
@@ -353,16 +353,71 @@ class SqliteMetadataStoreTest {
         try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
             int converted = store.migrateLegacyRows();
 
-            assertEquals(2, converted);
+            // 1 session row (type+dates) + 1 account row (dates) + 1 session size + 1 account size.
+            assertEquals(4, converted);
             BackupSession session = store.findSession("full-20260101120000").orElseThrow();
             assertEquals(BackupType.FULL, session.type());
             assertEquals(Instant.parse("2026-01-01T12:00:00Z"), session.startedAt());
             assertEquals(Instant.parse("2026-01-01T12:05:00Z"), session.completedAt());
+            assertEquals(10_485_760L, session.size());
             BackupAccountRecord account = store.findAccountsForSession("full-20260101120000").get(0);
             assertEquals(Instant.parse("2026-01-01T12:00:00Z"), account.startedAt());
             assertEquals(Instant.parse("2026-01-01T12:05:00Z"), account.completedAt());
+            assertEquals(10_485_760L, account.size());
 
             assertEquals(0, store.migrateLegacyRows());
+        }
+    }
+
+    @Test
+    void migrateLegacyRowsRetypesAnOldVarcharSizeColumnSoSqlLevelSortingIsNumeric(@TempDir Path workDir)
+            throws IOException, SQLException {
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement()) {
+            // Mirrors the table shape written by zmbackup versions before the numeric-size fix.
+            statement.execute(
+                    """
+                    create table backup_session(
+                      sessionID varchar primary key,
+                      initial_date timestamp not null,
+                      conclusion_date timestamp,
+                      size varchar,
+                      type varchar not null,
+                      status varchar not null
+                    )
+                    """);
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('full-20260101120000', '2026-01-01T12:00:00Z', '2026-01-01T12:05:00Z', "
+                            + "'800M', 'full', 'FINISHED')");
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('full-20260102120000', '2026-01-02T12:00:00Z', '2026-01-02T12:05:00Z', "
+                            + "'2G', 'full', 'FINISHED')");
+        }
+
+        try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
+            int converted = store.migrateLegacyRows();
+
+            assertEquals(2, converted);
+            assertEquals(
+                    Math.round(800 * Math.pow(1024, 2)),
+                    store.findSession("full-20260101120000").orElseThrow().size());
+            assertEquals(
+                    Math.round(2 * Math.pow(1024, 3)),
+                    store.findSession("full-20260102120000").orElseThrow().size());
+        }
+
+        // The whole point of retyping the column is that plain SQL ordering becomes numeric instead
+        // of lexicographic (where "2147483648" would sort before "858993459" as text).
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery("select sessionID from backup_session order by size asc")) {
+            assertTrue(rs.next());
+            assertEquals("full-20260101120000", rs.getString("sessionID"));
+            assertTrue(rs.next());
+            assertEquals("full-20260102120000", rs.getString("sessionID"));
         }
     }
 
@@ -444,7 +499,7 @@ class SqliteMetadataStoreTest {
         assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(databaseFile)));
     }
 
-    private static BackupSession session(String sessionId, SessionStatus status, String size) {
+    private static BackupSession session(String sessionId, SessionStatus status, Long size) {
         Instant now = Instant.now();
         Instant completedAt = status == SessionStatus.IN_PROGRESS ? null : now;
         return new BackupSession(sessionId, BackupType.FULL, status, now, completedAt, size);
@@ -452,15 +507,15 @@ class SqliteMetadataStoreTest {
 
     private static BackupSession session(String sessionId, BackupType type, SessionStatus status, Instant completedAt) {
         Instant now = Instant.now();
-        return new BackupSession(sessionId, type, status, now, completedAt, "1M");
+        return new BackupSession(sessionId, type, status, now, completedAt, 1_048_576L);
     }
 
     private static BackupAccountRecord accountRecord(String sessionId, String email) {
         Instant now = Instant.now();
-        return new BackupAccountRecord(null, sessionId, email, "1M", now, now);
+        return new BackupAccountRecord(null, sessionId, email, 1_048_576L, now, now);
     }
 
     private static BackupAccountRecord accountRecord(String sessionId, String email, Instant completedAt) {
-        return new BackupAccountRecord(null, sessionId, email, "1M", completedAt, completedAt);
+        return new BackupAccountRecord(null, sessionId, email, 1_048_576L, completedAt, completedAt);
     }
 }

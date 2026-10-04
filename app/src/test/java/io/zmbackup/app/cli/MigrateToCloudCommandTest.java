@@ -103,7 +103,7 @@ class MigrateToCloudCommandTest {
                     SessionStatus.FINISHED,
                     Instant.parse("2026-01-01T12:00:00Z"),
                     Instant.parse("2026-01-01T12:05:00Z"),
-                    "1K"));
+                    1024L));
             try (var destination = storageProvider.openWrite("mbox-20260101120000", "alice@example.com", "tgz")) {
                 destination.write("tgz-content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
@@ -111,7 +111,7 @@ class MigrateToCloudCommandTest {
                     null,
                     "mbox-20260101120000",
                     "alice@example.com",
-                    "1K",
+                    1024L,
                     Instant.parse("2026-01-01T12:00:00Z"),
                     Instant.parse("2026-01-01T12:05:00Z")));
         }

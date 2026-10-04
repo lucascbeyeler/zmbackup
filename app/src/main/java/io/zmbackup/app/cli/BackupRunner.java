@@ -3,6 +3,7 @@ package io.zmbackup.app.cli;
 import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.SessionStatus;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -37,7 +38,10 @@ final class BackupRunner {
         BackupSession session = result.get();
         out.printf(
                 "Session %s (%s): %s, size %s%n",
-                session.sessionId(), session.type(), session.status(), session.size());
+                session.sessionId(),
+                session.type(),
+                session.status(),
+                session.size() == null ? "-" : HumanReadableSize.format(session.size()));
         return session.status() == SessionStatus.FINISHED ? 0 : 1;
     }
 }

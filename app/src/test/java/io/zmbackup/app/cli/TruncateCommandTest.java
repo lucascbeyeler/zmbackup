@@ -75,7 +75,7 @@ class TruncateCommandTest {
 
     private static BackupSession session(String sessionId) {
         Instant now = Instant.now();
-        return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, now, now, "1K");
+        return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, now, now, 1024L);
     }
 
     private Path writeConfig() throws IOException {

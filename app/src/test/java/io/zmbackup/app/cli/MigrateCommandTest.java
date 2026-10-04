@@ -70,11 +70,13 @@ class MigrateCommandTest {
         int exitCode = cmd.execute("--config", configFile.toString(), "migrate");
 
         assertEquals(0, exitCode);
-        assertTrue(out.toString().contains("Normalized 1 legacy backup_session/backup_account row(s)"));
+        // 1 for the type/timestamp normalization, 1 for the legacy "5M" human-readable size string.
+        assertTrue(out.toString().contains("Normalized 2 legacy backup_session/backup_account row(s)"));
         AppContext context = AppContext.fromConfigFile(configFile);
         var session = context.metadataStore().findSession("mbox-20260101120000").orElseThrow();
         assertEquals(BackupType.MAILBOX, session.type());
         assertEquals(Instant.parse("2026-01-01T12:00:00Z"), session.startedAt());
+        assertEquals(5L * 1024 * 1024, session.size());
     }
 
     @Test

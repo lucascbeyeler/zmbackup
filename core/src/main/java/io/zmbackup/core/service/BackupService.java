@@ -3,6 +3,7 @@ package io.zmbackup.core.service;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
@@ -217,11 +218,11 @@ public class BackupService {
         }
 
         Instant sessionEnd = Instant.now();
-        String size = storageProvider.sizeOfSession(sessionId);
+        long size = storageProvider.sizeOfSession(sessionId);
         SessionStatus status = allSucceeded ? SessionStatus.FINISHED : SessionStatus.FAILED;
         BackupSession completed = new BackupSession(sessionId, type, status, sessionStart, sessionEnd, size);
         metadataStore.save(completed);
-        String notifySize = status == SessionStatus.FINISHED ? size : "0";
+        String notifySize = status == SessionStatus.FINISHED ? HumanReadableSize.format(size) : "0B";
         int notifyAccountCount =
                 status == SessionStatus.FINISHED ? metadataStore.findAccountsForSession(sessionId).size() : 0;
         notifySafely(() -> notifier.notifyFinish(sessionId, type, status, notifySize, notifyAccountCount));
@@ -251,10 +252,10 @@ public class BackupService {
 
     private void recordFailedSession(String sessionId, BackupType type, Instant sessionStart) throws IOException {
         Instant sessionEnd = Instant.now();
-        String size = storageProvider.sizeOfSession(sessionId);
+        long size = storageProvider.sizeOfSession(sessionId);
         BackupSession failed = new BackupSession(sessionId, type, SessionStatus.FAILED, sessionStart, sessionEnd, size);
         metadataStore.save(failed);
-        notifySafely(() -> notifier.notifyFinish(sessionId, type, SessionStatus.FAILED, "0", 0));
+        notifySafely(() -> notifier.notifyFinish(sessionId, type, SessionStatus.FAILED, "0B", 0));
     }
 
     private interface NotifierCall {
@@ -322,7 +323,7 @@ public class BackupService {
             return false;
         }
         Instant completedAt = Instant.now();
-        String size = storageProvider.sizeOfAccount(sessionId, identifier);
+        long size = storageProvider.sizeOfAccount(sessionId, identifier);
         metadataStore.recordAccountBackup(
                 new BackupAccountRecord(null, sessionId, identifier, size, startedAt, completedAt));
         return true;

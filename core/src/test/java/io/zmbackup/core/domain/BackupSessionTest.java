@@ -28,10 +28,10 @@ class BackupSessionTest {
         Instant startedAt = Instant.parse("2026-01-01T12:00:00Z");
         Instant completedAt = Instant.parse("2026-01-01T12:05:00Z");
         BackupSession session = new BackupSession(
-                "full-20260101120000", BackupType.FULL, SessionStatus.FINISHED, startedAt, completedAt, "10M");
+                "full-20260101120000", BackupType.FULL, SessionStatus.FINISHED, startedAt, completedAt, 10_485_760L);
 
         assertEquals(completedAt, session.completedAt());
-        assertEquals("10M", session.size());
+        assertEquals(10_485_760L, session.size());
     }
 
     @Test

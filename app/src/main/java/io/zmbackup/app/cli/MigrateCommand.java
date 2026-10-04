@@ -37,8 +37,9 @@ public final class MigrateCommand implements Callable<Integer> {
 
             int normalized = context.metadataStore().migrateLegacyRows();
             if (normalized > 0) {
-                out.println("Normalized " + normalized + " legacy backup_session/backup_account row(s) written by"
-                        + " the bash tool's SESSION_TYPE=SQLITE3 writer.");
+                out.println("Normalized " + normalized + " legacy backup_session/backup_account row(s) using"
+                        + " outdated formats (the bash tool's SESSION_TYPE=SQLITE3 writer, and/or human-readable"
+                        + " size strings from older zmbackup versions).");
             }
 
             if (!Files.exists(sessionsTxt)) {

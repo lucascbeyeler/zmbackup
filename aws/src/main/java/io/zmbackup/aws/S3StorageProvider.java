@@ -1,6 +1,5 @@
 package io.zmbackup.aws;
 
-import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.io.InputStream;
@@ -102,7 +101,7 @@ public final class S3StorageProvider implements StorageProvider {
     }
 
     @Override
-    public String sizeOfAccount(String sessionId, String account) throws IOException {
+    public long sizeOfAccount(String sessionId, String account) throws IOException {
         String prefix = sessionPrefix(sessionId);
         String accountFilePrefix = account + ".";
         long total = 0;
@@ -112,16 +111,16 @@ public final class S3StorageProvider implements StorageProvider {
                 total += object.size();
             }
         }
-        return HumanReadableSize.format(total);
+        return total;
     }
 
     @Override
-    public String sizeOfSession(String sessionId) throws IOException {
+    public long sizeOfSession(String sessionId) throws IOException {
         long total = 0;
         for (S3Object object : listObjects(sessionPrefix(sessionId))) {
             total += object.size();
         }
-        return HumanReadableSize.format(total);
+        return total;
     }
 
     @Override
