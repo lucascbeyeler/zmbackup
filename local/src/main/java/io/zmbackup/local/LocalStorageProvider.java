@@ -1,6 +1,5 @@
 package io.zmbackup.local;
 
-import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,7 +57,7 @@ public class LocalStorageProvider implements StorageProvider {
     }
 
     @Override
-    public String sizeOfAccount(String sessionId, String account) throws IOException {
+    public long sizeOfAccount(String sessionId, String account) throws IOException {
         Path sessionDir = sessionDir(sessionId);
         long totalBytes = 0;
         if (Files.isDirectory(sessionDir)) {
@@ -69,7 +68,7 @@ public class LocalStorageProvider implements StorageProvider {
                 }
             }
         }
-        return HumanReadableSize.format(totalBytes);
+        return totalBytes;
     }
 
     private static boolean isAccountFile(Path path, String account) {
@@ -81,7 +80,7 @@ public class LocalStorageProvider implements StorageProvider {
     }
 
     @Override
-    public String sizeOfSession(String sessionId) throws IOException {
+    public long sizeOfSession(String sessionId) throws IOException {
         Path sessionDir = sessionDir(sessionId);
         long[] totalBytes = {0};
         if (Files.isDirectory(sessionDir)) {
@@ -93,7 +92,7 @@ public class LocalStorageProvider implements StorageProvider {
                 }
             });
         }
-        return HumanReadableSize.format(totalBytes[0]);
+        return totalBytes[0];
     }
 
     @Override

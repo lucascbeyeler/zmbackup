@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
@@ -353,7 +354,7 @@ class BackupServiceTest {
     void lockBackupSkipsDiscoveredAccountAlreadyBackedUpToday() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
-                null, "ldap-earlier", "bob@example.com", "1B", Instant.now(), Instant.now()));
+                null, "ldap-earlier", "bob@example.com", 1L, Instant.now(), Instant.now()));
         BackupService lockedBackup = BackupService.builder(
                         accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                 .blocklist(identifier -> false)
@@ -376,7 +377,7 @@ class BackupServiceTest {
                 null,
                 "ldap-earlier",
                 "alice@example.com",
-                "1B",
+                1L,
                 Instant.now().minus(Duration.ofHours(30)),
                 Instant.now().minus(Duration.ofHours(30))));
         BackupService lockedBackup = BackupService.builder(
@@ -398,7 +399,7 @@ class BackupServiceTest {
     void lockBackupDoesNotSkipADifferentNonOverlappingBackupType() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
-                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+                null, "ldap-earlier", "alice@example.com", 1L, Instant.now(), Instant.now()));
         BackupService lockedBackup = BackupService.builder(
                         accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                 .blocklist(identifier -> false)
@@ -418,7 +419,7 @@ class BackupServiceTest {
     void lockBackupSkipsMailboxAlreadyCoveredByAFullBackupToday() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
-                null, "full-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+                null, "full-earlier", "alice@example.com", 1L, Instant.now(), Instant.now()));
         BackupService lockedBackup = BackupService.builder(
                         accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                 .blocklist(identifier -> false)
@@ -436,7 +437,7 @@ class BackupServiceTest {
     void forceBypassesLockBackupForASameTypeRerun() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
-                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+                null, "ldap-earlier", "alice@example.com", 1L, Instant.now(), Instant.now()));
         BackupService lockedBackup = BackupService.builder(
                         accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                 .blocklist(identifier -> false)
@@ -456,7 +457,7 @@ class BackupServiceTest {
     void lockBackupDisabledDoesNotSkipRecentlyBackedUpAccount() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
         metadataStore.recordAccountBackup(new BackupAccountRecord(
-                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+                null, "ldap-earlier", "alice@example.com", 1L, Instant.now(), Instant.now()));
 
         Optional<BackupSession> result = backupService.backup(BackupType.LDAP);
 
@@ -468,7 +469,7 @@ class BackupServiceTest {
     @Test
     void explicitAccountBypassesLockBackup() throws IOException {
         metadataStore.recordAccountBackup(new BackupAccountRecord(
-                null, "ldap-earlier", "alice@example.com", "1B", Instant.now(), Instant.now()));
+                null, "ldap-earlier", "alice@example.com", 1L, Instant.now(), Instant.now()));
         BackupService lockedBackup = BackupService.builder(
                         accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                 .blocklist(identifier -> false)
@@ -562,8 +563,8 @@ class BackupServiceTest {
         assertEquals(2, notifier.calls.size());
         assertTrue(notifier.calls.get(0).startsWith("begin:"));
         assertEquals(
-                "finish:" + result.get().sessionId() + ":LDAP:" + result.get().status() + ":" + result.get().size()
-                        + ":1",
+                "finish:" + result.get().sessionId() + ":LDAP:" + result.get().status() + ":"
+                        + HumanReadableSize.format(result.get().size()) + ":1",
                 notifier.calls.get(1));
     }
 
@@ -937,23 +938,21 @@ class BackupServiceTest {
         }
 
         @Override
-        public String sizeOfAccount(String sessionId, String account) {
+        public long sizeOfAccount(String sessionId, String account) {
             String prefix = sessionId + "/" + account + ".";
-            long total = content.entrySet().stream()
+            return content.entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(prefix))
                     .mapToLong(entry -> entry.getValue().length)
                     .sum();
-            return total + "B";
         }
 
         @Override
-        public String sizeOfSession(String sessionId) {
+        public long sizeOfSession(String sessionId) {
             String prefix = sessionId + "/";
-            long total = content.entrySet().stream()
+            return content.entrySet().stream()
                     .filter(entry -> entry.getKey().startsWith(prefix))
                     .mapToLong(entry -> entry.getValue().length)
                     .sum();
-            return total + "B";
         }
 
         @Override

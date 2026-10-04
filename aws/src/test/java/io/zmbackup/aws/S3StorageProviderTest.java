@@ -211,9 +211,9 @@ class S3StorageProviderTest {
                                 entry(prefix + ACCOUNT + ".au.tgz", 999999)))));
         S3StorageProvider provider = provider();
 
-        String size = provider.sizeOfAccount(SESSION_ID, ACCOUNT);
+        long size = provider.sizeOfAccount(SESSION_ID, ACCOUNT);
 
-        assertEquals("2K", size);
+        assertEquals(2024L, size);
     }
 
     @Test
@@ -233,9 +233,9 @@ class S3StorageProviderTest {
                         .withBody(listBucketResult(false, null, entry(prefix + "b@example.com.tgz", 312)))));
         S3StorageProvider provider = provider();
 
-        String size = provider.sizeOfSession(SESSION_ID);
+        long size = provider.sizeOfSession(SESSION_ID);
 
-        assertEquals("512B", size);
+        assertEquals(512L, size);
     }
 
     @Test

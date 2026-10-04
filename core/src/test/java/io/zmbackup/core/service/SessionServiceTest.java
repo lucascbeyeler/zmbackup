@@ -88,7 +88,7 @@ class SessionServiceTest {
         metadataStore.save(session("ldap-1", Instant.now()));
         metadataStore.save(session("ldap-2", Instant.now()));
         metadataStore.recordAccountBackup(
-                new BackupAccountRecord(null, "ldap-1", "alice@example.com", "1K", Instant.now(), Instant.now()));
+                new BackupAccountRecord(null, "ldap-1", "alice@example.com", 1024L, Instant.now(), Instant.now()));
 
         int removed = sessionService.truncateDatabase();
 
@@ -144,7 +144,7 @@ class SessionServiceTest {
     }
 
     private static BackupSession session(String sessionId, Instant startedAt) {
-        return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, startedAt, startedAt, "1K");
+        return new BackupSession(sessionId, BackupType.LDAP, SessionStatus.FINISHED, startedAt, startedAt, 1024L);
     }
 
     private static final class InMemoryStorageProvider implements StorageProvider {
@@ -177,12 +177,12 @@ class SessionServiceTest {
         }
 
         @Override
-        public String sizeOfAccount(String sessionId, String account) {
+        public long sizeOfAccount(String sessionId, String account) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public String sizeOfSession(String sessionId) {
+        public long sizeOfSession(String sessionId) {
             throw new UnsupportedOperationException();
         }
 

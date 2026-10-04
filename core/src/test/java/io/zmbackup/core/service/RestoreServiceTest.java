@@ -264,7 +264,7 @@ class RestoreServiceTest {
 
     private static BackupAccountRecord recordFor(String sessionId, String email) {
         Instant now = Instant.now();
-        return new BackupAccountRecord(null, sessionId, email, "1K", now, now);
+        return new BackupAccountRecord(null, sessionId, email, 1024L, now, now);
     }
 
     private static final class FakeServerConfigArchiver implements ServerConfigArchiver {
@@ -388,13 +388,13 @@ class RestoreServiceTest {
         }
 
         @Override
-        public String sizeOfAccount(String sessionId, String account) {
-            return "1B";
+        public long sizeOfAccount(String sessionId, String account) {
+            return 1L;
         }
 
         @Override
-        public String sizeOfSession(String sessionId) {
-            return "1B";
+        public long sizeOfSession(String sessionId) {
+            return 1L;
         }
 
         @Override

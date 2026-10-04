@@ -3,6 +3,7 @@ package io.zmbackup.aws;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.MetadataStore;
 import java.io.IOException;
@@ -73,7 +74,7 @@ public final class DynamoDBMetadataStore implements MetadataStore {
             item.put("conclusionDate", AttributeValue.fromS(toDb(session.completedAt())));
         }
         if (session.size() != null) {
-            item.put("size", AttributeValue.fromS(session.size()));
+            item.put("size", AttributeValue.fromN(Long.toString(session.size())));
         }
         try {
             client.putItem(PutItemRequest.builder().tableName(sessionTable).item(item).build());
@@ -162,7 +163,7 @@ public final class DynamoDBMetadataStore implements MetadataStore {
         Map<String, AttributeValue> item = new HashMap<>();
         item.put("email", AttributeValue.fromS(record.email()));
         item.put("sessionId", AttributeValue.fromS(record.sessionId()));
-        item.put("accountSize", AttributeValue.fromS(record.size()));
+        item.put("accountSize", AttributeValue.fromN(Long.toString(record.size())));
         item.put("initialDate", AttributeValue.fromS(toDb(record.startedAt())));
         if (record.completedAt() != null) {
             item.put("conclusionDate", AttributeValue.fromS(toDb(record.completedAt())));
@@ -375,7 +376,7 @@ public final class DynamoDBMetadataStore implements MetadataStore {
                 SessionStatus.fromDbValue(item.get("status").s()),
                 fromDb(item.get("initialDate").s()),
                 item.containsKey("conclusionDate") ? fromDb(item.get("conclusionDate").s()) : null,
-                item.containsKey("size") ? item.get("size").s() : null);
+                item.containsKey("size") ? readSize(item.get("size")) : null);
     }
 
     private static BackupAccountRecord mapAccount(Map<String, AttributeValue> item) {
@@ -383,9 +384,17 @@ public final class DynamoDBMetadataStore implements MetadataStore {
                 null,
                 item.get("sessionId").s(),
                 item.get("email").s(),
-                item.get("accountSize").s(),
+                readSize(item.get("accountSize")),
                 fromDb(item.get("initialDate").s()),
                 item.containsKey("conclusionDate") ? fromDb(item.get("conclusionDate").s()) : null);
+    }
+
+    /**
+     * Reads a size attribute written as a Number (current format) or, for backward compatibility
+     * with items written before the numeric-size fix, as a human-readable String like "1.2G".
+     */
+    private static long readSize(AttributeValue value) {
+        return value.n() != null ? Long.parseLong(value.n()) : HumanReadableSize.parseApprox(value.s());
     }
 
     private static String toDb(Instant instant) {

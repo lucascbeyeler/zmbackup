@@ -73,7 +73,7 @@ class MainTest {
                                 SessionStatus.FINISHED,
                                 Instant.parse("2026-01-01T12:00:00Z"),
                                 Instant.parse("2026-01-01T12:05:00Z"),
-                                "10M"));
+                                10_000_000L));
         Files.createDirectories(tempDir.resolve("full-20260101120000"));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -95,7 +95,7 @@ class MainTest {
                                 SessionStatus.FINISHED,
                                 Instant.parse("2026-01-01T12:00:00Z"),
                                 Instant.parse("2026-01-01T12:05:00Z"),
-                                "10M"));
+                                10_000_000L));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
 
@@ -118,7 +118,7 @@ class MainTest {
                                 SessionStatus.FINISHED,
                                 Instant.parse("2026-09-04T22:16:23.305397329Z"),
                                 Instant.parse("2026-09-04T22:17:34.609010890Z"),
-                                "1.7G"));
+                                1_700_000_000L));
         Files.createDirectories(tempDir.resolve("full-20260904221623"));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
@@ -146,7 +146,7 @@ class MainTest {
                                 SessionStatus.FINISHED,
                                 Instant.parse("2020-01-01T12:00:00Z"),
                                 Instant.parse("2020-01-01T12:05:00Z"),
-                                "10M"));
+                                10_000_000L));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
 
@@ -171,7 +171,7 @@ class MainTest {
                                 SessionStatus.FINISHED,
                                 Instant.parse("2026-01-01T12:00:00Z"),
                                 Instant.parse("2026-01-01T12:05:00Z"),
-                                "10M"));
+                                10_000_000L));
         StringWriter out = new StringWriter();
         CommandLine cmd = commandLine(out, new StringWriter());
 

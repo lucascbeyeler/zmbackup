@@ -31,9 +31,9 @@ class MigrationServiceTest {
 
     @Test
     void importsFinishedSessionWithAccounts() throws IOException {
-        storageProvider.sessionSizes.put("full-20260101120000", "10M");
-        storageProvider.accountSizes.put("full-20260101120000/alice@example.com", "6M");
-        storageProvider.accountSizes.put("full-20260101120000/bob@example.com", "4M");
+        storageProvider.sessionSizes.put("full-20260101120000", 10_000_000L);
+        storageProvider.accountSizes.put("full-20260101120000/alice@example.com", 6_000_000L);
+        storageProvider.accountSizes.put("full-20260101120000/bob@example.com", 4_000_000L);
 
         int imported = migrationService.importSessionsText(
                 List.of(
@@ -46,19 +46,19 @@ class MigrationServiceTest {
         BackupSession session = metadataStore.sessions.get("full-20260101120000");
         assertEquals(BackupType.FULL, session.type());
         assertEquals(SessionStatus.FINISHED, session.status());
-        assertEquals("10M", session.size());
+        assertEquals(10_000_000L, session.size());
         assertEquals(Instant.parse("2026-01-01T12:00:00Z"), session.startedAt());
         assertEquals(session.startedAt(), session.completedAt());
 
         List<BackupAccountRecord> accounts = metadataStore.accounts.get("full-20260101120000");
         assertEquals(2, accounts.size());
         assertEquals("alice@example.com", accounts.get(0).email());
-        assertEquals("6M", accounts.get(0).size());
+        assertEquals(6_000_000L, accounts.get(0).size());
         assertEquals(
                 LocalDate.of(2026, 1, 1).atStartOfDay(ZoneId.systemDefault()).toInstant(),
                 accounts.get(0).startedAt());
         assertEquals("bob@example.com", accounts.get(1).email());
-        assertEquals("4M", accounts.get(1).size());
+        assertEquals(4_000_000L, accounts.get(1).size());
     }
 
     @Test
@@ -119,8 +119,8 @@ class MigrationServiceTest {
     }
 
     private static final class InMemoryStorageProvider implements StorageProvider {
-        final Map<String, String> sessionSizes = new LinkedHashMap<>();
-        final Map<String, String> accountSizes = new LinkedHashMap<>();
+        final Map<String, Long> sessionSizes = new LinkedHashMap<>();
+        final Map<String, Long> accountSizes = new LinkedHashMap<>();
 
         @Override
         public OutputStream openWrite(String sessionId, String account, String suffix) {
@@ -143,13 +143,13 @@ class MigrationServiceTest {
         }
 
         @Override
-        public String sizeOfAccount(String sessionId, String account) {
-            return accountSizes.getOrDefault(sessionId + "/" + account, "0B");
+        public long sizeOfAccount(String sessionId, String account) {
+            return accountSizes.getOrDefault(sessionId + "/" + account, 0L);
         }
 
         @Override
-        public String sizeOfSession(String sessionId) {
-            return sessionSizes.getOrDefault(sessionId, "0B");
+        public long sizeOfSession(String sessionId) {
+            return sessionSizes.getOrDefault(sessionId, 0L);
         }
 
         @Override

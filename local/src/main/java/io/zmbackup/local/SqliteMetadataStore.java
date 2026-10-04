@@ -3,6 +3,7 @@ package io.zmbackup.local;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.MetadataStore;
 import java.io.Closeable;
@@ -16,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -23,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
@@ -43,7 +46,7 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
               sessionID varchar primary key,
               initial_date timestamp not null,
               conclusion_date timestamp,
-              size varchar,
+              size integer,
               type varchar not null,
               status varchar not null
             )
@@ -54,7 +57,7 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             create table if not exists backup_account(
               id integer primary key autoincrement,
               sessionID varchar not null,
-              account_size varchar not null,
+              account_size integer not null default 0,
               email varchar not null,
               initial_date timestamp not null,
               conclusion_date timestamp,
@@ -114,7 +117,11 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             statement.setString(1, session.sessionId());
             statement.setString(2, toDb(session.startedAt()));
             statement.setString(3, toDb(session.completedAt()));
-            statement.setString(4, session.size());
+            if (session.size() != null) {
+                statement.setLong(4, session.size());
+            } else {
+                statement.setNull(4, Types.BIGINT);
+            }
             statement.setString(5, session.type().sessionPrefix());
             statement.setString(6, session.status().dbValue());
             statement.executeUpdate();
@@ -242,12 +249,153 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         try {
             int converted = normalizeLegacySessionRows();
             converted += normalizeLegacyAccountRows();
+            converted += normalizeSessionSizeColumn();
+            converted += normalizeAccountSizeColumn();
             return converted;
         } catch (SQLException e) {
             throw new IOException(e);
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Converts {@code backup_session.size}, written by the bash tool or by zmbackup versions prior
+     * to the numeric-size fix as a human-readable string like "1.2G" instead of raw bytes, which
+     * makes the column unsortable/unsummable as a number. Retypes the column itself when it is still
+     * declared as text (a genuinely old on-disk database), then - regardless of the declared type -
+     * rewrites any individual row that still holds a text-formatted value (SQLite's dynamic typing
+     * lets that happen even in an integer-declared column).
+     */
+    private int normalizeSessionSizeColumn() throws SQLException {
+        int converted = 0;
+        if (isTextColumn("backup_session", "size")) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("alter table backup_session rename column size to size_legacy");
+                statement.execute("alter table backup_session add column size integer");
+            }
+            List<Object[]> rows = new ArrayList<>();
+            try (Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery("select sessionID, size_legacy from backup_session")) {
+                while (rs.next()) {
+                    rows.add(new Object[] {rs.getString("sessionID"), rs.getString("size_legacy")});
+                }
+            }
+            try (PreparedStatement update =
+                    connection.prepareStatement("update backup_session set size = ? where sessionID = ?")) {
+                for (Object[] row : rows) {
+                    String legacyValue = (String) row[1];
+                    if (legacyValue == null) {
+                        continue;
+                    }
+                    update.setLong(1, parseLegacySize(legacyValue));
+                    update.setString(2, (String) row[0]);
+                    update.executeUpdate();
+                    converted++;
+                }
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("alter table backup_session drop column size_legacy");
+            }
+        }
+
+        List<Object[]> textRows = new ArrayList<>();
+        try (Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "select sessionID, size from backup_session where typeof(size) = 'text'")) {
+            while (rs.next()) {
+                textRows.add(new Object[] {rs.getString("sessionID"), rs.getString("size")});
+            }
+        }
+        try (PreparedStatement update =
+                connection.prepareStatement("update backup_session set size = ? where sessionID = ?")) {
+            for (Object[] row : textRows) {
+                update.setLong(1, parseLegacySize((String) row[1]));
+                update.setString(2, (String) row[0]);
+                update.executeUpdate();
+                converted++;
+            }
+        }
+        return converted;
+    }
+
+    /**
+     * Same as {@link #normalizeSessionSizeColumn()}, for {@code backup_account.account_size}.
+     */
+    private int normalizeAccountSizeColumn() throws SQLException {
+        int converted = 0;
+        if (isTextColumn("backup_account", "account_size")) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("alter table backup_account rename column account_size to account_size_legacy");
+                statement.execute("alter table backup_account add column account_size integer not null default 0");
+            }
+            List<Object[]> rows = new ArrayList<>();
+            try (Statement statement = connection.createStatement();
+                    ResultSet rs = statement.executeQuery("select id, account_size_legacy from backup_account")) {
+                while (rs.next()) {
+                    rows.add(new Object[] {rs.getLong("id"), rs.getString("account_size_legacy")});
+                }
+            }
+            try (PreparedStatement update =
+                    connection.prepareStatement("update backup_account set account_size = ? where id = ?")) {
+                for (Object[] row : rows) {
+                    String legacyValue = (String) row[1];
+                    if (legacyValue == null) {
+                        continue;
+                    }
+                    update.setLong(1, parseLegacySize(legacyValue));
+                    update.setLong(2, (Long) row[0]);
+                    update.executeUpdate();
+                    converted++;
+                }
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("alter table backup_account drop column account_size_legacy");
+            }
+        }
+
+        List<Object[]> textRows = new ArrayList<>();
+        try (Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(
+                        "select id, account_size from backup_account where typeof(account_size) = 'text'")) {
+            while (rs.next()) {
+                textRows.add(new Object[] {rs.getLong("id"), rs.getString("account_size")});
+            }
+        }
+        try (PreparedStatement update =
+                connection.prepareStatement("update backup_account set account_size = ? where id = ?")) {
+            for (Object[] row : textRows) {
+                update.setLong(1, parseLegacySize((String) row[1]));
+                update.setLong(2, (Long) row[0]);
+                update.executeUpdate();
+                converted++;
+            }
+        }
+        return converted;
+    }
+
+    private static long parseLegacySize(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException notPlainNumber) {
+            return HumanReadableSize.parseApprox(value);
+        }
+    }
+
+    private boolean isTextColumn(String table, String column) throws SQLException {
+        String pragmaSql = "backup_session".equals(table)
+                ? "PRAGMA table_info(backup_session)"
+                : "PRAGMA table_info(backup_account)";
+        try (Statement statement = connection.createStatement();
+                ResultSet rs = statement.executeQuery(pragmaSql)) {
+            while (rs.next()) {
+                if (column.equalsIgnoreCase(rs.getString("name"))) {
+                    String type = rs.getString("type");
+                    return type != null && type.toLowerCase(Locale.ROOT).contains("char");
+                }
+            }
+        }
+        return false;
     }
 
     private int normalizeLegacySessionRows() throws SQLException {
@@ -386,7 +534,7 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         lock.lock();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, record.sessionId());
-            statement.setString(2, record.size());
+            statement.setLong(2, record.size());
             statement.setString(3, record.email());
             statement.setString(4, toDb(record.startedAt()));
             statement.setString(5, toDb(record.completedAt()));
@@ -551,9 +699,10 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         } catch (DateTimeParseException e) {
             throw unreadableLegacyRow(sessionId, "initial_date/conclusion_date", rs.getString("initial_date"), e);
         }
+        long size = rs.getLong("size");
         return new BackupSession(
                 sessionId, type, SessionStatus.fromDbValue(rs.getString("status")), initialDate, conclusionDate,
-                rs.getString("size"));
+                rs.wasNull() ? null : size);
     }
 
     private static SQLException unreadableLegacyRow(String sessionId, String column, String value, Exception cause) {
@@ -569,7 +718,7 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
                 rs.getLong("id"),
                 rs.getString("sessionID"),
                 rs.getString("email"),
-                rs.getString("account_size"),
+                rs.getLong("account_size"),
                 fromDb(rs.getString("initial_date")),
                 fromDb(rs.getString("conclusion_date")));
     }

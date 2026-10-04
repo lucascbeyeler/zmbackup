@@ -9,7 +9,7 @@ public record BackupSession(
         SessionStatus status,
         Instant startedAt,
         Instant completedAt,
-        String size) {
+        Long size) {
 
     public BackupSession {
         Objects.requireNonNull(sessionId, "sessionId must not be null");

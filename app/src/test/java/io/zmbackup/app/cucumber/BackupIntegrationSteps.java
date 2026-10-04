@@ -258,9 +258,9 @@ public class BackupIntegrationSteps {
         Instant now = Instant.now();
         Instant completedAt = now.minus(daysAgo, ChronoUnit.DAYS);
         BackupSession session = new BackupSession(
-                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, "1K");
+                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, 1024L);
         metadataStore.save(session);
-        metadataStore.recordAccountBackup(new BackupAccountRecord(null, sessionId, account, "1K", now, now));
+        metadataStore.recordAccountBackup(new BackupAccountRecord(null, sessionId, account, 1024L, now, now));
         try (var writer = storageProvider.openWrite(sessionId, account, "ldiff")) {
             writer.write(("dn: uid=" + account + "\n").getBytes());
         }

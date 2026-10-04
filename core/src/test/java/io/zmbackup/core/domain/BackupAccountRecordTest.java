@@ -14,12 +14,12 @@ class BackupAccountRecordTest {
         Instant startedAt = Instant.parse("2026-01-01T12:00:00Z");
         Instant completedAt = Instant.parse("2026-01-01T12:01:00Z");
         BackupAccountRecord record = new BackupAccountRecord(
-                null, "full-20260101120000", "user@example.com", "1M", startedAt, completedAt);
+                null, "full-20260101120000", "user@example.com", 1_048_576L, startedAt, completedAt);
 
         assertNull(record.id());
         assertEquals("full-20260101120000", record.sessionId());
         assertEquals("user@example.com", record.email());
-        assertEquals("1M", record.size());
+        assertEquals(1_048_576L, record.size());
         assertEquals(startedAt, record.startedAt());
         assertEquals(completedAt, record.completedAt());
     }
@@ -27,7 +27,7 @@ class BackupAccountRecordTest {
     @Test
     void persistedRecordCarriesId() {
         BackupAccountRecord record = new BackupAccountRecord(
-                42L, "full-1", "user@example.com", "1M", Instant.now(), null);
+                42L, "full-1", "user@example.com", 1_048_576L, Instant.now(), null);
 
         assertEquals(42L, record.id());
     }
@@ -35,24 +35,18 @@ class BackupAccountRecordTest {
     @Test
     void requiresSessionId() {
         assertThrows(NullPointerException.class, () ->
-                new BackupAccountRecord(null, null, "user@example.com", "1M", Instant.now(), null));
+                new BackupAccountRecord(null, null, "user@example.com", 1_048_576L, Instant.now(), null));
     }
 
     @Test
     void requiresEmail() {
         assertThrows(NullPointerException.class, () ->
-                new BackupAccountRecord(null, "full-1", null, "1M", Instant.now(), null));
-    }
-
-    @Test
-    void requiresSize() {
-        assertThrows(NullPointerException.class, () ->
-                new BackupAccountRecord(null, "full-1", "user@example.com", null, Instant.now(), null));
+                new BackupAccountRecord(null, "full-1", null, 1_048_576L, Instant.now(), null));
     }
 
     @Test
     void requiresStartedAt() {
         assertThrows(NullPointerException.class, () ->
-                new BackupAccountRecord(null, "full-1", "user@example.com", "1M", null, null));
+                new BackupAccountRecord(null, "full-1", "user@example.com", 1_048_576L, null, null));
     }
 }
