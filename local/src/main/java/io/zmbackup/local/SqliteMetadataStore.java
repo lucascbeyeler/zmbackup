@@ -135,7 +135,7 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
     @Override
     public Optional<BackupSession> findSession(String sessionId) throws IOException {
         String sql =
-                "select sessionID, initial_date, conclusion_date, size, type, status "
+                "select sessionID, initial_date, conclusion_date, size, typeof(size) as size_kind, type, status "
                         + "from backup_session where sessionID = ?";
         lock.lock();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -152,7 +152,8 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
 
     @Override
     public List<BackupSession> listSessions() throws IOException {
-        String sql = "select sessionID, initial_date, conclusion_date, size, type, status from backup_session";
+        String sql = "select sessionID, initial_date, conclusion_date, size, typeof(size) as size_kind, type, status "
+                + "from backup_session";
         lock.lock();
         try (Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery(sql)) {
@@ -171,8 +172,8 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
     @Override
     public List<BackupSession> findSessionsCompletedBefore(Instant cutoff) throws IOException {
         String sql =
-                "select sessionID, initial_date, conclusion_date, size, type, status from backup_session "
-                        + "where conclusion_date is not null and conclusion_date < ?";
+                "select sessionID, initial_date, conclusion_date, size, typeof(size) as size_kind, type, status "
+                        + "from backup_session where conclusion_date is not null and conclusion_date < ?";
         lock.lock();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, toDb(cutoff));
@@ -549,8 +550,8 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
     @Override
     public List<BackupAccountRecord> findAccountsForSession(String sessionId) throws IOException {
         String sql =
-                "select id, sessionID, email, account_size, initial_date, conclusion_date "
-                        + "from backup_account where sessionID = ?";
+                "select id, sessionID, email, account_size, typeof(account_size) as account_size_kind, "
+                        + "initial_date, conclusion_date from backup_account where sessionID = ?";
         lock.lock();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, sessionId);
@@ -689,7 +690,7 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         try {
             type = BackupType.fromSessionPrefix(rs.getString("type"));
         } catch (IllegalArgumentException e) {
-            throw unreadableLegacyRow(sessionId, "type", rs.getString("type"), e);
+            throw unreadableLegacyRow("backup_session", sessionId, "type", rs.getString("type"), e);
         }
         Instant initialDate;
         Instant conclusionDate;
@@ -697,7 +698,16 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
             initialDate = fromDb(rs.getString("initial_date"));
             conclusionDate = fromDb(rs.getString("conclusion_date"));
         } catch (DateTimeParseException e) {
-            throw unreadableLegacyRow(sessionId, "initial_date/conclusion_date", rs.getString("initial_date"), e);
+            throw unreadableLegacyRow(
+                    "backup_session", sessionId, "initial_date/conclusion_date", rs.getString("initial_date"), e);
+        }
+        if ("text".equals(rs.getString("size_kind"))) {
+            throw unreadableLegacyRow(
+                    "backup_session",
+                    sessionId,
+                    "size",
+                    rs.getString("size"),
+                    new IllegalStateException("size is stored as a human-readable string instead of raw bytes"));
         }
         long size = rs.getLong("size");
         return new BackupSession(
@@ -705,19 +715,32 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
                 rs.wasNull() ? null : size);
     }
 
-    private static SQLException unreadableLegacyRow(String sessionId, String column, String value, Exception cause) {
+    private static SQLException unreadableLegacyRow(
+            String table, String identifier, String column, String value, Exception cause) {
         return new SQLException(
-                "backup_session row '" + sessionId + "' has an unreadable " + column + " column ('" + value
-                        + "') - this is very likely a bash-tool SESSION_TYPE=SQLITE3 database that was never"
-                        + " normalized by 'zmbackup migrate'; run 'zmbackup migrate' against this workDir to fix it.",
+                table + " row '" + identifier + "' has an unreadable " + column + " column ('" + value
+                        + "') - this is very likely a bash-tool SESSION_TYPE=SQLITE3 database, or a zmbackup"
+                        + " database from before the numeric-size fix, that was never normalized by"
+                        + " 'zmbackup migrate'; run 'zmbackup migrate' against this workDir to fix it.",
                 cause);
     }
 
     private static BackupAccountRecord mapAccount(ResultSet rs) throws SQLException {
+        String sessionId = rs.getString("sessionID");
+        String email = rs.getString("email");
+        if ("text".equals(rs.getString("account_size_kind"))) {
+            throw unreadableLegacyRow(
+                    "backup_account",
+                    sessionId + ":" + email,
+                    "account_size",
+                    rs.getString("account_size"),
+                    new IllegalStateException(
+                            "account_size is stored as a human-readable string instead of raw bytes"));
+        }
         return new BackupAccountRecord(
                 rs.getLong("id"),
-                rs.getString("sessionID"),
-                rs.getString("email"),
+                sessionId,
+                email,
                 rs.getLong("account_size"),
                 fromDb(rs.getString("initial_date")),
                 fromDb(rs.getString("conclusion_date")));

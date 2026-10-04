@@ -467,6 +467,72 @@ class SqliteMetadataStoreTest {
     }
 
     @Test
+    void findSessionRefusesToSilentlyMisreadAnUnmigratedHumanReadableSizeInsteadOfReturningGarbageBytes(
+            @TempDir Path workDir) throws IOException, SQLException {
+        // Otherwise-normalized row (ISO timestamps, canonical type) - only the size was never migrated
+        // from an older zmbackup build. Without this check, SQLite's implicit text->integer coercion
+        // would silently truncate "10M" down to 10 instead of raising a clear, actionable error.
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+        try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
+            // just to create the schema
+        }
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('full-20260101120000', '2026-01-01T12:00:00Z', '2026-01-01T12:05:00Z', "
+                            + "'10M', 'full', 'FINISHED')");
+        }
+
+        try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
+            IOException e = assertThrows(IOException.class, () -> store.findSession("full-20260101120000"));
+
+            assertTrue(e.getMessage().contains("full-20260101120000"));
+            assertTrue(e.getMessage().contains("size"));
+            assertTrue(e.getMessage().contains("zmbackup migrate"));
+
+            // Running the migration resolves it and the real byte count comes back correctly.
+            store.migrateLegacyRows();
+            assertEquals(10_485_760L, store.findSession("full-20260101120000").orElseThrow().size());
+        }
+    }
+
+    @Test
+    void findAccountsForSessionRefusesToSilentlyMisreadAnUnmigratedHumanReadableAccountSize(@TempDir Path workDir)
+            throws IOException, SQLException {
+        Path databaseFile = workDir.resolve("sessions.sqlite3");
+        try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
+            // just to create the schema
+        }
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "insert into backup_session(sessionID, initial_date, conclusion_date, size, type, status) "
+                            + "values ('full-20260101120000', '2026-01-01T12:00:00Z', '2026-01-01T12:05:00Z', "
+                            + "10485760, 'full', 'FINISHED')");
+            statement.execute(
+                    "insert into backup_account(sessionID, account_size, email, initial_date, conclusion_date) "
+                            + "values ('full-20260101120000', '6M', 'user@example.com', "
+                            + "'2026-01-01T12:00:00Z', '2026-01-01T12:05:00Z')");
+        }
+
+        try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
+            IOException e = assertThrows(
+                    IOException.class, () -> store.findAccountsForSession("full-20260101120000"));
+
+            assertTrue(e.getMessage().contains("full-20260101120000"));
+            assertTrue(e.getMessage().contains("user@example.com"));
+            assertTrue(e.getMessage().contains("account_size"));
+            assertTrue(e.getMessage().contains("zmbackup migrate"));
+
+            store.migrateLegacyRows();
+            assertEquals(
+                    6_291_456L,
+                    store.findAccountsForSession("full-20260101120000").get(0).size());
+        }
+    }
+
+    @Test
     void constructingStoreCreatesIndexesOnFrequentlyQueriedBackupAccountColumns(@TempDir Path workDir)
             throws IOException, SQLException {
         Path databaseFile = workDir.resolve("sessions.sqlite3");
