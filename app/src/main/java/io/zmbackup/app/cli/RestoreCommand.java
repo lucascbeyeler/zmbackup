@@ -37,6 +37,16 @@ public final class RestoreCommand implements Callable<Integer> {
             description = "Restore the mailbox into a different destination account (requires exactly one --account).")
     private String destination;
 
+    @Option(
+            names = "--verify",
+            description = "After restoring mailbox content, verify the destination actually gained as many items"
+                    + " as the archive being restored contains (Zimbra's REST import can silently drop malformed"
+                    + " messages while still reporting success). Costs an extra full mailbox export before and"
+                    + " after the restore. Do not use when re-restoring content already present in the"
+                    + " destination - resolve=skip will not recreate duplicates, which this check cannot tell"
+                    + " apart from dropped content.")
+    private boolean verify;
+
     @Spec
     private CommandSpec spec;
 
@@ -67,8 +77,8 @@ public final class RestoreCommand implements Callable<Integer> {
         PrintWriter out = spec.commandLine().getOut();
         return LockedExecution.run(parent.configFile(), err, context -> {
             RestoreResult result = destination != null
-                    ? context.restoreService().restoreMailbox(sessionId, accounts, destination)
-                    : context.restoreService().restoreFull(sessionId, accounts);
+                    ? context.restoreService().restoreMailbox(sessionId, accounts, destination, verify)
+                    : context.restoreService().restoreFull(sessionId, accounts, verify);
             return RestoreRunner.printResult(out, sessionId, result);
         });
     }
