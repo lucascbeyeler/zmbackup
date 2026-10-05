@@ -55,7 +55,6 @@ class MigrateCommandTest {
         Path configFile = writeConfig();
         Path databaseFile = tempDir.resolve("sessions.sqlite3");
         try (var store = new io.zmbackup.local.SqliteMetadataStore(databaseFile)) {
-            // just to create the schema
         }
         try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 var statement = connection.createStatement()) {
@@ -70,7 +69,6 @@ class MigrateCommandTest {
         int exitCode = cmd.execute("--config", configFile.toString(), "migrate");
 
         assertEquals(0, exitCode);
-        // 1 for the type/timestamp normalization, 1 for the legacy "5M" human-readable size string.
         assertTrue(out.toString().contains("Normalized 2 legacy backup_session/backup_account row(s)"));
         AppContext context = AppContext.fromConfigFile(configFile);
         var session = context.metadataStore().findSession("mbox-20260101120000").orElseThrow();

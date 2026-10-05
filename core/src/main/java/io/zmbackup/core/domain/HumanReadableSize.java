@@ -28,12 +28,6 @@ public final class HumanReadableSize {
         return (tenths / 10.0) + UNITS[unitIndex];
     }
 
-    /**
-     * Reverses {@link #format(long)}. Only meant for one-time migration of legacy values that were
-     * stored pre-formatted (e.g. "1.2G") instead of as raw bytes - {@code format} rounds to one
-     * decimal place, so the result is an approximation of the original byte count, not an exact
-     * round trip.
-     */
     public static long parseApprox(String formatted) {
         String trimmed = formatted.trim();
         if (trimmed.isEmpty()) {

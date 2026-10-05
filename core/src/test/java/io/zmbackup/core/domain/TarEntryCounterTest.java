@@ -28,9 +28,6 @@ class TarEntryCounterTest {
 
     @Test
     void doesNotCountTopLevelFolderDefinitionEntries() throws IOException {
-        // Every mailbox - including a brand new one - already has one top-level "<id>-<name>.meta"
-        // entry per default folder (Inbox, Sent, Trash, ...). None of that represents content that
-        // could be silently dropped by a restore, so it must never be counted.
         byte[] tgz = tgz(
                 regularFileEntry("0000000002-Inbox.meta", "{\"id\":2}"),
                 regularFileEntry("0000000003-Trash.meta", "{\"id\":3}"));
@@ -61,10 +58,6 @@ class TarEntryCounterTest {
 
     @Test
     void usesTheRealPathFromAGnuLongNameEntryRatherThanTheTruncatedHeaderName() throws IOException {
-        // GNU tar emits a typeflag 'L' entry carrying the full path whenever it would not fit in the
-        // header's 100-byte name field - real Zimbra archives hit this often, since the filename
-        // embeds the message subject. The short/truncated name in the following header's own name
-        // field is a decoy and must not be used once a long name is pending.
         String longName = "Inbox/" + "a".repeat(150) + ".eml";
         byte[] tgz = tgz(
                 extensionEntry('L', longName),
@@ -82,9 +75,6 @@ class TarEntryCounterTest {
 
     @Test
     void aPaxExtendedHeaderEntryIsSkippedAndTheFollowingEntryUsesItsOwnHeaderName() throws IOException {
-        // PAX ('x') path overrides are not decoded (standard Linux tar -czf produces GNU long-name
-        // entries, not PAX, for an over-long path) - the entry following a PAX header is counted (or
-        // not) using only its own short header name.
         byte[] tgz = tgz(
                 extensionEntry('x', "30 path=some/pax/override/path.eml\n"),
                 regularFileEntry("Inbox/own-short-name.eml", "content"));
@@ -97,7 +87,7 @@ class TarEntryCounterTest {
         for (byte[] entry : entries) {
             tar.write(entry);
         }
-        tar.write(new byte[BLOCK_SIZE * 2]); // two zero blocks mark end-of-archive
+        tar.write(new byte[BLOCK_SIZE * 2]);
 
         ByteArrayOutputStream gzipped = new ByteArrayOutputStream();
         try (GZIPOutputStream gzipOut = new GZIPOutputStream(gzipped)) {

@@ -336,7 +336,6 @@ class SqliteMetadataStoreTest {
             throws IOException, SQLException {
         Path databaseFile = workDir.resolve("sessions.sqlite3");
         try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
-            // just to create the schema
         }
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement()) {
@@ -353,7 +352,6 @@ class SqliteMetadataStoreTest {
         try (SqliteMetadataStore store = new SqliteMetadataStore(databaseFile)) {
             int converted = store.migrateLegacyRows();
 
-            // 1 session row (type+dates) + 1 account row (dates) + 1 session size + 1 account size.
             assertEquals(4, converted);
             BackupSession session = store.findSession("full-20260101120000").orElseThrow();
             assertEquals(BackupType.FULL, session.type());
@@ -375,7 +373,6 @@ class SqliteMetadataStoreTest {
         Path databaseFile = workDir.resolve("sessions.sqlite3");
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement()) {
-            // Mirrors the table shape written by zmbackup versions before the numeric-size fix.
             statement.execute(
                     """
                     create table backup_session(
@@ -409,8 +406,6 @@ class SqliteMetadataStoreTest {
                     store.findSession("full-20260102120000").orElseThrow().size());
         }
 
-        // The whole point of retyping the column is that plain SQL ordering becomes numeric instead
-        // of lexicographic (where "2147483648" would sort before "858993459" as text).
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement();
                 ResultSet rs = statement.executeQuery("select sessionID from backup_session order by size asc")) {
@@ -426,7 +421,6 @@ class SqliteMetadataStoreTest {
             throws IOException, SQLException {
         Path databaseFile = workDir.resolve("sessions.sqlite3");
         try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
-            // just to create the schema
         }
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement()) {
@@ -448,7 +442,6 @@ class SqliteMetadataStoreTest {
             throws IOException, SQLException {
         Path databaseFile = workDir.resolve("sessions.sqlite3");
         try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
-            // just to create the schema
         }
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement()) {
@@ -469,12 +462,8 @@ class SqliteMetadataStoreTest {
     @Test
     void findSessionRefusesToSilentlyMisreadAnUnmigratedHumanReadableSizeInsteadOfReturningGarbageBytes(
             @TempDir Path workDir) throws IOException, SQLException {
-        // Otherwise-normalized row (ISO timestamps, canonical type) - only the size was never migrated
-        // from an older zmbackup build. Without this check, SQLite's implicit text->integer coercion
-        // would silently truncate "10M" down to 10 instead of raising a clear, actionable error.
         Path databaseFile = workDir.resolve("sessions.sqlite3");
         try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
-            // just to create the schema
         }
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement()) {
@@ -491,7 +480,6 @@ class SqliteMetadataStoreTest {
             assertTrue(e.getMessage().contains("size"));
             assertTrue(e.getMessage().contains("zmbackup migrate"));
 
-            // Running the migration resolves it and the real byte count comes back correctly.
             store.migrateLegacyRows();
             assertEquals(10_485_760L, store.findSession("full-20260101120000").orElseThrow().size());
         }
@@ -502,7 +490,6 @@ class SqliteMetadataStoreTest {
             throws IOException, SQLException {
         Path databaseFile = workDir.resolve("sessions.sqlite3");
         try (SqliteMetadataStore fresh = new SqliteMetadataStore(databaseFile)) {
-            // just to create the schema
         }
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile);
                 Statement statement = connection.createStatement()) {

@@ -250,7 +250,6 @@ class RestoreServiceTest {
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"), null, true);
 
         assertEquals(List.of("alice@example.com"), result.failedAccounts());
-        // restore() itself never threw - this is exactly the issue #409 scenario.
         assertEquals(1, mailboxExporter.restoredInto.get("alice@example.com").size());
     }
 
@@ -268,8 +267,6 @@ class RestoreServiceTest {
     void restoreMailboxVerifyAccountsForPreExistingDestinationContent() throws IOException {
         storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(3));
         mailboxExporter.itemCountsByAccount.put("bob@example.com", 10);
-        // Only 1 of the 3 restored items actually landed, but the destination already had 10 of its
-        // own - a naive "does the destination have enough items" check would wrongly pass here.
         mailboxExporter.gainOnRestore.put("bob@example.com", 1);
 
         RestoreResult result =
@@ -337,7 +334,6 @@ class RestoreServiceTest {
         return new BackupAccountRecord(null, sessionId, email, 1024L, now, now);
     }
 
-    /** Builds a minimal real .tgz (gzip+tar) with {@code entryCount} trivial regular-file entries. */
     private static byte[] tgzWithEntries(int entryCount) throws IOException {
         int blockSize = 512;
         ByteArrayOutputStream tar = new ByteArrayOutputStream();
@@ -346,10 +342,10 @@ class RestoreServiceTest {
             byte[] header = new byte[blockSize];
             byte[] name = ("Inbox/item-" + i + ".eml").getBytes(StandardCharsets.US_ASCII);
             System.arraycopy(name, 0, header, 0, name.length);
-            writeOctalField(header, 100, 8, 0644); // mode
-            writeOctalField(header, 124, 12, content.length); // size
-            Arrays.fill(header, 148, 156, (byte) ' '); // checksum placeholder
-            header[156] = '0'; // typeflag: regular file
+            writeOctalField(header, 100, 8, 0644);
+            writeOctalField(header, 124, 12, content.length);
+            Arrays.fill(header, 148, 156, (byte) ' ');
+            header[156] = '0';
             int sum = 0;
             for (byte b : header) {
                 sum += b & 0xFF;
@@ -458,8 +454,6 @@ class RestoreServiceTest {
             }
             String content = new String(source.readAllBytes());
             restoredInto.computeIfAbsent(account, k -> new ArrayList<>()).add(content);
-            // Simulates what actually lands in the destination, independent of what was uploaded -
-            // this is exactly issue #409's scenario: Zimbra can silently drop some or all of it.
             Integer gain = gainOnRestore.get(account);
             if (gain != null) {
                 itemCountsByAccount.merge(account, gain, Integer::sum);

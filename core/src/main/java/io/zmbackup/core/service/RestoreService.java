@@ -116,17 +116,6 @@ public class RestoreService {
         return restoreMailbox(sessionId, accounts, destination, false);
     }
 
-    /**
-     * @param verify if true, counts items in the archive being restored and compares that against
-     *     how many items the destination mailbox actually gained (via a REST export before and
-     *     after the restore), failing the account if the gain falls short - see issue #409, where
-     *     Zimbra's REST restore endpoint can silently drop malformed messages while still reporting
-     *     HTTP success. Costs an extra full mailbox export before and after the restore, so it is
-     *     opt-in rather than the default. Re-restoring content that is already present in the
-     *     destination can under-count (Zimbra's {@code resolve=skip} will not recreate duplicates),
-     *     so only trust a verified restore into a destination that did not already hold the content
-     *     being restored.
-     */
     public RestoreResult restoreMailbox(String sessionId, List<String> accounts, String destination, boolean verify)
             throws IOException {
         if (destination != null && accounts.size() != 1) {
