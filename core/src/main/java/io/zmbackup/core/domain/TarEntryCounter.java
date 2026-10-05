@@ -5,29 +5,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPInputStream;
 
-/**
- * Counts the mailbox-item entries in a gzip-compressed tar ({@code .tgz}) stream, without any
- * tar/gzip library dependency - just enough tar-header parsing to tell how many actual content
- * items (messages, contacts, calendar entries, files, etc.) an archive contains, which {@link
- * io.zmbackup.core.service.RestoreService} uses to detect when Zimbra's REST mailbox restore
- * silently drops content while still reporting success (see issue #409 - the HTTP response is
- * identical, "200 OK" with an empty body, whether every item imported or every item was rejected).
- *
- * <p>A Zimbra mailbox export nests every real content item under its owning folder's path (e.g.
- * {@code Inbox/0000000257-subject.eml}), while each folder's own definition is a separate,
- * top-level {@code <id>-<name>.meta} entry with no path separator. Every mailbox - including a
- * brand new one - already has ~17 of those top-level folder-definition entries (Inbox, Sent,
- * Trash, Contacts, ...), so counting every regular-file entry would make a verification check
- * think that much content is "expected" when none of it represents content that could actually be
- * missing. Only entries whose path contains {@code '/'} are counted.
- *
- * <p>Handles GNU long-name ({@code 'L'}) entries, which real Zimbra/GNU-tar archives use whenever
- * a path exceeds the tar header's 100-byte name field (common given Zimbra embeds the message
- * subject in the filename). PAX extended-header ({@code 'x'}/{@code 'g'}) path overrides are not
- * decoded - their data is skipped and the following entry's own (possibly truncated) header name
- * is used instead, since standard {@code tar -czf} on Linux produces GNU long-name entries, not
- * PAX ones, for an over-long path.
- */
 public final class TarEntryCounter {
 
     private static final int BLOCK_SIZE = 512;

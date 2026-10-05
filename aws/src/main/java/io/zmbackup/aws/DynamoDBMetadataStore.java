@@ -389,10 +389,6 @@ public final class DynamoDBMetadataStore implements MetadataStore {
                 item.containsKey("conclusionDate") ? fromDb(item.get("conclusionDate").s()) : null);
     }
 
-    /**
-     * Reads a size attribute written as a Number (current format) or, for backward compatibility
-     * with items written before the numeric-size fix, as a human-readable String like "1.2G".
-     */
     private static long readSize(AttributeValue value) {
         return value.n() != null ? Long.parseLong(value.n()) : HumanReadableSize.parseApprox(value.s());
     }

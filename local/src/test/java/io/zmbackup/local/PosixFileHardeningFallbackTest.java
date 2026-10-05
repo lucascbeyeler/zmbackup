@@ -15,10 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Exercises the {@code posixSupported == false} fallback branches, which never run on the POSIX
- * filesystems CI executes on, by forcing the flag via the package-private test hook.
- */
 class PosixFileHardeningFallbackTest {
 
     @TempDir

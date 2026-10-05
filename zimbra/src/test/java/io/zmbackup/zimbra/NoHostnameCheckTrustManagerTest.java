@@ -59,7 +59,6 @@ class NoHostnameCheckTrustManagerTest {
         assertArrayEquals(issuers, trustManager.getAcceptedIssuers());
     }
 
-    /** Hand-rolled stub since this module has no mocking library on the test classpath. */
     private static final class RecordingTrustManager implements X509TrustManager {
         private final X509Certificate[] acceptedIssuers;
         private final List<Object[]> clientTrustedCalls = new ArrayList<>();

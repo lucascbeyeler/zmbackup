@@ -25,7 +25,6 @@ public final class PosixFileHardening {
         return FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     }
 
-    /** Test-only hook to exercise the non-POSIX fallback branches on a POSIX filesystem. */
     static void setPosixSupportedForTesting(boolean value) {
         posixSupported = value;
     }

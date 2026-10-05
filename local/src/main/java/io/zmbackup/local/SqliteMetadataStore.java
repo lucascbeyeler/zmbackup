@@ -260,14 +260,6 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         }
     }
 
-    /**
-     * Converts {@code backup_session.size}, written by the bash tool or by zmbackup versions prior
-     * to the numeric-size fix as a human-readable string like "1.2G" instead of raw bytes, which
-     * makes the column unsortable/unsummable as a number. Retypes the column itself when it is still
-     * declared as text (a genuinely old on-disk database), then - regardless of the declared type -
-     * rewrites any individual row that still holds a text-formatted value (SQLite's dynamic typing
-     * lets that happen even in an integer-declared column).
-     */
     private int normalizeSessionSizeColumn() throws SQLException {
         int converted = 0;
         if (isTextColumn("backup_session", "size")) {
@@ -320,9 +312,6 @@ public class SqliteMetadataStore implements MetadataStore, Closeable {
         return converted;
     }
 
-    /**
-     * Same as {@link #normalizeSessionSizeColumn()}, for {@code backup_account.account_size}.
-     */
     private int normalizeAccountSizeColumn() throws SQLException {
         int converted = 0;
         if (isTextColumn("backup_account", "account_size")) {
