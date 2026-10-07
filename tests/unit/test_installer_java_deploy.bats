@@ -17,6 +17,8 @@ setup() {
   ZMBKP_LIB="${DEPLOY_ROOT}/usr/local/lib/zmbackup"
   ZMBKP_CRON_FILE="${DEPLOY_ROOT}/etc/cron.d/zmbackup"
   OSE_USER="$(/usr/bin/whoami)"
+  ZMBKP_CRON_OWNER="$OSE_USER"
+  ZMBKP_METADATA_DIR=""
   OSE_INSTALL_ADDRESS="192.168.1.1"
   OSE_INSTALL_LDAPPASS="testpassword"
   OSE_INSTALL_DIR="/opt/zimbra"
@@ -27,7 +29,7 @@ setup() {
   MAX_PARALLEL_PROCESS="3"
   ROTATE_TIME="30"
   LOCK_BACKUP="true"
-  export DEPLOY_ROOT OSE_DEFAULT_BKP_DIR ZMBKP_CONF ZMBKP_SRC ZMBKP_LIB ZMBKP_CRON_FILE
+  export DEPLOY_ROOT OSE_DEFAULT_BKP_DIR ZMBKP_CONF ZMBKP_SRC ZMBKP_LIB ZMBKP_CRON_FILE ZMBKP_CRON_OWNER ZMBKP_METADATA_DIR
   export OSE_USER OSE_INSTALL_ADDRESS OSE_INSTALL_LDAPPASS OSE_INSTALL_DIR
   export ZMBKP_REST_ADMIN ZMBKP_REST_ADMIN_PASS ZMBKP_MAIL_ALERT ZMBKP_MAIL_SENDER MAX_PARALLEL_PROCESS ROTATE_TIME LOCK_BACKUP
 
@@ -77,6 +79,12 @@ teardown() {
   [ -f "$ZMBKP_CRON_FILE" ]
 }
 
+@test "deploy_new_java: installs the cron file world-readable and not group/other-writable" {
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  [ "$(stat -c %a "$ZMBKP_CRON_FILE")" = "644" ]
+}
+
 @test "deploy_new_java: substitutes the configured user into the cron file" {
   MOCK_SU_OUTPUT=""
   deploy_new_java
@@ -107,6 +115,29 @@ teardown() {
   MOCK_SU_OUTPUT=""
   deploy_new_java
   grep -q "\[2001:db8::1\]" "${ZMBKP_CONF}/zmbackup.yaml"
+}
+
+@test "deploy_new_java: substitutes a hostname into zmbackup.yaml without brackets" {
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  grep -q "url: ldap://mail.example.com:389" "${ZMBKP_CONF}/zmbackup.yaml"
+  grep -q "restBaseUrl: https://mail.example.com:7071" "${ZMBKP_CONF}/zmbackup.yaml"
+}
+
+@test "deploy_new_java: leaves metadataDir commented out when ZMBKP_METADATA_DIR is empty" {
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  grep -q "^  # metadataDir:" "${ZMBKP_CONF}/zmbackup.yaml"
+  ! grep -q "^  metadataDir:" "${ZMBKP_CONF}/zmbackup.yaml"
+}
+
+@test "deploy_new_java: enables metadataDir and creates it when ZMBKP_METADATA_DIR is set" {
+  ZMBKP_METADATA_DIR="${DEPLOY_ROOT}/var/zmbackup"
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  grep -q "^  metadataDir: ${ZMBKP_METADATA_DIR}$" "${ZMBKP_CONF}/zmbackup.yaml"
+  [ -d "$ZMBKP_METADATA_DIR" ]
 }
 
 @test "deploy_new_java: leaves no unsubstituted {PLACEHOLDER} tokens in zmbackup.yaml" {
@@ -164,6 +195,18 @@ user@example.com"
 @test "deploy_upgrade_java: reinstalls the jar" {
   run deploy_upgrade_java
   [ -f "${ZMBKP_LIB}/${ZMBKP_JAR_NAME}" ]
+}
+
+@test "deploy_upgrade_java: repairs the permissions of an existing cron file" {
+  echo "* * * * * zimbra true" > "$ZMBKP_CRON_FILE"
+  chmod 600 "$ZMBKP_CRON_FILE"
+  run deploy_upgrade_java
+  [ "$(stat -c %a "$ZMBKP_CRON_FILE")" = "644" ]
+}
+
+@test "deploy_upgrade_java: does not create a cron file when none exists" {
+  run deploy_upgrade_java
+  [ ! -f "$ZMBKP_CRON_FILE" ]
 }
 
 @test "deploy_upgrade_java: migrates an existing sessions.txt via zmbackup migrate" {

@@ -29,6 +29,16 @@ function deploy_new_java() {
   fi
   chown -R "$OSE_USER"."$OSE_USER" "$OSE_DEFAULT_BKP_DIR" > /dev/null 2>&1
 
+  if [[ -n "$ZMBKP_METADATA_DIR" ]]; then
+    if ! mkdir -p "$ZMBKP_METADATA_DIR" > /dev/null 2>&1; then
+      echo "[FAIL] - Can't create the directory"
+      echo "For some reason Zmbackup can't create the folder $ZMBKP_METADATA_DIR."
+      echo "Please check what happened and try again."
+      exit "$ERR_DEPNOTFOUND"
+    fi
+    chown -R "$OSE_USER"."$OSE_USER" "$ZMBKP_METADATA_DIR" > /dev/null 2>&1
+  fi
+
   test -d "$ZMBKP_CONF" || mkdir -p "$ZMBKP_CONF"
   test -d "$ZMBKP_SRC" || mkdir -p "$ZMBKP_SRC"
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
@@ -38,7 +48,7 @@ function deploy_new_java() {
 
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup.yaml "$ZMBKP_CONF"
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
-  install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup-java.cron "$ZMBKP_CRON_FILE"
+  install --backup=numbered -o "$ZMBKP_CRON_OWNER" -m 644 "$MYDIR"/project/config/zmbackup-java.cron "$ZMBKP_CRON_FILE"
 
   sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" "$ZMBKP_CONF"/zmbackup.yaml
@@ -58,6 +68,9 @@ function deploy_new_java() {
   sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{ROTATE_TIME}|${ROTATE_TIME}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{LOCK_BACKUP}|${LOCK_BACKUP}|g" "$ZMBKP_CONF"/zmbackup.yaml
+  if [[ -n "$ZMBKP_METADATA_DIR" ]]; then
+    sed -i "s|^  # metadataDir: .*|  metadataDir: ${ZMBKP_METADATA_DIR}|" "$ZMBKP_CONF"/zmbackup.yaml
+  fi
 
   sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CRON_FILE"
 
@@ -76,6 +89,11 @@ function deploy_upgrade_java() {
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+
+  if [[ -f "$ZMBKP_CRON_FILE" ]]; then
+    chown "$ZMBKP_CRON_OWNER" "$ZMBKP_CRON_FILE"
+    chmod 644 "$ZMBKP_CRON_FILE"
+  fi
 
   migrate_legacy_sessions
 

@@ -13,6 +13,7 @@ ZMBKP_CONF="/etc/zmbackup"
 ZMBKP_LIB="/usr/local/lib/zmbackup"
 ZMBKP_JAR_NAME="zmbackup.jar"
 ZMBKP_CRON_FILE="/etc/cron.d/zmbackup"
+ZMBKP_CRON_OWNER="root"
 
 JAVA_MIN_VERSION="17"
 
@@ -21,10 +22,11 @@ OSE_INSTALL_DIR="/opt/zimbra"
 OSE_DEFAULT_BKP_DIR="/opt/zimbra/backup"
 OSE_INSTALL_DOMAIN=$(su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmprov gad | head -1" "$OSE_USER")
 OSE_INSTALL_HOSTNAME=$(hostname --fqdn)
-OSE_INSTALL_ADDRESS=$(ping -c1 "$OSE_INSTALL_HOSTNAME" | head -1 | sed -n 's/[^(]*(\([^)]*\)).*/\1/p')
+OSE_INSTALL_ADDRESS=$OSE_INSTALL_HOSTNAME
 OSE_INSTALL_LDAPPASS=$(su -s /bin/bash -c "$OSE_INSTALL_DIR/bin/zmlocalconfig -s zimbra_ldap_password" "$OSE_USER" |awk '{print $3}')
 ZMBKP_REST_ADMIN="admin@"$OSE_INSTALL_DOMAIN
 ZMBKP_REST_ADMIN_PASS=""
+ZMBKP_METADATA_DIR=""
 ZMBKP_MAIL_ALERT="admin@"$OSE_INSTALL_DOMAIN
 ZMBKP_MAIL_SENDER="root@"$OSE_INSTALL_DOMAIN
 MAX_PARALLEL_PROCESS="3"
