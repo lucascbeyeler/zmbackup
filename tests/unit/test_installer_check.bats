@@ -11,7 +11,7 @@ setup() {
   ZMBKP_CONF="${CHECK_ROOT}/etc/zmbackup"
   ZMBKP_LIB="${CHECK_ROOT}/usr/local/lib/zmbackup"
   ZMBKP_JAR_NAME="zmbackup.jar"
-  ZMBKP_VERSION="zmbackup version: 2.0.0"
+  ZMBKP_VERSION="zmbackup version: 2.0.1"
   OSE_USER="$(/usr/bin/whoami)"
   export ZMBKP_CONF ZMBKP_LIB ZMBKP_JAR_NAME ZMBKP_VERSION OSE_USER
   export MOCK_ID_UID=0
