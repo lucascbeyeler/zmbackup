@@ -15,7 +15,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n')
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n\n\n')
     echo \"OSE_USER=\$OSE_USER\"
     echo \"MAX_PARALLEL_PROCESS=\$MAX_PARALLEL_PROCESS\"
   "
@@ -28,7 +28,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf 'myuser\n\n\n\n\n\n\n\n\n\n')
+    set_values_java < <(printf 'myuser\n\n\n\n\n\n\n\n\n\n\n\n')
     echo \"OSE_USER=\$OSE_USER\"
   "
   [[ "$output" == *"OSE_USER=myuser"* ]]
@@ -39,10 +39,54 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf '\n\n\n\n\n\n\n8\n\n\n')
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n8\n\n\n')
     echo \"MAX_PARALLEL_PROCESS=\$MAX_PARALLEL_PROCESS\"
   "
   [[ "$output" == *"MAX_PARALLEL_PROCESS=8"* ]]
+}
+
+@test "set_values_java: defaults the server address to the FQDN" {
+  run bash -c "
+    PATH='${MOCKS_DIR}:${PATH}'
+    source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
+    source '${INSTALLER_JAVA_DIR}/menu.sh'
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n\n\n')
+    echo \"OSE_INSTALL_ADDRESS=\$OSE_INSTALL_ADDRESS\"
+  "
+  [[ "$output" == *"OSE_INSTALL_ADDRESS=mail.example.com"* ]]
+}
+
+@test "set_values_java: overrides the server address when provided" {
+  run bash -c "
+    PATH='${MOCKS_DIR}:${PATH}'
+    source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
+    source '${INSTALLER_JAVA_DIR}/menu.sh'
+    set_values_java < <(printf '\n\nzimbra.example.org\n\n\n\n\n\n\n\n\n\n')
+    echo \"OSE_INSTALL_ADDRESS=\$OSE_INSTALL_ADDRESS\"
+  "
+  [[ "$output" == *"OSE_INSTALL_ADDRESS=zimbra.example.org"* ]]
+}
+
+@test "set_values_java: leaves the metadata directory unset by default" {
+  run bash -c "
+    PATH='${MOCKS_DIR}:${PATH}'
+    source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
+    source '${INSTALLER_JAVA_DIR}/menu.sh'
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n\n\n')
+    echo \"ZMBKP_METADATA_DIR=[\$ZMBKP_METADATA_DIR]\"
+  "
+  [[ "$output" == *"ZMBKP_METADATA_DIR=[]"* ]]
+}
+
+@test "set_values_java: sets the metadata directory when provided" {
+  run bash -c "
+    PATH='${MOCKS_DIR}:${PATH}'
+    source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
+    source '${INSTALLER_JAVA_DIR}/menu.sh'
+    set_values_java < <(printf '\n\n\n\n/var/zmbackup\n\n\n\n\n\n\n\n')
+    echo \"ZMBKP_METADATA_DIR=\$ZMBKP_METADATA_DIR\"
+  "
+  [[ "$output" == *"ZMBKP_METADATA_DIR=/var/zmbackup"* ]]
 }
 
 @test "set_values_java: displays CONFIGURATION COMPLETED message" {
@@ -50,7 +94,7 @@ setup() {
     PATH='${MOCKS_DIR}:${PATH}'
     source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
     source '${INSTALLER_JAVA_DIR}/menu.sh'
-    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n')
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n\n\n')
   "
   [[ "$output" == *"CONFIGURATION COMPLETED"* ]]
 }
@@ -74,4 +118,11 @@ setup() {
   [[ "$output" == *"Summary"* ]]
   [[ "$output" == *"zimbra"* ]]
   [[ "$output" == *"SQLite3"* ]]
+}
+
+@test "check_config_java: reports the metadata directory as the session storage location when set" {
+  OSE_DEFAULT_BKP_DIR="/mnt/nfs/backup"
+  ZMBKP_METADATA_DIR="/var/zmbackup"
+  output=$(echo "" | check_config_java)
+  [[ "$output" == *"SQLite3 (/var/zmbackup/sessions.sqlite3)"* ]]
 }

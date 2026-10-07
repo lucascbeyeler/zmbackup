@@ -87,6 +87,14 @@ setup() {
   [ "$TERM" = "linux" ]
 }
 
-@test "vars: OSE_INSTALL_ADDRESS extracts only the resolved address from GNU-style ping output" {
-  [ "$OSE_INSTALL_ADDRESS" = "192.168.1.1" ]
+@test "vars: OSE_INSTALL_ADDRESS defaults to the server's FQDN, not a resolved IP" {
+  [ "$OSE_INSTALL_ADDRESS" = "mail.example.com" ]
+}
+
+@test "vars: ZMBKP_CRON_OWNER is root" {
+  [ "$ZMBKP_CRON_OWNER" = "root" ]
+}
+
+@test "vars: ZMBKP_METADATA_DIR defaults to empty" {
+  [ -z "$ZMBKP_METADATA_DIR" ]
 }
