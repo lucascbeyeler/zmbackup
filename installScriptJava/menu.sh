@@ -72,9 +72,15 @@ function check_config_java() {
   echo ""
   echo "Zimbra User: $OSE_USER"
   echo "Zimbra Server Address: $OSE_INSTALL_ADDRESS"
-  echo "Zimbra LDAP/Admin Password: $OSE_INSTALL_LDAPPASS"
-  echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
-  echo "Zimbra REST Admin Password: $ZMBKP_REST_ADMIN_PASS"
+  if [[ $UNATTENDED == "Y" ]]; then
+    echo "Zimbra LDAP/Admin Password: ********"
+    echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
+    echo "Zimbra REST Admin Password: ********"
+  else
+    echo "Zimbra LDAP/Admin Password: $OSE_INSTALL_LDAPPASS"
+    echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
+    echo "Zimbra REST Admin Password: $ZMBKP_REST_ADMIN_PASS"
+  fi
   echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
   echo "Zimbra Backup Directory: $OSE_DEFAULT_BKP_DIR"
   echo "Zmbackup Launcher: $ZMBKP_SRC/zmbackup"
@@ -85,6 +91,22 @@ function check_config_java() {
   echo "Zmbackup Backup Lock: $LOCK_BACKUP"
   echo "Zmbackup Session Storage: SQLite3 (${ZMBKP_METADATA_DIR:-$OSE_DEFAULT_BKP_DIR}/sessions.sqlite3)"
   echo ""
+  if [[ $UNATTENDED == "Y" ]]; then
+    return
+  fi
   echo "Press ENTER to continue or CTRL+C to cancel."
   read -r
+}
+
+function check_required_java() {
+  local MISSING=""
+  [[ -z "$OSE_INSTALL_ADDRESS" ]] && MISSING="$MISSING OSE_INSTALL_ADDRESS"
+  [[ -z "$OSE_INSTALL_LDAPPASS" ]] && MISSING="$MISSING OSE_INSTALL_LDAPPASS"
+  [[ -z "$ZMBKP_REST_ADMIN" || "$ZMBKP_REST_ADMIN" == "admin@" ]] && MISSING="$MISSING ZMBKP_REST_ADMIN"
+  [[ -z "$ZMBKP_REST_ADMIN_PASS" ]] && MISSING="$MISSING ZMBKP_REST_ADMIN_PASS"
+  if [[ -n "$MISSING" ]]; then
+    echo "[FAIL] - Unattended install is missing required values:$MISSING"
+    echo "Export them as environment variables and run the installer again."
+    exit "$ERR_MISSING_VALUE"
+  fi
 }

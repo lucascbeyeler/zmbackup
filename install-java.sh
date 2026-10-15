@@ -1,6 +1,15 @@
 #!/bin/bash
 
-if [[ $1 == "--help" ]] || [[ $1 == "-h" ]]; then
+UNATTENDED="N"
+ACTION=""
+for ARG in "$@"; do
+  case "$ARG" in
+    --unattended|-u) UNATTENDED="Y";;
+    *) ACTION=${ACTION:-$ARG};;
+  esac
+done
+
+if [[ $ACTION == "--help" ]] || [[ $ACTION == "-h" ]]; then
   source installScriptJava/vars.sh
   source installScriptJava/help.sh
   show_help_java
@@ -19,10 +28,10 @@ source installScriptJava/deploy.sh
 source installScriptJava/menu.sh
 source installScriptJava/help.sh
 
-check_env "$1"
+check_env "$ACTION"
 check_java_runtime
 
-if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
+if [[ $ACTION == "--remove" ]] || [[ $ACTION == "-r" ]]; then
   if [[ $UNINSTALL = "Y" ]]; then
     uninstall_java
     echo "Uninstall completed. Thanks for using Zmbackup. Have a nice day!"
@@ -33,7 +42,14 @@ if [[ $1 == "--remove" ]] || [[ $1 == "-r" ]]; then
   fi
 fi
 
-contract
+if [[ $UNATTENDED == "Y" ]]; then
+  if [[ $UPGRADE != "Y" ]]; then
+    check_required_java
+  fi
+else
+  contract
+fi
+
 if [[ $NEED_JAVA == "Y" ]]; then
   if [[ $SO = "ubuntu" ]]; then
     install_java_ubuntu
@@ -46,10 +62,17 @@ if [[ $UPGRADE = "Y" ]]; then
   build_jar
   deploy_upgrade_java
 else
-  set_values_java
+  if [[ $UNATTENDED != "Y" ]]; then
+    set_values_java
+  fi
   check_config_java
   build_jar
   deploy_new_java
+fi
+
+if [[ $UNATTENDED == "Y" ]]; then
+  echo "Install completed."
+  exit "$ERR_OK"
 fi
 
 read -r -p "Install completed. Do you want to display the README file? (Y/n)" tmp

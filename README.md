@@ -127,6 +127,41 @@ dependencies). Run `./install-java.sh --remove` to uninstall, or `./install-java
 to rebuild and redeploy the jar without touching your existing configuration. See
 `./install-java.sh --help` for details.
 
+### Unattended install (Ansible and other automation)
+
+`./install-java.sh --unattended` (or `-u`) runs the same install without a single prompt: passing it
+accepts the license agreement, and every setting the interactive installer would ask for is read
+from an environment variable instead (anything left unset keeps its interactive default):
+
+| Variable | Default |
+| --- | --- |
+| `OSE_USER` | `zimbra` |
+| `OSE_INSTALL_DIR` | `/opt/zimbra` |
+| `OSE_INSTALL_ADDRESS` | the host's FQDN |
+| `OSE_INSTALL_LDAPPASS` | read from `zmlocalconfig -s zimbra_ldap_password` |
+| `OSE_INSTALL_DOMAIN` | the first domain from `zmprov gad` |
+| `OSE_DEFAULT_BKP_DIR` | `/opt/zimbra/backup` |
+| `ZMBKP_METADATA_DIR` | empty (same as the backup path) |
+| `ZMBKP_REST_ADMIN` | `admin@<OSE_INSTALL_DOMAIN>` |
+| `ZMBKP_REST_ADMIN_PASS` | **required** - no default |
+| `ZMBKP_MAIL_ALERT` | `admin@<OSE_INSTALL_DOMAIN>` |
+| `ZMBKP_MAIL_SENDER` | `root@<OSE_INSTALL_DOMAIN>` |
+| `MAX_PARALLEL_PROCESS` | `3` |
+| `ROTATE_TIME` | `30` |
+| `LOCK_BACKUP` | `true` |
+
+A missing required value stops the installer with exit code `5` before anything is built or
+deployed. Passwords are masked in the printed summary. `--unattended` combines with
+`--force-upgrade` and with `--remove`; an unattended `--remove` never truncates the metadata
+database and always keeps the backup storage.
+
+```
+# ZMBKP_REST_ADMIN_PASS='admin-password' ./install-java.sh --unattended
+```
+
+The [lucascbeyeler.zimbra](https://github.com/lucascbeyeler/zimbra) Ansible role uses this mode to
+install Zmbackup alongside Zimbra - set `zimbra_zmbackup: y` there.
+
 ## Usage
 
 Run **zmbackup -h** or **zmbackup --help** for the full, current option list; a summary of the

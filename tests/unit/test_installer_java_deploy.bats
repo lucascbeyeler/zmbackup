@@ -317,3 +317,16 @@ user@example.com"
   printf 'y\nN\n' | uninstall_java
   ! grep -q "zmbackup truncate" "$MOCK_SUDO_LOG"
 }
+
+@test "uninstall_java: unattended never truncates the database and keeps the backup storage" {
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  touch "${OSE_DEFAULT_BKP_DIR}/sessions.sqlite3"
+  MOCK_SUDO_LOG="$(mktemp)"
+  export MOCK_SUDO_LOG
+  UNATTENDED="Y"
+  printf 'TRUNCATE\nN\n' | uninstall_java
+  ! grep -q "zmbackup truncate" "$MOCK_SUDO_LOG"
+  [ -f "${OSE_DEFAULT_BKP_DIR}/sessions.sqlite3" ]
+  [ ! -f "${ZMBKP_CONF}/zmbackup.yaml" ]
+}

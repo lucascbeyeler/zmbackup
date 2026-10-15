@@ -126,3 +126,49 @@ setup() {
   output=$(echo "" | check_config_java)
   [[ "$output" == *"SQLite3 (/var/zmbackup/sessions.sqlite3)"* ]]
 }
+
+@test "check_config_java: does not wait for ENTER when unattended" {
+  UNATTENDED="Y"
+  run check_config_java < /dev/null
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Press ENTER"* ]]
+}
+
+@test "check_config_java: masks both passwords when unattended" {
+  UNATTENDED="Y"
+  OSE_INSTALL_LDAPPASS="ldapsecret"
+  ZMBKP_REST_ADMIN_PASS="restsecret"
+  run check_config_java < /dev/null
+  [[ "$output" != *"ldapsecret"* ]]
+  [[ "$output" != *"restsecret"* ]]
+  [[ "$output" == *"Zimbra REST Admin Password: ********"* ]]
+}
+
+@test "check_required_java: passes when every required value is set" {
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  OSE_INSTALL_LDAPPASS="ldapsecret"
+  ZMBKP_REST_ADMIN="admin@example.com"
+  ZMBKP_REST_ADMIN_PASS="restsecret"
+  run check_required_java
+  [ "$status" -eq 0 ]
+}
+
+@test "check_required_java: exits ERR_MISSING_VALUE naming the missing REST admin password" {
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  OSE_INSTALL_LDAPPASS="ldapsecret"
+  ZMBKP_REST_ADMIN="admin@example.com"
+  ZMBKP_REST_ADMIN_PASS=""
+  run check_required_java
+  [ "$status" -eq 5 ]
+  [[ "$output" == *"ZMBKP_REST_ADMIN_PASS"* ]]
+}
+
+@test "check_required_java: rejects an admin account whose domain could not be detected" {
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  OSE_INSTALL_LDAPPASS="ldapsecret"
+  ZMBKP_REST_ADMIN="admin@"
+  ZMBKP_REST_ADMIN_PASS="restsecret"
+  run check_required_java
+  [ "$status" -eq 5 ]
+  [[ "$output" == *"ZMBKP_REST_ADMIN"* ]]
+}
