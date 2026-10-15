@@ -101,6 +101,10 @@ function deploy_upgrade_java() {
 }
 
 function truncate_database() {
+  if [[ $UNATTENDED == "Y" ]]; then
+    echo "Unattended uninstall - skipping database truncation."
+    return
+  fi
   printf "Also empty the backup metadata database (sessions.sqlite3)? This PERMANENTLY DELETES every "
   printf "\nbackup session/account record and CANNOT be undone. Backup files under workDir are NOT "
   printf "\ndeleted by this, but without their metadata zmbackup can no longer list or restore them - "
@@ -132,6 +136,11 @@ function uninstall_java() {
   rm -rf "$ZMBKP_LIB"
   rm -f "$ZMBKP_CRON_FILE"
   rm -rf "$ZMBKP_CONF"
+
+  if [[ $UNATTENDED == "Y" ]]; then
+    echo "Unattended uninstall - preserving backup storage."
+    return
+  fi
 
   printf "Preserve Backup Storage?[n/Y]"
   read -r OPT
