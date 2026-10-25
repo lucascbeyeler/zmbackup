@@ -8,12 +8,12 @@ picocli = "4.7.7"
 logback = "1.6.5"
 slf4j = "2.0.20"
 sqlite-jdbc = "3.53.4.0"
-aws-sdk = "2.55.12"
+aws-sdk = "2.57.2"
 cucumber = "8.0.4"
 shadow = "9.6.1"
 foojay-resolver = "1.0.0"
-spotbugs-plugin = "6.5.12"
-spotbugs-annotations = "4.10.4"
+spotbugs-plugin = "6.5.13"
+spotbugs-annotations = "4.10.5"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
