@@ -18,8 +18,10 @@ import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -68,8 +70,6 @@ public class BackupService {
 
     private static final Duration INCREMENTAL_LOOKBACK = Duration.ofHours(48);
 
-    private static final Duration LOCK_BACKUP_WINDOW = Duration.ofHours(24);
-
     private static final Duration SESSION_ID_RETRY_BUDGET = Duration.ofSeconds(5);
 
     private final AccountDiscovery accountDiscovery;
@@ -82,6 +82,7 @@ public class BackupService {
     private final ServerConfigArchiver serverConfigArchiver;
     private final int maxParallelProcesses;
     private final boolean lockBackup;
+    private final Clock clock;
 
     private BackupService(
             AccountDiscovery accountDiscovery,
@@ -93,7 +94,8 @@ public class BackupService {
             Notifier notifier,
             ServerConfigArchiver serverConfigArchiver,
             int maxParallelProcesses,
-            boolean lockBackup) {
+            boolean lockBackup,
+            Clock clock) {
         this.accountDiscovery = Objects.requireNonNull(accountDiscovery, "accountDiscovery must not be null");
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
@@ -104,6 +106,7 @@ public class BackupService {
         this.serverConfigArchiver = Objects.requireNonNull(serverConfigArchiver, "serverConfigArchiver must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
         this.lockBackup = lockBackup;
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     public static Builder builder(
@@ -126,6 +129,7 @@ public class BackupService {
         private ServerConfigArchiver serverConfigArchiver = NO_SERVER_CONFIG_ARCHIVER;
         private int maxParallelProcesses = 1;
         private boolean lockBackup = false;
+        private Clock clock = Clock.systemDefaultZone();
 
         private Builder(
                 AccountDiscovery accountDiscovery,
@@ -165,6 +169,11 @@ public class BackupService {
             return this;
         }
 
+        public Builder clock(Clock clock) {
+            this.clock = clock;
+            return this;
+        }
+
         public BackupService build() {
             return new BackupService(
                     accountDiscovery,
@@ -176,7 +185,8 @@ public class BackupService {
                     notifier,
                     serverConfigArchiver,
                     maxParallelProcesses,
-                    lockBackup);
+                    lockBackup,
+                    clock);
         }
     }
 
@@ -406,7 +416,7 @@ public class BackupService {
         if (!lockBackup || force || identifiers.isEmpty()) {
             return identifiers;
         }
-        Instant since = Instant.now().minus(LOCK_BACKUP_WINDOW);
+        Instant since = LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant();
         List<Callable<Boolean>> tasks = new ArrayList<>(identifiers.size());
         for (String identifier : identifiers) {
             tasks.add(() -> metadataStore.backedUpSince(identifier, type, since));

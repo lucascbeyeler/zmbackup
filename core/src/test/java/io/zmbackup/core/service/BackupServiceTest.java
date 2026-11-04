@@ -23,9 +23,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -393,6 +395,48 @@ class BackupServiceTest {
         assertTrue(result.isPresent());
         assertEquals(
                 Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void lockBackupDoesNotSkipABackupFromThePreviousCalendarDayEvenWithinTwentyFourHours() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        Instant previousNight = Instant.parse("2026-11-07T01:45:00Z");
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "inc-earlier", "alice@example.com", 1L, previousNight, previousNight));
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .clock(Clock.fixed(Instant.parse("2026-11-08T01:30:00Z"), ZoneOffset.UTC))
+                .build();
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.FULL);
+
+        assertTrue(result.isPresent());
+        assertEquals(
+                Set.of("alice@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+    }
+
+    @Test
+    void lockBackupSkipsABackupCompletedEarlierTheSameCalendarDay() throws IOException {
+        accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com"));
+        Instant earlierToday = Instant.parse("2026-11-08T00:10:00Z");
+        metadataStore.recordAccountBackup(new BackupAccountRecord(
+                null, "inc-earlier", "alice@example.com", 1L, earlierToday, earlierToday));
+        BackupService lockedBackup = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .blocklist(identifier -> false)
+                .notifier(new RecordingNotifier())
+                .maxParallelProcesses(1)
+                .lockBackup(true)
+                .clock(Clock.fixed(Instant.parse("2026-11-08T01:30:00Z"), ZoneOffset.UTC))
+                .build();
+
+        Optional<BackupSession> result = lockedBackup.backup(BackupType.FULL);
+
+        assertTrue(result.isEmpty());
     }
 
     @Test
