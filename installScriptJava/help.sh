@@ -16,7 +16,7 @@ function show_help_java (){
   printf "\n                       license agreement. Settings are read from environment variables instead of being asked:"
   printf "\n                       OSE_USER, OSE_INSTALL_DIR, OSE_INSTALL_ADDRESS, OSE_INSTALL_LDAPPASS, OSE_DEFAULT_BKP_DIR,"
   printf "\n                       ZMBKP_METADATA_DIR, ZMBKP_REST_ADMIN, ZMBKP_REST_ADMIN_PASS (required), ZMBKP_MAIL_ALERT,"
-  printf "\n                       ZMBKP_MAIL_SENDER, MAX_PARALLEL_PROCESS, ROTATE_TIME, LOCK_BACKUP. Combine with --force-upgrade"
+  printf "\n                       ZMBKP_MAIL_SENDER, MAX_PARALLEL_PROCESS, ROTATE_TIME, LOCK_BACKUP, ZMBKP_SKIP_CRON_CHECK, ZMBKP_CA_CERT. Combine with --force-upgrade"
   printf "\n                       or --remove; an unattended --remove keeps the metadata database and the backup storage."
   printf "\n -h,  --help         : Show this help"
 

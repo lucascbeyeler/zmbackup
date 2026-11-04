@@ -65,6 +65,17 @@ jobs:
       - store_artifacts:
           path: ~/reports/spotbugs
 
+  test-integration:
+    docker:
+      - image: cimg/openjdk:17.0
+    steps:
+      - checkout
+      - run:
+          name: Run the packaged jar against a local fake Zimbra
+          command: ./gradlew :app:integrationTest
+      - store_test_results:
+          path: app/build/test-results/integrationTest
+
   shellcheck:
     docker:
       - image: cimg/base:current
@@ -83,4 +94,5 @@ workflows:
     jobs:
       - test
       - test-java
+      - test-integration
       - shellcheck

@@ -42,6 +42,8 @@ if [[ $ACTION == "--remove" ]] || [[ $ACTION == "-r" ]]; then
   fi
 fi
 
+check_cron_daemon
+
 if [[ $UNATTENDED == "Y" ]]; then
   if [[ $UPGRADE != "Y" ]]; then
     check_required_java
@@ -65,6 +67,7 @@ else
   if [[ $UNATTENDED != "Y" ]]; then
     set_values_java
   fi
+  resolve_ca_cert
   check_config_java
   build_jar
   deploy_new_java

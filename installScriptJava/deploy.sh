@@ -1,5 +1,14 @@
 #!/bin/bash
 
+function yaml_quoted_secret() {
+  [[ -z "$1" ]] && return
+  printf "'%s'" "${1//\'/\'\'}"
+}
+
+function sed_replacement() {
+  printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+}
+
 function migrate_legacy_sessions() {
   if [[ -f "$OSE_DEFAULT_BKP_DIR/sessions.txt" ]]; then
     echo "Found an existing sessions.txt - migrating it into the SQLite metadata store..."
@@ -59,9 +68,9 @@ function deploy_new_java() {
     LDAP_ADDRESS="$OSE_INSTALL_ADDRESS"
   fi
   sed -i "s|{OSE_INSTALL_ADDRESS}|${LDAP_ADDRESS}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" "$ZMBKP_CONF"/zmbackup.yaml
+  sed -i "s|{OSE_INSTALL_LDAPPASS}|$(sed_replacement "$(yaml_quoted_secret "$OSE_INSTALL_LDAPPASS")")|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{ZMBKP_REST_ADMIN}|${ZMBKP_REST_ADMIN}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_REST_ADMIN_PASS}|${ZMBKP_REST_ADMIN_PASS}|g" "$ZMBKP_CONF"/zmbackup.yaml
+  sed -i "s|{ZMBKP_REST_ADMIN_PASS}|$(sed_replacement "$(yaml_quoted_secret "$ZMBKP_REST_ADMIN_PASS")")|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{OSE_INSTALL_DIR}|${OSE_INSTALL_DIR}|g" "$ZMBKP_CONF"/zmbackup.yaml
   sed -i "s|{ZMBKP_CONF}|${ZMBKP_CONF}|g" "$ZMBKP_CONF"/zmbackup.yaml
@@ -70,6 +79,10 @@ function deploy_new_java() {
   sed -i "s|{LOCK_BACKUP}|${LOCK_BACKUP}|g" "$ZMBKP_CONF"/zmbackup.yaml
   if [[ -n "$ZMBKP_METADATA_DIR" ]]; then
     sed -i "s|^  # metadataDir: .*|  metadataDir: ${ZMBKP_METADATA_DIR}|" "$ZMBKP_CONF"/zmbackup.yaml
+  fi
+
+  if [[ -n "$ZMBKP_CA_CERT" && "$ZMBKP_CA_CERT" != "none" ]]; then
+    sed -i "s|^  # caCertificatePath: .*|  caCertificatePath: $(sed_replacement "$ZMBKP_CA_CERT")|" "$ZMBKP_CONF"/zmbackup.yaml
   fi
 
   sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CRON_FILE"
@@ -96,6 +109,7 @@ function deploy_upgrade_java() {
   fi
 
   migrate_legacy_sessions
+  warn_upgrade_without_ca
 
   echo "Upgrade completed."
 }

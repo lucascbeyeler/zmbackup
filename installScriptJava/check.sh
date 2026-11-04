@@ -22,3 +22,38 @@ function check_java_runtime() {
     NEED_JAVA="N"
   fi
 }
+
+function check_cron_daemon() {
+  printf "  Cron Daemon...	          "
+  if [[ $ZMBKP_SKIP_CRON_CHECK == "Y" ]]; then
+    printf "[SKIPPED]\n"
+    return
+  fi
+  if pgrep -x cron > /dev/null 2>&1 || pgrep -x crond > /dev/null 2>&1; then
+    printf "[RUNNING]\n"
+    return
+  fi
+
+  if command -v cron > /dev/null 2>&1 || command -v crond > /dev/null 2>&1; then
+    printf "[NOT RUNNING]\n"
+  else
+    printf "[NOT INSTALLED]\n"
+  fi
+  echo "No cron daemon is running, so the backups scheduled in $ZMBKP_CRON_FILE would never run."
+  if [[ $SO == "redhat" ]]; then
+    echo "To fix it: yum install -y cronie && systemctl enable --now crond"
+  else
+    echo "To fix it: apt-get install -y cron && systemctl enable --now cron"
+  fi
+
+  if [[ $UNATTENDED == "Y" ]]; then
+    echo "[FAIL] - Start a cron daemon, or set ZMBKP_SKIP_CRON_CHECK=Y to install without one."
+    exit "$ERR_DEPNOTFOUND"
+  fi
+
+  printf "Continue without a cron daemon? [y/N]"
+  read -r OPT
+  if [[ $OPT != 'y' && $OPT != 'Y' ]]; then
+    exit "$ERR_DEPNOTFOUND"
+  fi
+}

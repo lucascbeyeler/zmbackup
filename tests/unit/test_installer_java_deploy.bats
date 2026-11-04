@@ -8,6 +8,7 @@ setup() {
   setup_mock_path
   source "${INSTALLER_JAVA_DIR}/vars.sh" 2>/dev/null || true
   source "${PROJECT_ROOT}/installScript/deploy.sh"
+  source "${INSTALLER_JAVA_DIR}/menu.sh"
   source "${INSTALLER_JAVA_DIR}/deploy.sh"
 
   DEPLOY_ROOT="$(mktemp -d)"
