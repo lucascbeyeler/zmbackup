@@ -42,13 +42,13 @@ if [[ $ACTION == "--remove" ]] || [[ $ACTION == "-r" ]]; then
   fi
 fi
 
+if [[ $UNATTENDED == "Y" && $UPGRADE != "Y" ]]; then
+  check_required_java
+fi
+
 check_cron_daemon
 
-if [[ $UNATTENDED == "Y" ]]; then
-  if [[ $UPGRADE != "Y" ]]; then
-    check_required_java
-  fi
-else
+if [[ $UNATTENDED != "Y" ]]; then
   contract
 fi
 

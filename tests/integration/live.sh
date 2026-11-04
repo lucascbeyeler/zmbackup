@@ -7,6 +7,7 @@ STAMP="$(date +%s)"
 SRC_DIR="zmbackup-src-${STAMP}"
 EML_PREFIX="/tmp/zmbackup-it-${STAMP}"
 TEMP_ADMIN=""
+CRON_UNIT=""
 CLEANED="no"
 ZMBACKUP_LIVE_CLEANUP="${ZMBACKUP_LIVE_CLEANUP:-no}"
 
@@ -28,7 +29,15 @@ as_cron() {
 }
 
 cron_available() {
-  remote "systemctl is-active --quiet cron"
+  [[ -n "$CRON_UNIT" ]] && return 0
+  local unit
+  for unit in cron crond; do
+    if remote "systemctl is-active --quiet $unit"; then
+      CRON_UNIT="$unit"
+      return 0
+    fi
+  done
+  return 1
 }
 
 cron_fire() {
@@ -45,6 +54,15 @@ cron_fire() {
 
 zmbin() {
   as_zimbra "/opt/zimbra/bin/$1"
+}
+
+random_password() {
+  printf 'It%s' "$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+}
+
+create_account() {
+  printf 'ca %s %s %s\n' "$1" "$2" "${3:-}" | remote "sudo -n -H -u zimbra bash -lc /opt/zimbra/bin/zmprov" > /dev/null
+  zmbin "zmprov ga $1 zimbraId" > /dev/null
 }
 
 inbox_count() {
@@ -91,8 +109,8 @@ trap finish EXIT
 if [[ -z "${ZMBKP_REST_ADMIN_PASS:-}" ]]; then
   TEMP_ADMIN="zmbackup-it-admin-${STAMP}@${DOMAIN}"
   ZMBKP_REST_ADMIN="$TEMP_ADMIN"
-  ZMBKP_REST_ADMIN_PASS="It$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
-  zmbin "zmprov ca $TEMP_ADMIN $ZMBKP_REST_ADMIN_PASS zimbraIsAdminAccount TRUE" > /dev/null
+  ZMBKP_REST_ADMIN_PASS="$(random_password)"
+  create_account "$TEMP_ADMIN" "$ZMBKP_REST_ADMIN_PASS" "zimbraIsAdminAccount TRUE"
 fi
 ZMBKP_REST_ADMIN="${ZMBKP_REST_ADMIN:-admin@$DOMAIN}"
 
@@ -100,10 +118,10 @@ remote "mkdir -p ~/$SRC_DIR"
 tar -C "$REPO_ROOT" --exclude='./.git' --exclude='.gradle' --exclude='build' --exclude='./node_modules' -czf - . |
   remote "tar -xzf - -C ~/$SRC_DIR"
 printf '%s' "$ZMBKP_REST_ADMIN_PASS" |
-  remote "cd ~/$SRC_DIR && IFS= read -r -d '' PASS || true; sudo -n env ZMBKP_REST_ADMIN='$ZMBKP_REST_ADMIN' ZMBKP_REST_ADMIN_PASS=\"\$PASS\" ./install-java.sh --unattended"
+  remote "cd ~/$SRC_DIR && IFS= read -r -d '' PASS || true; export ZMBKP_REST_ADMIN='$ZMBKP_REST_ADMIN' ZMBKP_REST_ADMIN_PASS=\"\$PASS\"; sudo -n --preserve-env=ZMBKP_REST_ADMIN,ZMBKP_REST_ADMIN_PASS ./install-java.sh --unattended"
 CRON_PATH="$(remote "sudo -n sed -n 's/^PATH=//p' /etc/cron.d/zmbackup")"
 assert_equal "the installer set the Zimbra CA in both config sections" "2" \
-  "$(remote "sudo -n grep -c '^  caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem$' /etc/zmbackup/zmbackup.yaml")"
+  "$(remote "sudo -n grep -cxF \"  caCertificatePath: '/opt/zimbra/ssl/zimbra/ca/ca.pem'\" /etc/zmbackup/zmbackup.yaml")"
 as_cron "zmbackup accounts list" > /dev/null
 as_zimbra "zmbackup accounts list" > /dev/null
 echo "ok - a default install connects under both the cron and login-shell JVMs"
@@ -123,7 +141,7 @@ if cron_available; then
 else
   echo "skip - no active cron daemon on this server"
 fi
-remote "sudo -n sed -i 's|^  # caCertificatePath: .*|  caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem|' /etc/zmbackup/zmbackup.yaml"
+remote "sudo -n sed -i \"s|^  # caCertificatePath: .*|  caCertificatePath: '/opt/zimbra/ssl/zimbra/ca/ca.pem'|\" /etc/zmbackup/zmbackup.yaml"
 as_cron "zmbackup accounts list" > /dev/null
 as_zimbra "zmbackup accounts list" > /dev/null
 echo "ok - both JVMs connect with full certificate validation against the Zimbra CA"
@@ -131,7 +149,7 @@ assert_equal "cron file is root-owned 0644" "root 644" "$(remote 'sudo -n stat -
 assert_equal "config is zimbra-owned 0600" "zimbra 600" "$(remote 'sudo -n stat -c "%U %a" /etc/zmbackup/zmbackup.yaml')"
 echo "ok - unattended install"
 
-zmbin "zmprov ca $ACCOUNT ItPass123" > /dev/null
+create_account "$ACCOUNT" "$(random_password)"
 add_message first
 add_message second
 assert_equal "seeded inbox" 2 "$(inbox_count "$ACCOUNT")"
@@ -140,8 +158,8 @@ if cron_available; then
   cron_fire with-ca "zmbackup backup full"
   assert_equal "the cron job exited cleanly" "exit=0" "$(grep '^exit=' <<< "$CRON_OUTPUT")"
   assert_equal "the cron daemon did not reject the file" "0" \
-    "$(remote "sudo -n journalctl -u cron --no-pager --since '-20 min' | grep -cE 'WRONG FILE OWNER|BAD FILE MODE|INSECURE MODE'" || true)"
-  remote "sudo -n journalctl -u cron --no-pager --since '-20 min' | grep -E '\(zimbra\) CMD' | tail -2 | cut -c1-160"
+    "$(remote "sudo -n journalctl -u $CRON_UNIT --no-pager --since '-20 min' | grep -cE 'WRONG FILE OWNER|BAD FILE MODE|INSECURE MODE'" || true)"
+  remote "sudo -n journalctl -u $CRON_UNIT --no-pager --since '-20 min' | grep -E '\(zimbra\) CMD' | tail -2 | cut -c1-160"
 else
   as_zimbra "zmbackup backup full"
 fi
@@ -179,7 +197,7 @@ INCREMENTAL="$(latest_session inc)"
 remote "sudo -n gzip -t /opt/zimbra/backup/$INCREMENTAL/$ACCOUNT.tgz"
 echo "ok - incremental backup wrote a valid tgz ($INCREMENTAL)"
 
-zmbin "zmprov ca $RESTORED ItPass123" > /dev/null
+create_account "$RESTORED" "$(random_password)"
 as_zimbra "zmbackup restore --session $FULL --account $ACCOUNT --into $RESTORED --verify"
 assert_equal "mailbox restored into a new account matches the full backup" 2 "$(inbox_count "$RESTORED")"
 

@@ -65,8 +65,6 @@ SHIM
   printf '#!/bin/bash\necho zimbra.it.test\n' > "$shims/hostname"
   printf '#!/bin/bash\nexit 0\n' > "$shims/apt"
   printf '#!/bin/bash\n[[ ! -f /tmp/no-cron ]]\n' > "$shims/pgrep"
-  printf '#!/bin/bash\nexit 1\n' > "$shims/yum"
-  rm -f "$shims/yum"
   chmod +x "$shims"/*
 }
 

@@ -144,6 +144,24 @@ setup() {
   [[ "$output" == *"Zimbra REST Admin Password: ********"* ]]
 }
 
+@test "check_config_java: masks both passwords when interactive" {
+  UNATTENDED="N"
+  OSE_INSTALL_LDAPPASS="ldapsecret"
+  ZMBKP_REST_ADMIN_PASS="restsecret"
+  run check_config_java <<< ""
+  [[ "$output" != *"ldapsecret"* ]]
+  [[ "$output" != *"restsecret"* ]]
+  [[ "$output" == *"Zimbra LDAP/Admin Password: ********"* ]]
+  [[ "$output" == *"Zimbra REST Admin Password: ********"* ]]
+}
+
+@test "check_config_java: shows an empty password as empty" {
+  UNATTENDED="N"
+  ZMBKP_REST_ADMIN_PASS=""
+  run check_config_java <<< ""
+  [[ "$output" == *"Zimbra REST Admin Password: (empty)"* ]]
+}
+
 @test "check_required_java: passes when every required value is set" {
   OSE_INSTALL_ADDRESS="mail.example.com"
   OSE_INSTALL_LDAPPASS="ldapsecret"

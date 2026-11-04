@@ -137,3 +137,24 @@ OpenJDK Runtime Environment (build 17.0.9+9)'
   [ "$status" -eq 0 ]
   [[ "$output" == *"[SKIPPED]"* ]]
 }
+
+@test "check_cron_daemon: an upgrade only warns when no daemon is running" {
+  UNATTENDED=Y
+  UPGRADE=Y
+  run check_cron_daemon
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Upgrading anyway"* ]]
+}
+
+@test "cron_daemon_running: reads /proc when pgrep is not installed" {
+  local old_path="$PATH"
+  local fake_bin="$BATS_TEST_TMPDIR/nopgrep"
+  mkdir -p "$fake_bin"
+  ln -s "$(command -v grep)" "$fake_bin/grep"
+  local expected=1
+  grep -qxE 'cron|crond' /proc/[0-9]*/comm 2> /dev/null && expected=0
+  PATH="$fake_bin"
+  run cron_daemon_running
+  PATH="$old_path"
+  [ "$status" -eq "$expected" ]
+}

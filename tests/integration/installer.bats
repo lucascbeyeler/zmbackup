@@ -31,8 +31,10 @@ tls_ca() {
   openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=$1" -keyout "/tmp/$1.key" -out "/tmp/$1.pem" 2> /dev/null
 }
 tls_server_signed_by() {
-  openssl req -newkey rsa:2048 -nodes -subj "/CN=127.0.0.1" -keyout /tmp/server.key -out /tmp/server.csr 2> /dev/null
-  openssl x509 -req -days 2 -in /tmp/server.csr -CA "/tmp/$1.pem" -CAkey "/tmp/$1.key" -CAcreateserial -out /tmp/server.crt 2> /dev/null
+  local san="${2:-IP:127.0.0.1}"
+  openssl req -newkey rsa:2048 -nodes -subj "/CN=zmbackup-it" -keyout /tmp/server.key -out /tmp/server.csr 2> /dev/null
+  printf "subjectAltName=%s\n" "$san" > /tmp/server.ext
+  openssl x509 -req -days 2 -in /tmp/server.csr -CA "/tmp/$1.pem" -CAkey "/tmp/$1.key" -CAcreateserial -extfile /tmp/server.ext -out /tmp/server.crt 2> /dev/null
   openssl s_server -accept 7071 -cert /tmp/server.crt -key /tmp/server.key -quiet > /dev/null 2>&1 &
   for _ in $(seq 50); do
     timeout 1 bash -c "exec 3<>/dev/tcp/127.0.0.1/7071" 2> /dev/null && break
@@ -342,7 +344,7 @@ $1"
     install_zimbra_ca zimbra-ca
     tls_server_signed_by zimbra-ca
     ./install-java.sh --unattended || exit 90
-    grep -c "^  caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem$" /etc/zmbackup/zmbackup.yaml
+    grep -c "^  caCertificatePath: '"'"'/opt/zimbra/ssl/zimbra/ca/ca.pem'"'"'$" /etc/zmbackup/zmbackup.yaml
   '
   echo "$output"
   [ "$status" -eq 0 ]
@@ -371,7 +373,7 @@ $1"
     tls_ca zimbra-ca
     install_zimbra_ca zimbra-ca
     ./install-java.sh --unattended || exit 90
-    grep -c "^  caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem$" /etc/zmbackup/zmbackup.yaml
+    grep -c "^  caCertificatePath: '"'"'/opt/zimbra/ssl/zimbra/ca/ca.pem'"'"'$" /etc/zmbackup/zmbackup.yaml
   '
   echo "$output"
   [ "$status" -eq 0 ]
@@ -408,7 +410,7 @@ $1"
     tls_ca public-ca
     tls_server_signed_by public-ca
     ZMBKP_CA_CERT=/tmp/custom-ca.pem ./install-java.sh --unattended || exit 90
-    grep -c "^  caCertificatePath: /tmp/custom-ca.pem$" /etc/zmbackup/zmbackup.yaml
+    grep -c "^  caCertificatePath: '"'"'/tmp/custom-ca.pem'"'"'$" /etc/zmbackup/zmbackup.yaml
   '
   echo "$output"
   [ "$status" -eq 0 ]
@@ -435,7 +437,7 @@ $1"
     tls_server_signed_by zimbra-ca
     printf "%s\n" y "" "" "" "" "" "" typed-pass "" "" "" "" "" "" "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 90
-    echo "enter=$(grep -c "^  caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem$" /etc/zmbackup/zmbackup.yaml)"
+    echo "enter=$(grep -c "^  caCertificatePath: '"'"'/opt/zimbra/ssl/zimbra/ca/ca.pem'"'"'$" /etc/zmbackup/zmbackup.yaml)"
     printf "%s\n" y "" "" "" "" "" "" typed-pass "" "" "" "" "" none "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 91
     echo "none=$(grep -c "^  # caCertificatePath:" /etc/zmbackup/zmbackup.yaml)"
@@ -474,4 +476,65 @@ $1"
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" != *"has no caCertificatePath"* ]]
+}
+
+@test "ca: a Zimbra CA certificate issued for another name is not trusted by default" {
+  run in_sandbox "$TLS_FIXTURE"'
+    tls_ca zimbra-ca
+    install_zimbra_ca zimbra-ca
+    tls_server_signed_by zimbra-ca DNS:other.it.test
+    ./install-java.sh --unattended || exit 90
+    grep -c "^  # caCertificatePath:" /etc/zmbackup/zmbackup.yaml
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "2" ]
+  [[ "$output" == *"[WARN] - /opt/zimbra/ssl/zimbra/ca/ca.pem does not validate"* ]]
+}
+
+@test "ca: a CA path with YAML metacharacters is quoted in the config" {
+  run in_sandbox '
+    mkdir -p "/tmp/ca #1: x"
+    printf "dummy\n" > "/tmp/ca #1: x/ca.pem"
+    ZMBKP_CA_CERT="/tmp/ca #1: x/ca.pem" ./install-java.sh --unattended || exit 90
+    grep -cF "  caCertificatePath: '"'"'/tmp/ca #1: x/ca.pem'"'"'" /etc/zmbackup/zmbackup.yaml
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = "2" ]
+}
+
+@test "unattended force-upgrade without a cron daemon warns and still upgrades" {
+  run in_sandbox '
+    ./install-java.sh --unattended || exit 90
+    touch /tmp/no-cron
+    unset ZMBKP_REST_ADMIN_PASS OSE_INSTALL_LDAPPASS
+    ./install-java.sh --unattended --force-upgrade || exit 91
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Upgrading anyway"* ]]
+  [[ "$output" == *"Upgrade completed."* ]]
+}
+
+@test "a missing required value is reported with exit 5 before the cron check" {
+  run in_sandbox '
+    touch /tmp/no-cron
+    unset ZMBKP_REST_ADMIN_PASS
+    ./install-java.sh --unattended
+  '
+  echo "$output"
+  [ "$status" -eq 5 ]
+  [[ "$output" == *"missing required values: ZMBKP_REST_ADMIN_PASS"* ]]
+}
+
+@test "values with sed metacharacters reach the config intact" {
+  run in_sandbox '
+    export ZMBKP_MAIL_ALERT="ops&backup|team@it.test"
+    ./install-java.sh --unattended || exit 90
+    grep "recipient:" /etc/zmbackup/zmbackup.yaml
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"recipient: ops&backup|team@it.test"* ]]
 }

@@ -23,13 +23,21 @@ function check_java_runtime() {
   fi
 }
 
+function cron_daemon_running() {
+  if command -v pgrep > /dev/null 2>&1; then
+    pgrep -x cron > /dev/null 2>&1 || pgrep -x crond > /dev/null 2>&1
+    return
+  fi
+  grep -qxE 'cron|crond' /proc/[0-9]*/comm 2> /dev/null
+}
+
 function check_cron_daemon() {
   printf "  Cron Daemon...	          "
   if [[ $ZMBKP_SKIP_CRON_CHECK == "Y" ]]; then
     printf "[SKIPPED]\n"
     return
   fi
-  if pgrep -x cron > /dev/null 2>&1 || pgrep -x crond > /dev/null 2>&1; then
+  if cron_daemon_running; then
     printf "[RUNNING]\n"
     return
   fi
@@ -44,6 +52,11 @@ function check_cron_daemon() {
     echo "To fix it: yum install -y cronie && systemctl enable --now crond"
   else
     echo "To fix it: apt-get install -y cron && systemctl enable --now cron"
+  fi
+
+  if [[ $UPGRADE == "Y" ]]; then
+    echo "[WARN] - Upgrading anyway. Scheduled backups will not run until a cron daemon is started."
+    return
   fi
 
   if [[ $UNATTENDED == "Y" ]]; then

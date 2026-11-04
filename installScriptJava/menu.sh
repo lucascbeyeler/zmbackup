@@ -71,21 +71,23 @@ function set_values_java() {
   echo "##################################################################################"
 }
 
+function masked_secret() {
+  if [[ -n "$1" ]]; then
+    printf '********'
+  else
+    printf '(empty)'
+  fi
+}
+
 function check_config_java() {
   echo ""
   echo "Here is a Summary of your settings:"
   echo ""
   echo "Zimbra User: $OSE_USER"
   echo "Zimbra Server Address: $OSE_INSTALL_ADDRESS"
-  if [[ $UNATTENDED == "Y" ]]; then
-    echo "Zimbra LDAP/Admin Password: ********"
-    echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
-    echo "Zimbra REST Admin Password: ********"
-  else
-    echo "Zimbra LDAP/Admin Password: $OSE_INSTALL_LDAPPASS"
-    echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
-    echo "Zimbra REST Admin Password: $ZMBKP_REST_ADMIN_PASS"
-  fi
+  echo "Zimbra LDAP/Admin Password: $(masked_secret "$OSE_INSTALL_LDAPPASS")"
+  echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
+  echo "Zimbra REST Admin Password: $(masked_secret "$ZMBKP_REST_ADMIN_PASS")"
   echo "Zimbra CA Certificate: $ZMBKP_CA_CERT"
   echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
   echo "Zimbra Backup Directory: $OSE_DEFAULT_BKP_DIR"
@@ -120,9 +122,15 @@ function check_required_java() {
 function probe_ca_against_server() {
   command -v openssl > /dev/null 2>&1 || return 2
   local ADDRESS="$OSE_INSTALL_ADDRESS"
-  [[ "$ADDRESS" == *:* ]] && ADDRESS="[$ADDRESS]"
+  local NAME_CHECK=(-verify_hostname "$OSE_INSTALL_ADDRESS" -servername "$OSE_INSTALL_ADDRESS")
+  if [[ "$ADDRESS" == *:* ]]; then
+    ADDRESS="[$ADDRESS]"
+    NAME_CHECK=(-verify_ip "$OSE_INSTALL_ADDRESS")
+  elif [[ "$ADDRESS" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    NAME_CHECK=(-verify_ip "$OSE_INSTALL_ADDRESS")
+  fi
   local OUTPUT
-  OUTPUT=$(timeout 10 openssl s_client -connect "$ADDRESS:7071" -CAfile "$1" < /dev/null 2> /dev/null)
+  OUTPUT=$(timeout 10 openssl s_client -connect "$ADDRESS:7071" -CAfile "$1" "${NAME_CHECK[@]}" < /dev/null 2> /dev/null)
   [[ "$OUTPUT" == *"BEGIN CERTIFICATE"* ]] || return 2
   [[ "$OUTPUT" == *"Verify return code: 0 (ok)"* ]] && return 0
   return 1
@@ -134,6 +142,8 @@ function detect_ca_default() {
   [[ -f "$CANDIDATE" ]] || return 0
   local RESULT=0
   probe_ca_against_server "$CANDIDATE" || RESULT=$?
+  ZMBKP_CA_PROBED_PATH="$CANDIDATE"
+  ZMBKP_CA_PROBED_RESULT="$RESULT"
   case "$RESULT" in
     0)
       ZMBKP_CA_DEFAULT="$CANDIDATE"
@@ -160,7 +170,11 @@ function resolve_ca_cert() {
     exit "$ERR_MISSING_VALUE"
   fi
   local RESULT=0
-  probe_ca_against_server "$ZMBKP_CA_CERT" || RESULT=$?
+  if [[ "$ZMBKP_CA_CERT" == "${ZMBKP_CA_PROBED_PATH:-}" ]]; then
+    RESULT="$ZMBKP_CA_PROBED_RESULT"
+  else
+    probe_ca_against_server "$ZMBKP_CA_CERT" || RESULT=$?
+  fi
   if [[ "$RESULT" -eq 1 ]]; then
     echo "[WARN] - $ZMBKP_CA_CERT does not validate the certificate of $OSE_INSTALL_ADDRESS. Zmbackup will refuse to connect until this is corrected."
   fi
