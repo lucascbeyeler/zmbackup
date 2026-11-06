@@ -146,15 +146,30 @@ OpenJDK Runtime Environment (build 17.0.9+9)'
   [[ "$output" == *"Upgrading anyway"* ]]
 }
 
-@test "cron_daemon_running: reads /proc when pgrep is not installed" {
+@test "cron_daemon_running: finds cron in /proc when pgrep is not installed" {
   local old_path="$PATH"
   local fake_bin="$BATS_TEST_TMPDIR/nopgrep"
-  mkdir -p "$fake_bin"
+  local fake_proc="$BATS_TEST_TMPDIR/proc"
+  mkdir -p "$fake_bin" "$fake_proc/1" "$fake_proc/42"
   ln -s "$(command -v grep)" "$fake_bin/grep"
-  local expected=1
-  grep -qxE 'cron|crond' /proc/[0-9]*/comm 2> /dev/null && expected=0
+  echo systemd > "$fake_proc/1/comm"
+  echo crond > "$fake_proc/42/comm"
   PATH="$fake_bin"
-  run cron_daemon_running
+  run cron_daemon_running "$fake_proc"
   PATH="$old_path"
-  [ "$status" -eq "$expected" ]
+  [ "$status" -eq 0 ]
+}
+
+@test "cron_daemon_running: reports no cron in /proc when pgrep is not installed" {
+  local old_path="$PATH"
+  local fake_bin="$BATS_TEST_TMPDIR/nopgrep"
+  local fake_proc="$BATS_TEST_TMPDIR/proc"
+  mkdir -p "$fake_bin" "$fake_proc/1" "$fake_proc/42"
+  ln -s "$(command -v grep)" "$fake_bin/grep"
+  echo systemd > "$fake_proc/1/comm"
+  echo crontab > "$fake_proc/42/comm"
+  PATH="$fake_bin"
+  run cron_daemon_running "$fake_proc"
+  PATH="$old_path"
+  [ "$status" -eq 1 ]
 }

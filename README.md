@@ -149,7 +149,7 @@ from an environment variable instead (anything left unset keeps its interactive 
 | `MAX_PARALLEL_PROCESS` | `3` |
 | `ROTATE_TIME` | `30` |
 | `LOCK_BACKUP` | `true` |
-| `ZMBKP_CA_CERT` | Zimbra's CA file when it validates the server, otherwise `none` to use the Java trust store |
+| `ZMBKP_CA_CERT` | Zimbra's CA file when it validates the server, otherwise `none` to use the Java trust store. A file you set must be readable by `OSE_USER` |
 | `ZMBKP_SKIP_CRON_CHECK` | `N` - set to `Y` to install where no cron daemon runs, such as an image build |
 
 A missing required value stops the installer with exit code `5` before anything is built or

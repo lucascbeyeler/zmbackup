@@ -24,11 +24,12 @@ function check_java_runtime() {
 }
 
 function cron_daemon_running() {
+  local PROC_DIR="${1:-/proc}"
   if command -v pgrep > /dev/null 2>&1; then
     pgrep -x cron > /dev/null 2>&1 || pgrep -x crond > /dev/null 2>&1
     return
   fi
-  grep -qxE 'cron|crond' /proc/[0-9]*/comm 2> /dev/null
+  grep -qxE 'cron|crond' "$PROC_DIR"/[0-9]*/comm 2> /dev/null
 }
 
 function check_cron_daemon() {

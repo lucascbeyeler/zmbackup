@@ -119,8 +119,19 @@ function check_required_java() {
   fi
 }
 
+function openssl_binary() {
+  if command -v openssl > /dev/null 2>&1; then
+    command -v openssl
+  elif [[ -x "$OSE_INSTALL_DIR/common/bin/openssl" ]]; then
+    echo "$OSE_INSTALL_DIR/common/bin/openssl"
+  else
+    return 1
+  fi
+}
+
 function probe_ca_against_server() {
-  command -v openssl > /dev/null 2>&1 || return 2
+  local OPENSSL
+  OPENSSL=$(openssl_binary) || return 2
   local ADDRESS="$OSE_INSTALL_ADDRESS"
   local NAME_CHECK=(-verify_hostname "$OSE_INSTALL_ADDRESS" -servername "$OSE_INSTALL_ADDRESS")
   if [[ "$ADDRESS" == *:* ]]; then
@@ -130,7 +141,7 @@ function probe_ca_against_server() {
     NAME_CHECK=(-verify_ip "$OSE_INSTALL_ADDRESS")
   fi
   local OUTPUT
-  OUTPUT=$(timeout 10 openssl s_client -connect "$ADDRESS:7071" -CAfile "$1" "${NAME_CHECK[@]}" < /dev/null 2> /dev/null)
+  OUTPUT=$(timeout 10 "$OPENSSL" s_client -connect "$ADDRESS:7071" -CAfile "$1" "${NAME_CHECK[@]}" < /dev/null 2> /dev/null)
   [[ "$OUTPUT" == *"BEGIN CERTIFICATE"* ]] || return 2
   [[ "$OUTPUT" == *"Verify return code: 0 (ok)"* ]] && return 0
   return 1
@@ -169,6 +180,10 @@ function resolve_ca_cert() {
     echo "[FAIL] - CA certificate $ZMBKP_CA_CERT does not exist. Use an existing file, or none to use the Java trust store."
     exit "$ERR_MISSING_VALUE"
   fi
+  if ! su -s /bin/bash -c "test -r $(printf '%q' "$ZMBKP_CA_CERT")" "$OSE_USER"; then
+    echo "[FAIL] - $OSE_USER cannot read CA certificate $ZMBKP_CA_CERT, so every Zmbackup job would fail. Make it readable by $OSE_USER, or use none to use the Java trust store."
+    exit "$ERR_MISSING_VALUE"
+  fi
   local RESULT=0
   if [[ "$ZMBKP_CA_CERT" == "${ZMBKP_CA_PROBED_PATH:-}" ]]; then
     RESULT="$ZMBKP_CA_PROBED_RESULT"
@@ -180,12 +195,24 @@ function resolve_ca_cert() {
   fi
 }
 
+function config_section_sets_trust() {
+  awk -v section="$2:" '
+    /^[^ #]/ { inside = ($1 == section) }
+    inside && (/^  caCertificatePath:/ || /^  trustAllCertificates: true/) { found = 1 }
+    END { exit !found }
+  ' "$1"
+}
+
 function warn_upgrade_without_ca() {
   local CONFIG="$ZMBKP_CONF/zmbackup.yaml"
   [[ -f "$CONFIG" ]] || return 0
-  grep -qE '^  caCertificatePath:|^  trustAllCertificates: true' "$CONFIG" && return 0
+  local MISSING=() SECTION
+  for SECTION in zimbraLdap zimbraMailbox; do
+    config_section_sets_trust "$CONFIG" "$SECTION" || MISSING+=("$SECTION.caCertificatePath")
+  done
+  [[ ${#MISSING[@]} -eq 0 ]] && return 0
   detect_ca_default > /dev/null
   [[ "$ZMBKP_CA_DEFAULT" == "none" ]] && return 0
-  echo "[WARN] - $CONFIG has no caCertificatePath, so scheduled jobs can fail certificate validation even when manual runs work."
-  echo "Set zimbraLdap.caCertificatePath and zimbraMailbox.caCertificatePath to $ZMBKP_CA_DEFAULT"
+  echo "[WARN] - $CONFIG has no caCertificatePath in ${MISSING[*]%%.*}, so scheduled jobs can fail certificate validation even when manual runs work."
+  echo "Set ${MISSING[*]} to $ZMBKP_CA_DEFAULT"
 }

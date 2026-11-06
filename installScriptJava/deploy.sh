@@ -9,6 +9,12 @@ function sed_replacement() {
   printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
 }
 
+function pin_launcher_java() {
+  local JAVA_BIN
+  JAVA_BIN=$(command -v java) || return 0
+  sed -i "s|^ZMBKP_JAVA_BIN=.*|ZMBKP_JAVA_BIN=$(sed_replacement "$(printf '%q' "$JAVA_BIN")")|" "$ZMBKP_SRC"/zmbackup
+}
+
 function migrate_legacy_sessions() {
   if [[ -f "$OSE_DEFAULT_BKP_DIR/sessions.txt" ]]; then
     echo "Found an existing sessions.txt - migrating it into the SQLite metadata store..."
@@ -54,6 +60,7 @@ function deploy_new_java() {
 
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+  pin_launcher_java
 
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup.yaml "$ZMBKP_CONF"
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
@@ -102,6 +109,7 @@ function deploy_upgrade_java() {
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+  pin_launcher_java
 
   if [[ -f "$ZMBKP_CRON_FILE" ]]; then
     chown "$ZMBKP_CRON_OWNER" "$ZMBKP_CRON_FILE"

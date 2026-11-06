@@ -42,7 +42,7 @@ cron_available() {
 
 cron_fire() {
   local out="$EML_PREFIX-cron-$1.log"
-  remote "echo '* * * * * zimbra $2 > $out 2>&1; echo exit=\$? >> $out # zmbackup-it-cron' | sudo -n tee -a /etc/cron.d/zmbackup > /dev/null"
+  remote "echo '* * * * * zimbra [ -e $out ] || { $2 > $out 2>&1; echo exit=\$? >> $out; } # zmbackup-it-cron' | sudo -n tee -a /etc/cron.d/zmbackup > /dev/null"
   if ! remote "for i in \$(seq 18); do sudo -n grep -q '^exit=' $out 2> /dev/null && exit 0; sleep 10; done; exit 1"; then
     echo "FAIL: the cron daemon never ran the $1 job" >&2
     exit 1
@@ -118,8 +118,6 @@ remote "mkdir -p ~/$SRC_DIR"
 tar -C "$REPO_ROOT" --exclude='./.git' --exclude='.gradle' --exclude='build' --exclude='./node_modules' -czf - . |
   remote "tar -xzf - -C ~/$SRC_DIR"
 INSTALL_STARTED="$(remote "date '+%Y-%m-%d %H:%M:%S'")"
-# sudo logs the command line and every variable passed through it, so the password goes over stdin
-# to a root shell that reads it and runs the installer
 printf '%s' "$ZMBKP_REST_ADMIN_PASS" |
   remote "cd ~/$SRC_DIR && sudo -n bash -c 'IFS= read -r -d \"\" ZMBKP_REST_ADMIN_PASS || true; export ZMBKP_REST_ADMIN=$ZMBKP_REST_ADMIN ZMBKP_REST_ADMIN_PASS; exec ./install-java.sh --unattended'"
 assert_equal "the REST password is not in the system journal" "0" \
@@ -137,6 +135,11 @@ if as_cron "zmbackup accounts list" > /dev/null 2>&1; then
   exit 1
 fi
 echo "ok - the system JVM refuses the self-signed certificate when no CA is configured"
+if as_zimbra "zmbackup accounts list" > /dev/null 2>&1; then
+  echo "FAIL: the login shell accepted the certificate with no CA configured, so it does not run the JVM cron runs" >&2
+  exit 1
+fi
+echo "ok - the login shell runs the same JVM as cron, so it refuses the certificate too"
 if cron_available; then
   cron_fire no-ca "zmbackup backup full"
   if [[ "$CRON_OUTPUT" != *"TLS certificate validation failed"* || "$CRON_OUTPUT" == *"exit=0"* ]]; then

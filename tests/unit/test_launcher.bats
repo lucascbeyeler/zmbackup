@@ -25,3 +25,14 @@ setup() {
   run "$LAUNCHER"
   [ "$status" -eq 3 ]
 }
+
+@test "launcher: runs the java the installer pinned instead of the first one on PATH" {
+  local launcher="$BATS_TEST_TMPDIR/zmbackup"
+  printf '#!/bin/bash\necho "pinned java $*"\n' > "$BATS_TEST_TMPDIR/pinned-java"
+  chmod +x "$BATS_TEST_TMPDIR/pinned-java"
+  sed "s|^ZMBKP_JAVA_BIN=.*|ZMBKP_JAVA_BIN=$BATS_TEST_TMPDIR/pinned-java|" "$LAUNCHER" > "$launcher"
+  chmod +x "$launcher"
+  run "$launcher" list
+  [ "$status" -eq 0 ]
+  [[ "$output" == "pinned java -jar /usr/local/lib/zmbackup/zmbackup.jar list" ]]
+}

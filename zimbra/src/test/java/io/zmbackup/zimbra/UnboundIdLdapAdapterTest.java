@@ -112,6 +112,24 @@ class UnboundIdLdapAdapterTest {
     }
 
     @Test
+    void startTlsNamesAnUnreadableCaCertificatePath() throws Exception {
+        directoryServer = startDirectoryServer(serverStartTlsSocketFactory());
+        adapter = new UnboundIdLdapAdapter(
+                "ldap://127.0.0.1:" + directoryServer.getListenPort(),
+                BIND_DN,
+                BIND_PASSWORD,
+                true,
+                "/nonexistent/path/ldap-ca.pem",
+                false,
+                true);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, adapter::connect);
+        assertTrue(exception.getMessage().contains(
+                "zimbraLdap.caCertificatePath /nonexistent/path/ldap-ca.pem does not exist or is not readable by user "),
+                exception.getMessage());
+    }
+
+    @Test
     void startTlsRejectsUntrustedCertificateWhenNoTrustIsConfigured() throws Exception {
         directoryServer = startDirectoryServer(serverStartTlsSocketFactory());
         adapter = new UnboundIdLdapAdapter(

@@ -68,6 +68,12 @@ teardown() {
   [ -f "${ZMBKP_SRC}/zmbackup" ]
 }
 
+@test "deploy_new_java: pins the launcher to the java the installer found" {
+  MOCK_SU_OUTPUT=""
+  run deploy_new_java
+  grep -qxF "ZMBKP_JAVA_BIN=${MOCKS_DIR}/java" "$ZMBKP_SRC/zmbackup"
+}
+
 @test "deploy_new_java: installs the jar" {
   MOCK_SU_OUTPUT=""
   deploy_new_java
@@ -191,6 +197,11 @@ user@example.com"
 @test "deploy_upgrade_java: reinstalls the launcher" {
   run deploy_upgrade_java
   [ -f "${ZMBKP_SRC}/zmbackup" ]
+}
+
+@test "deploy_upgrade_java: pins the launcher to the java the installer found" {
+  run deploy_upgrade_java
+  grep -qxF "ZMBKP_JAVA_BIN=${MOCKS_DIR}/java" "$ZMBKP_SRC/zmbackup"
 }
 
 @test "deploy_upgrade_java: reinstalls the jar" {

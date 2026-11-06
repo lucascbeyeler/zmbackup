@@ -1,11 +1,9 @@
 package io.zmbackup.zimbra;
 
-import com.unboundid.util.ssl.PEMFileTrustManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -78,7 +76,8 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     private static SSLContext restSslContext(String caCertificatePath, boolean trustAllCertificates) {
         try {
             if (caCertificatePath != null) {
-                return new SSLUtil(new PEMFileTrustManager(new File(caCertificatePath))).createSSLContext();
+                return new SSLUtil(CaCertificateFile.trustManager("zimbraMailbox.caCertificatePath", caCertificatePath))
+                        .createSSLContext();
             }
             if (trustAllCertificates) {
                 return new SSLUtil(new NoHostnameCheckTrustManager(new TrustAllTrustManager())).createSSLContext();
