@@ -144,19 +144,86 @@ leaf() {
   [[ "$output" != *"Inform"* ]]
 }
 
-@test "review_config_java: an unattended upgrade lists what is missing and changes nothing" {
+@test "review_config_java: an unattended upgrade adds each missing setting with its default without reading stdin" {
   complete_config
   sed -i '/^storage:/,/^  backend:/d; /^  rotateDays:/d' "$CONFIG"
-  local before
-  before=$(cat "$CONFIG")
   UNATTENDED="Y"
-  review_config_java < /dev/null > "$BATS_TEST_TMPDIR/out"
+  review_config_java > "$BATS_TEST_TMPDIR/out" < <(printf '%s\n' 99 s3)
   complete_config_java >> "$BATS_TEST_TMPDIR/out"
   run cat "$BATS_TEST_TMPDIR/out"
   [[ "$output" == *"[INCOMPLETE]"* ]]
-  [[ "$output" == *"is missing backup.rotateDays storage.backend. Run ./install-java.sh --force-upgrade without --unattended"* ]]
+  [[ "$output" == *"is missing backup.rotateDays - using the default [30]"* ]]
+  [[ "$output" == *"is missing storage.backend - using the default [local]"* ]]
   [[ "$output" != *"Inform"* ]]
+  [[ "$output" == *"Saved the previous configuration as"* ]]
+  [ "$(leaf backup.rotateDays)" = "30" ]
+  [ "$(leaf storage.backend)" = "local" ]
+}
+
+@test "review_config_java: an unattended upgrade masks a password default it uses" {
+  complete_config
+  sed -i '/^  bindPassword:/d' "$CONFIG"
+  UNATTENDED="Y"
+  review_config_java > "$BATS_TEST_TMPDIR/out" < /dev/null
+  complete_config_java >> "$BATS_TEST_TMPDIR/out"
+  run cat "$BATS_TEST_TMPDIR/out"
+  [[ "$output" == *"is missing zimbraLdap.bindPassword - using the default [********]"* ]]
+  [[ "$output" != *"ldap-from-localconfig"* ]]
+  [ "$(leaf zimbraLdap.bindPassword)" = "'ldap-from-localconfig'" ]
+}
+
+@test "review_config_java: an unattended upgrade leaves a password with no default unset" {
+  complete_config
+  sed -i '/^  adminPassword:/d' "$CONFIG"
+  UNATTENDED="Y"
+  run review_config_java < /dev/null
+  [[ "$output" == *"[WARN] - zimbraMailbox.adminPassword stays unset"* ]]
+  [ "${#ZMBKP_CONFIG_ADD[@]}" -eq 0 ]
+}
+
+@test "review_config_java: an unattended upgrade chooses the CA an install would" {
+  cp "$PROJECT_ROOT/project/config/zmbackup.yaml" "$CONFIG"
+  ZMBKP_REST_ADMIN_PASS="installed-pass" render_config_java "$CONFIG"
+  mkdir -p "$BATS_TEST_TMPDIR/zimbra-ca"
+  touch "$BATS_TEST_TMPDIR/zimbra-ca/ca.pem"
+  detect_ca_default() {
+    ZMBKP_CA_DEFAULT="$BATS_TEST_TMPDIR/zimbra-ca/ca.pem"
+    ZMBKP_CA_PROBED_PATH="$ZMBKP_CA_DEFAULT"
+    ZMBKP_CA_PROBED_RESULT=0
+  }
+  UNATTENDED="Y"
+  review_config_java > "$BATS_TEST_TMPDIR/out" < /dev/null
+  complete_config_java >> "$BATS_TEST_TMPDIR/out"
+  run cat "$BATS_TEST_TMPDIR/out"
+  [[ "$output" == *"has no CA certificate for zimbraLdap zimbraMailbox - choosing one like an install would"* ]]
+  [ "$(leaf zimbraLdap.caCertificatePath)" = "'$BATS_TEST_TMPDIR/zimbra-ca/ca.pem'" ]
+  [ "$(leaf zimbraMailbox.caCertificatePath)" = "'$BATS_TEST_TMPDIR/zimbra-ca/ca.pem'" ]
+}
+
+@test "review_config_java: an unattended upgrade leaves the CA unset when detection finds none" {
+  cp "$PROJECT_ROOT/project/config/zmbackup.yaml" "$CONFIG"
+  ZMBKP_REST_ADMIN_PASS="installed-pass" render_config_java "$CONFIG"
+  detect_ca_default() { ZMBKP_CA_DEFAULT="none"; }
+  local before
+  before=$(cat "$CONFIG")
+  UNATTENDED="Y"
+  review_config_java > /dev/null < /dev/null
+  complete_config_java
   [ "$before" = "$(cat "$CONFIG")" ]
+  [ -z "$(ls "$ZMBKP_CONF"/*.bak 2> /dev/null)" ]
+}
+
+@test "review_config_java: an unattended upgrade uses ZMBKP_CA_CERT over detection" {
+  cp "$PROJECT_ROOT/project/config/zmbackup.yaml" "$CONFIG"
+  ZMBKP_REST_ADMIN_PASS="installed-pass" render_config_java "$CONFIG"
+  touch "$BATS_TEST_TMPDIR/custom.pem"
+  ZMBKP_CA_CERT="$BATS_TEST_TMPDIR/custom.pem"
+  probe_ca_against_server() { return 0; }
+  UNATTENDED="Y"
+  review_config_java > /dev/null < /dev/null
+  complete_config_java > /dev/null
+  [ "$(leaf zimbraLdap.caCertificatePath)" = "'$BATS_TEST_TMPDIR/custom.pem'" ]
+  [ "$(leaf zimbraMailbox.caCertificatePath)" = "'$BATS_TEST_TMPDIR/custom.pem'" ]
 }
 
 @test "review_config_java: asks for each missing setting and adds the answers after a backup" {
@@ -241,27 +308,6 @@ leaf() {
   run review_config_java < <(printf '/nonexistent/ca.pem\n')
   [ "$status" -eq 5 ]
   [[ "$output" == *"does not exist"* ]]
-}
-
-@test "deploy_upgrade_java: only an unattended upgrade prints the missing-CA warning" {
-  ZMBKP_SRC="$BATS_TEST_TMPDIR/bin"
-  ZMBKP_LIB="$BATS_TEST_TMPDIR/lib"
-  ZMBKP_CRON_FILE="$BATS_TEST_TMPDIR/cron"
-  MYDIR="$BATS_TEST_TMPDIR/src"
-  mkdir -p "$MYDIR/app/build/libs" "$MYDIR/app/src/main/scripts"
-  cp "$PROJECT_ROOT/app/src/main/scripts/zmbackup" "$MYDIR/app/src/main/scripts/"
-  echo jar > "$MYDIR/app/build/libs/$ZMBKP_JAR_NAME"
-  cp "$PROJECT_ROOT/project/config/zmbackup.yaml" "$CONFIG"
-  render_config_java "$CONFIG"
-  OSE_USER="$(/usr/bin/whoami)"
-  ZMBKP_CONFIG_ADD=()
-  ZMBKP_CONFIG_CA="none"
-  UNATTENDED="N"
-  run deploy_upgrade_java
-  [[ "$output" != *"has no caCertificatePath"* ]]
-  UNATTENDED="Y"
-  run deploy_upgrade_java
-  [[ "$output" == *"has no caCertificatePath"* ]]
 }
 
 @test "yaml_leaf_values: reports a key with no value and nothing under it as an empty setting" {

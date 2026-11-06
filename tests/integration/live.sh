@@ -210,10 +210,14 @@ create_account "$RESTORED" "$(random_password)"
 as_zimbra "zmbackup restore --session $FULL --account $ACCOUNT --into $RESTORED --verify"
 assert_equal "mailbox restored into a new account matches the full backup" 2 "$(inbox_count "$RESTORED")"
 
+remote "sudo -n sed -i '/^  rotateDays:/d' /etc/zmbackup/zmbackup.yaml"
 remote "cd ~/$SRC_DIR && sudo -n ./install-java.sh --unattended --force-upgrade"
 as_zimbra "zmbackup list" > /dev/null
 echo "ok - unattended force-upgrade keeps a working install"
+assert_equal "the unattended upgrade added the missing setting with its default" "  rotateDays: 30" \
+  "$(remote "sudo -n grep '^  rotateDays:' /etc/zmbackup/zmbackup.yaml")"
 
+BACKUPS_BEFORE="$(remote "sudo -n sh -c 'ls /etc/zmbackup/zmbackup.yaml.*.bak 2> /dev/null | wc -l'")"
 remote "sudo -n sed -i -e 's|^  caCertificatePath: .*|  # caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem|' -e '/^  rotateDays:/d' /etc/zmbackup/zmbackup.yaml"
 UPGRADE_OUTPUT="$(printf '%s\n' y 21 "" n | remote "cd ~/$SRC_DIR && sudo -n ./install-java.sh --force-upgrade" 2>&1)"
 for PROMPT in "Inform backup.rotateDays - DEFAULT [30]" "has no CA certificate for zimbraLdap zimbraMailbox" "DEFAULT [/opt/zimbra/ssl/zimbra/ca/ca.pem]"; do
@@ -226,7 +230,7 @@ assert_equal "the interactive upgrade added the missing setting" "  rotateDays: 
   "$(remote "sudo -n grep '^  rotateDays:' /etc/zmbackup/zmbackup.yaml")"
 assert_equal "the interactive upgrade set the Zimbra CA in both config sections" "2" \
   "$(remote "sudo -n grep -cxF \"  caCertificatePath: '/opt/zimbra/ssl/zimbra/ca/ca.pem'\" /etc/zmbackup/zmbackup.yaml")"
-assert_equal "the interactive upgrade kept a backup of the previous config" "1" \
+assert_equal "the interactive upgrade kept a backup of the previous config" "$((BACKUPS_BEFORE + 1))" \
   "$(remote "sudo -n sh -c 'ls /etc/zmbackup/zmbackup.yaml.*.bak | wc -l'")"
 as_cron "zmbackup accounts list" > /dev/null
 echo "ok - the completed config connects under the cron environment"

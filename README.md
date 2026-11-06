@@ -126,7 +126,8 @@ Building the jar needs internet access on first run (to download Gradle and the 
 dependencies). Run `./install-java.sh --remove` to uninstall, or `./install-java.sh --force-upgrade`
 to rebuild and redeploy the jar. The upgrade compares `/etc/zmbackup/zmbackup.yaml` with what this
 version installs and asks for each setting it is missing, including a CA certificate when one is not
-set, with the value a new install would use as the default. It saves the previous file as
+set, with the value a new install would use as the default (an unattended upgrade uses that default
+without asking). It saves the previous file as
 `zmbackup.yaml.<timestamp>.bak` before adding your answers, and never changes settings you already
 have. See `./install-java.sh --help` for details.
 
@@ -160,8 +161,10 @@ deployed, and so does a missing cron daemon, with exit code `3`, because the sch
 never run without one. The interactive installer warns about a missing daemon and asks whether to
 continue. Passwords are masked in the printed summary. `--unattended` combines with
 `--force-upgrade` and with `--remove`; an unattended `--remove` never truncates the metadata
-database and always keeps the backup storage. An unattended `--force-upgrade` never edits the
-configuration: it lists any missing settings in a warning, and an interactive `--force-upgrade` adds them.
+database and always keeps the backup storage. An unattended `--force-upgrade` adds any missing
+setting with the value an unattended install would use, and chooses a CA certificate the same way.
+A password with no value to fall back on, such as the REST password without
+`ZMBKP_REST_ADMIN_PASS`, stays unset with a warning.
 
 ```
 # ZMBKP_REST_ADMIN_PASS='admin-password' ./install-java.sh --unattended

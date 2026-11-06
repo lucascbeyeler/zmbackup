@@ -94,9 +94,6 @@ function deploy_upgrade_java() {
 
   complete_config_java
   migrate_legacy_sessions
-  if [[ $UNATTENDED == "Y" ]]; then
-    warn_upgrade_without_ca
-  fi
 
   echo "Upgrade completed."
 }

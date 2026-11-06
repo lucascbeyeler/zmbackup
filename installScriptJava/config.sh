@@ -149,20 +149,14 @@ function review_config_java() {
     return 0
   fi
   printf "[INCOMPLETE]\n"
-  if [[ $UNATTENDED == "Y" ]]; then
-    if [[ ${#MISSING_KEYS[@]} -gt 0 ]]; then
-      echo "[WARN] - $CONFIG is missing ${MISSING_KEYS[*]%%$'\t'*}. Run ./install-java.sh --force-upgrade without --unattended to add them."
-    fi
-    return 0
-  fi
-  ask_missing_config_java "$CONFIG" "${MISSING_KEYS[@]}"
+  fill_missing_config_java "$CONFIG" "${MISSING_KEYS[@]}"
 }
 
-function ask_missing_config_java() {
+function fill_missing_config_java() {
   local CONFIG="$1"
   shift
   local ENTRY KEY_PATH DEFAULT SHOWN TMP
-  if [[ $# -gt 0 ]]; then
+  if [[ $# -gt 0 && $UNATTENDED != "Y" ]]; then
     echo "$CONFIG is missing settings this version uses. Inform each one, or press ENTER for the default."
   fi
   for ENTRY in "$@"; do
@@ -170,8 +164,13 @@ function ask_missing_config_java() {
     DEFAULT="${ENTRY#*$'\t'}"
     SHOWN="$DEFAULT"
     [[ "$KEY_PATH" == *Password ]] && SHOWN=$(masked_secret "$DEFAULT")
-    printf "\nInform %s - DEFAULT [%s]:" "$KEY_PATH" "$SHOWN"
-    read -r TMP
+    TMP=""
+    if [[ $UNATTENDED == "Y" ]]; then
+      [[ -n "$DEFAULT" ]] && echo "$CONFIG is missing $KEY_PATH - using the default [$SHOWN]"
+    else
+      printf "\nInform %s - DEFAULT [%s]:" "$KEY_PATH" "$SHOWN"
+      read -r TMP
+    fi
     if [[ -n "$TMP" && "$KEY_PATH" == *Password ]]; then
       TMP=$(yaml_single_quoted "$TMP")
     fi
@@ -183,11 +182,15 @@ function ask_missing_config_java() {
     ZMBKP_CONFIG_ADD+=("$KEY_PATH"$'\t'"$TMP")
   done
   if [[ ${#ZMBKP_CONFIG_CA_SECTIONS[@]} -gt 0 ]]; then
-    detect_ca_default
-    printf "\n%s has no CA certificate for %s. Inform the CA certificate Zmbackup should trust for this server, or none to use the Java trust store - DEFAULT [%s]:" \
-      "$CONFIG" "${ZMBKP_CONFIG_CA_SECTIONS[*]}" "$ZMBKP_CA_DEFAULT"
-    read -r TMP
-    ZMBKP_CA_CERT="${TMP:-$ZMBKP_CA_DEFAULT}"
+    if [[ $UNATTENDED == "Y" ]]; then
+      echo "$CONFIG has no CA certificate for ${ZMBKP_CONFIG_CA_SECTIONS[*]} - choosing one like an install would."
+    else
+      detect_ca_default
+      printf "\n%s has no CA certificate for %s. Inform the CA certificate Zmbackup should trust for this server, or none to use the Java trust store - DEFAULT [%s]:" \
+        "$CONFIG" "${ZMBKP_CONFIG_CA_SECTIONS[*]}" "$ZMBKP_CA_DEFAULT"
+      read -r TMP
+      ZMBKP_CA_CERT="${TMP:-$ZMBKP_CA_DEFAULT}"
+    fi
     resolve_ca_cert
     ZMBKP_CONFIG_CA="$ZMBKP_CA_CERT"
   fi

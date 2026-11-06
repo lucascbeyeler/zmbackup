@@ -202,17 +202,3 @@ function config_section_sets_trust() {
     END { exit !found }
   ' "$1"
 }
-
-function warn_upgrade_without_ca() {
-  local CONFIG="$ZMBKP_CONF/zmbackup.yaml"
-  [[ -f "$CONFIG" ]] || return 0
-  local MISSING=() SECTION
-  for SECTION in zimbraLdap zimbraMailbox; do
-    config_section_sets_trust "$CONFIG" "$SECTION" || MISSING+=("$SECTION.caCertificatePath")
-  done
-  [[ ${#MISSING[@]} -eq 0 ]] && return 0
-  detect_ca_default > /dev/null
-  [[ "$ZMBKP_CA_DEFAULT" == "none" ]] && return 0
-  echo "[WARN] - $CONFIG has no caCertificatePath in ${MISSING[*]%%.*}, so scheduled jobs can fail certificate validation even when manual runs work."
-  echo "Set ${MISSING[*]} to $ZMBKP_CA_DEFAULT"
-}

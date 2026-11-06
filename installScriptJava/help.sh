@@ -12,7 +12,7 @@ function show_help_java (){
 
   printf "\n -r,  --remove       : Uninstall the Java build of Zmbackup and remove all the files"
   printf "\n --force-upgrade     : Force install-java.sh to rebuild and upgrade your installation - does not remove the configuration files."
-  printf "\n                       Asks for any setting the configuration is missing, after saving a .bak copy of it."
+  printf "\n                       Adds any setting the configuration is missing, asking for it unless --unattended, after saving a .bak copy."
   printf "\n -u,  --unattended   : Run without any prompt, for automation tools such as Ansible. Passing it accepts the GPLv3"
   printf "\n                       license agreement. Settings are read from environment variables instead of being asked:"
   printf "\n                       OSE_USER, OSE_INSTALL_DIR, OSE_INSTALL_ADDRESS, OSE_INSTALL_LDAPPASS, OSE_DEFAULT_BKP_DIR,"
