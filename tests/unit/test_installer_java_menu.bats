@@ -144,6 +144,24 @@ setup() {
   [[ "$output" == *"Zimbra REST Admin Password: ********"* ]]
 }
 
+@test "check_config_java: masks both passwords when interactive" {
+  UNATTENDED="N"
+  OSE_INSTALL_LDAPPASS="ldapsecret"
+  ZMBKP_REST_ADMIN_PASS="restsecret"
+  run check_config_java <<< ""
+  [[ "$output" != *"ldapsecret"* ]]
+  [[ "$output" != *"restsecret"* ]]
+  [[ "$output" == *"Zimbra LDAP/Admin Password: ********"* ]]
+  [[ "$output" == *"Zimbra REST Admin Password: ********"* ]]
+}
+
+@test "check_config_java: shows an empty password as empty" {
+  UNATTENDED="N"
+  ZMBKP_REST_ADMIN_PASS=""
+  run check_config_java <<< ""
+  [[ "$output" == *"Zimbra REST Admin Password: (empty)"* ]]
+}
+
 @test "check_required_java: passes when every required value is set" {
   OSE_INSTALL_ADDRESS="mail.example.com"
   OSE_INSTALL_LDAPPASS="ldapsecret"
@@ -171,4 +189,89 @@ setup() {
   run check_required_java
   [ "$status" -eq 5 ]
   [[ "$output" == *"ZMBKP_REST_ADMIN"* ]]
+}
+
+@test "probe_ca_against_server: falls back to Zimbra's bundled openssl when there is no system one" {
+  local fake_bin="$BATS_TEST_TMPDIR/bin"
+  OSE_INSTALL_DIR="$BATS_TEST_TMPDIR/zimbra"
+  mkdir -p "$fake_bin" "$OSE_INSTALL_DIR/common/bin"
+  ln -s "$(command -v timeout)" "$fake_bin/timeout"
+  printf '#!/bin/bash\necho "$*" > %q\nprintf -- "-----BEGIN CERTIFICATE-----\\nVerify return code: 0 (ok)\\n"\n' \
+    "$BATS_TEST_TMPDIR/openssl-args" > "$OSE_INSTALL_DIR/common/bin/openssl"
+  chmod +x "$OSE_INSTALL_DIR/common/bin/openssl"
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  local old_path="$PATH"
+  PATH="$fake_bin"
+  run probe_ca_against_server /tmp/ca.pem
+  PATH="$old_path"
+  [ "$status" -eq 0 ]
+  [[ "$(cat "$BATS_TEST_TMPDIR/openssl-args")" == "s_client -connect mail.example.com:7071 -CAfile /tmp/ca.pem -verify_hostname mail.example.com"* ]]
+}
+
+@test "probe_ca_against_server: reports it could not check when no openssl exists at all" {
+  local fake_bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$fake_bin"
+  OSE_INSTALL_DIR="$BATS_TEST_TMPDIR/no-zimbra"
+  local old_path="$PATH"
+  PATH="$fake_bin"
+  run probe_ca_against_server /tmp/ca.pem
+  PATH="$old_path"
+  [ "$status" -eq 2 ]
+}
+
+ca_config() {
+  ZMBKP_CONF="$BATS_TEST_TMPDIR/conf"
+  mkdir -p "$ZMBKP_CONF"
+  cp "${PROJECT_ROOT}/project/config/zmbackup.yaml" "$ZMBKP_CONF/zmbackup.yaml"
+}
+
+set_ca_in_section() {
+  awk -v section="$1:" '
+    /^[^ #]/ { inside = ($1 == section) }
+    inside && /^  # caCertificatePath:/ { print "  caCertificatePath: /opt/zimbra/ssl/zimbra/ca/ca.pem"; next }
+    { print }
+  ' "$ZMBKP_CONF/zmbackup.yaml" > "$ZMBKP_CONF/new" && mv "$ZMBKP_CONF/new" "$ZMBKP_CONF/zmbackup.yaml"
+}
+
+@test "config_section_sets_trust: a section with only the commented example has no CA" {
+  ca_config
+  run config_section_sets_trust "$ZMBKP_CONF/zmbackup.yaml" zimbraLdap
+  [ "$status" -eq 1 ]
+}
+
+@test "config_section_sets_trust: checks each section on its own" {
+  ca_config
+  set_ca_in_section zimbraLdap
+  run config_section_sets_trust "$ZMBKP_CONF/zmbackup.yaml" zimbraLdap
+  [ "$status" -eq 0 ]
+  run config_section_sets_trust "$ZMBKP_CONF/zmbackup.yaml" zimbraMailbox
+  [ "$status" -eq 1 ]
+}
+
+@test "config_section_sets_trust: accepts trustAllCertificates in a section" {
+  ca_config
+  sed -i '/^zimbraMailbox:/,/^backup:/s/^  trustAllCertificates: false/  trustAllCertificates: true/' "$ZMBKP_CONF/zmbackup.yaml"
+  run config_section_sets_trust "$ZMBKP_CONF/zmbackup.yaml" zimbraMailbox
+  [ "$status" -eq 0 ]
+  run config_section_sets_trust "$ZMBKP_CONF/zmbackup.yaml" zimbraLdap
+  [ "$status" -eq 1 ]
+}
+
+@test "resolve_ca_cert: stops with exit 5 when the service user cannot read the CA" {
+  ZMBKP_CA_CERT="$BATS_TEST_TMPDIR/ca.pem"
+  touch "$ZMBKP_CA_CERT"
+  OSE_USER="zimbra"
+  export MOCK_SU_FAIL=1
+  run resolve_ca_cert
+  [ "$status" -eq 5 ]
+  [[ "$output" == *"zimbra cannot read CA certificate $ZMBKP_CA_CERT"* ]]
+}
+
+@test "resolve_ca_cert: accepts a CA the service user can read" {
+  ZMBKP_CA_CERT="$BATS_TEST_TMPDIR/ca.pem"
+  touch "$ZMBKP_CA_CERT"
+  ZMBKP_CA_PROBED_PATH="$ZMBKP_CA_CERT"
+  ZMBKP_CA_PROBED_RESULT=0
+  run resolve_ca_cert
+  [ "$status" -eq 0 ]
 }

@@ -58,6 +58,11 @@ function set_values_java() {
   read -r TMP
   LOCK_BACKUP=${TMP:-$LOCK_BACKUP}
 
+  detect_ca_default
+  printf "\nInform the CA certificate Zmbackup should trust for this server, or none to use the Java trust store - DEFAULT [%s]:" "${ZMBKP_CA_CERT:-$ZMBKP_CA_DEFAULT}"
+  read -r TMP
+  ZMBKP_CA_CERT=${TMP:-${ZMBKP_CA_CERT:-$ZMBKP_CA_DEFAULT}}
+
   echo -e "\n\n"
   echo "##################################################################################"
   echo "#                                                                                #"
@@ -66,21 +71,24 @@ function set_values_java() {
   echo "##################################################################################"
 }
 
+function masked_secret() {
+  if [[ -n "$1" ]]; then
+    printf '********'
+  else
+    printf '(empty)'
+  fi
+}
+
 function check_config_java() {
   echo ""
   echo "Here is a Summary of your settings:"
   echo ""
   echo "Zimbra User: $OSE_USER"
   echo "Zimbra Server Address: $OSE_INSTALL_ADDRESS"
-  if [[ $UNATTENDED == "Y" ]]; then
-    echo "Zimbra LDAP/Admin Password: ********"
-    echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
-    echo "Zimbra REST Admin Password: ********"
-  else
-    echo "Zimbra LDAP/Admin Password: $OSE_INSTALL_LDAPPASS"
-    echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
-    echo "Zimbra REST Admin Password: $ZMBKP_REST_ADMIN_PASS"
-  fi
+  echo "Zimbra LDAP/Admin Password: $(masked_secret "$OSE_INSTALL_LDAPPASS")"
+  echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
+  echo "Zimbra REST Admin Password: $(masked_secret "$ZMBKP_REST_ADMIN_PASS")"
+  echo "Zimbra CA Certificate: $ZMBKP_CA_CERT"
   echo "Zimbra Install Directory: $OSE_INSTALL_DIR"
   echo "Zimbra Backup Directory: $OSE_DEFAULT_BKP_DIR"
   echo "Zmbackup Launcher: $ZMBKP_SRC/zmbackup"
@@ -109,4 +117,88 @@ function check_required_java() {
     echo "Export them as environment variables and run the installer again."
     exit "$ERR_MISSING_VALUE"
   fi
+}
+
+function openssl_binary() {
+  if command -v openssl > /dev/null 2>&1; then
+    command -v openssl
+  elif [[ -x "$OSE_INSTALL_DIR/common/bin/openssl" ]]; then
+    echo "$OSE_INSTALL_DIR/common/bin/openssl"
+  else
+    return 1
+  fi
+}
+
+function probe_ca_against_server() {
+  local OPENSSL
+  OPENSSL=$(openssl_binary) || return 2
+  local ADDRESS="$OSE_INSTALL_ADDRESS"
+  local NAME_CHECK=(-verify_hostname "$OSE_INSTALL_ADDRESS" -servername "$OSE_INSTALL_ADDRESS")
+  if [[ "$ADDRESS" == *:* ]]; then
+    ADDRESS="[$ADDRESS]"
+    NAME_CHECK=(-verify_ip "$OSE_INSTALL_ADDRESS")
+  elif [[ "$ADDRESS" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    NAME_CHECK=(-verify_ip "$OSE_INSTALL_ADDRESS")
+  fi
+  local OUTPUT
+  OUTPUT=$(timeout 10 "$OPENSSL" s_client -connect "$ADDRESS:7071" -CAfile "$1" "${NAME_CHECK[@]}" < /dev/null 2> /dev/null)
+  [[ "$OUTPUT" == *"BEGIN CERTIFICATE"* ]] || return 2
+  [[ "$OUTPUT" == *"Verify return code: 0 (ok)"* ]] && return 0
+  return 1
+}
+
+function detect_ca_default() {
+  ZMBKP_CA_DEFAULT="none"
+  local CANDIDATE="$OSE_INSTALL_DIR/ssl/zimbra/ca/ca.pem"
+  [[ -f "$CANDIDATE" ]] || return 0
+  local RESULT=0
+  probe_ca_against_server "$CANDIDATE" || RESULT=$?
+  ZMBKP_CA_PROBED_PATH="$CANDIDATE"
+  ZMBKP_CA_PROBED_RESULT="$RESULT"
+  case "$RESULT" in
+    0)
+      ZMBKP_CA_DEFAULT="$CANDIDATE"
+      echo "$CANDIDATE validates the certificate of $OSE_INSTALL_ADDRESS."
+      ;;
+    1)
+      echo "[WARN] - $CANDIDATE does not validate the certificate of $OSE_INSTALL_ADDRESS, so Zmbackup will use the Java trust store."
+      ;;
+    *)
+      ZMBKP_CA_DEFAULT="$CANDIDATE"
+      echo "[WARN] - Could not check the certificate of $OSE_INSTALL_ADDRESS, so Zmbackup will trust $CANDIDATE. Test it with: zmbackup accounts list"
+      ;;
+  esac
+}
+
+function resolve_ca_cert() {
+  if [[ -z "$ZMBKP_CA_CERT" ]]; then
+    detect_ca_default
+    ZMBKP_CA_CERT="$ZMBKP_CA_DEFAULT"
+  fi
+  [[ "$ZMBKP_CA_CERT" == "none" ]] && return 0
+  if [[ ! -f "$ZMBKP_CA_CERT" ]]; then
+    echo "[FAIL] - CA certificate $ZMBKP_CA_CERT does not exist. Use an existing file, or none to use the Java trust store."
+    exit "$ERR_MISSING_VALUE"
+  fi
+  if ! su -s /bin/bash -c "test -r $(printf '%q' "$ZMBKP_CA_CERT")" "$OSE_USER"; then
+    echo "[FAIL] - $OSE_USER cannot read CA certificate $ZMBKP_CA_CERT, so every Zmbackup job would fail. Make it readable by $OSE_USER, or use none to use the Java trust store."
+    exit "$ERR_MISSING_VALUE"
+  fi
+  local RESULT=0
+  if [[ "$ZMBKP_CA_CERT" == "${ZMBKP_CA_PROBED_PATH:-}" ]]; then
+    RESULT="$ZMBKP_CA_PROBED_RESULT"
+  else
+    probe_ca_against_server "$ZMBKP_CA_CERT" || RESULT=$?
+  fi
+  if [[ "$RESULT" -eq 1 ]]; then
+    echo "[WARN] - $ZMBKP_CA_CERT does not validate the certificate of $OSE_INSTALL_ADDRESS. Zmbackup will refuse to connect until this is corrected."
+  fi
+}
+
+function config_section_sets_trust() {
+  awk -v section="$2:" '
+    /^[^ #]/ { inside = ($1 == section) }
+    inside && (/^  caCertificatePath:/ || /^  trustAllCertificates: true/) { found = 1 }
+    END { exit !found }
+  ' "$1"
 }

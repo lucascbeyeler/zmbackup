@@ -235,7 +235,9 @@ class ZimbraRestMailboxExporterTest {
                         "/nonexistent/path/rest-ca.pem",
                         false));
 
-        assertTrue(exception.getMessage().contains("SSL context"));
+        assertTrue(exception.getMessage().contains(
+                "zimbraMailbox.caCertificatePath /nonexistent/path/rest-ca.pem does not exist or is not readable by user "),
+                exception.getMessage());
     }
 
     private static String httpsBaseUrl(WireMockServer server) {

@@ -24,7 +24,6 @@ import com.unboundid.ldap.sdk.extensions.StartTLSExtendedRequest;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
 import com.unboundid.ldif.LDIFWriter;
-import com.unboundid.util.ssl.PEMFileTrustManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.zmbackup.core.domain.Identifiers;
@@ -32,7 +31,6 @@ import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.ZimbraLdapExporter;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -363,7 +361,8 @@ public class UnboundIdLdapAdapter implements AccountDiscovery, ZimbraLdapExporte
 
     private SSLContext startTlsSslContext() throws GeneralSecurityException {
         if (caCertificatePath != null) {
-            return new SSLUtil(new PEMFileTrustManager(new File(caCertificatePath))).createSSLContext();
+            return new SSLUtil(CaCertificateFile.trustManager("zimbraLdap.caCertificatePath", caCertificatePath))
+                    .createSSLContext();
         }
         if (trustAllCertificates) {
             return new SSLUtil(new TrustAllTrustManager()).createSSLContext();

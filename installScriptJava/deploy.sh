@@ -1,5 +1,20 @@
 #!/bin/bash
 
+function yaml_single_quoted() {
+  [[ -z "$1" ]] && return
+  printf "'%s'" "${1//\'/\'\'}"
+}
+
+function sed_replacement() {
+  printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+}
+
+function pin_launcher_java() {
+  local JAVA_BIN
+  JAVA_BIN=$(command -v java) || return 0
+  sed -i "s|^ZMBKP_JAVA_BIN=.*|ZMBKP_JAVA_BIN=$(sed_replacement "$(printf '%q' "$JAVA_BIN")")|" "$ZMBKP_SRC"/zmbackup
+}
+
 function migrate_legacy_sessions() {
   if [[ -f "$OSE_DEFAULT_BKP_DIR/sessions.txt" ]]; then
     echo "Found an existing sessions.txt - migrating it into the SQLite metadata store..."
@@ -45,34 +60,15 @@ function deploy_new_java() {
 
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+  pin_launcher_java
 
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/zmbackup.yaml "$ZMBKP_CONF"
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
   install --backup=numbered -o "$ZMBKP_CRON_OWNER" -m 644 "$MYDIR"/project/config/zmbackup-java.cron "$ZMBKP_CRON_FILE"
 
-  sed -i "s|{OSE_DEFAULT_BKP_DIR}|${OSE_DEFAULT_BKP_DIR}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_MAIL_ALERT}|${ZMBKP_MAIL_ALERT}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_MAIL_SENDER}|${ZMBKP_MAIL_SENDER}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  if [[ "$OSE_INSTALL_ADDRESS" == *:* ]]; then
-    LDAP_ADDRESS="[$OSE_INSTALL_ADDRESS]"
-  else
-    LDAP_ADDRESS="$OSE_INSTALL_ADDRESS"
-  fi
-  sed -i "s|{OSE_INSTALL_ADDRESS}|${LDAP_ADDRESS}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_INSTALL_LDAPPASS}|${OSE_INSTALL_LDAPPASS}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_REST_ADMIN}|${ZMBKP_REST_ADMIN}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_REST_ADMIN_PASS}|${ZMBKP_REST_ADMIN_PASS}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_INSTALL_DIR}|${OSE_INSTALL_DIR}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_CONF}|${ZMBKP_CONF}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{MAX_PARALLEL_PROCESS}|${MAX_PARALLEL_PROCESS}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ROTATE_TIME}|${ROTATE_TIME}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{LOCK_BACKUP}|${LOCK_BACKUP}|g" "$ZMBKP_CONF"/zmbackup.yaml
-  if [[ -n "$ZMBKP_METADATA_DIR" ]]; then
-    sed -i "s|^  # metadataDir: .*|  metadataDir: ${ZMBKP_METADATA_DIR}|" "$ZMBKP_CONF"/zmbackup.yaml
-  fi
+  render_config_java "$ZMBKP_CONF"/zmbackup.yaml
 
-  sed -i "s|{OSE_USER}|${OSE_USER}|g" "$ZMBKP_CRON_FILE"
+  sed -i "s|{OSE_USER}|$(sed_replacement "$OSE_USER")|g" "$ZMBKP_CRON_FILE"
 
   chown -R "$OSE_USER". "$ZMBKP_CONF"
   chmod 600 "$ZMBKP_CONF"/zmbackup.yaml
@@ -89,12 +85,14 @@ function deploy_upgrade_java() {
   test -d "$ZMBKP_LIB" || mkdir -p "$ZMBKP_LIB"
   install -o "$OSE_USER" -m 755 "$MYDIR"/app/src/main/scripts/zmbackup "$ZMBKP_SRC"
   install -o "$OSE_USER" -m 750 "$MYDIR"/app/build/libs/"$ZMBKP_JAR_NAME" "$ZMBKP_LIB"
+  pin_launcher_java
 
   if [[ -f "$ZMBKP_CRON_FILE" ]]; then
     chown "$ZMBKP_CRON_OWNER" "$ZMBKP_CRON_FILE"
     chmod 644 "$ZMBKP_CRON_FILE"
   fi
 
+  complete_config_java
   migrate_legacy_sessions
 
   echo "Upgrade completed."

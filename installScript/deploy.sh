@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function blocklist_gen(){
-  for ACCOUNT in $(sudo -H -u "$OSE_USER" bash -c "/opt/zimbra/bin/zmprov -l gaa"); do
+  for ACCOUNT in $(sudo -H -u "$OSE_USER" bash -c "$OSE_INSTALL_DIR/bin/zmprov -l gaa"); do
     if  [[ "$ACCOUNT" = "galsync"* ]] || \
     [[ "$ACCOUNT" = "virus"* ]] || \
     [[ "$ACCOUNT" = "ham"* ]] || \

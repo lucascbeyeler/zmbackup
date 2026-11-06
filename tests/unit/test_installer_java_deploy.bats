@@ -8,7 +8,9 @@ setup() {
   setup_mock_path
   source "${INSTALLER_JAVA_DIR}/vars.sh" 2>/dev/null || true
   source "${PROJECT_ROOT}/installScript/deploy.sh"
+  source "${INSTALLER_JAVA_DIR}/menu.sh"
   source "${INSTALLER_JAVA_DIR}/deploy.sh"
+  source "${INSTALLER_JAVA_DIR}/config.sh"
 
   DEPLOY_ROOT="$(mktemp -d)"
   OSE_DEFAULT_BKP_DIR="${DEPLOY_ROOT}/backup"
@@ -65,6 +67,12 @@ teardown() {
   MOCK_SU_OUTPUT=""
   deploy_new_java
   [ -f "${ZMBKP_SRC}/zmbackup" ]
+}
+
+@test "deploy_new_java: pins the launcher to the java the installer found" {
+  MOCK_SU_OUTPUT=""
+  run deploy_new_java
+  grep -qxF "ZMBKP_JAVA_BIN=${MOCKS_DIR}/java" "$ZMBKP_SRC/zmbackup"
 }
 
 @test "deploy_new_java: installs the jar" {
@@ -190,6 +198,11 @@ user@example.com"
 @test "deploy_upgrade_java: reinstalls the launcher" {
   run deploy_upgrade_java
   [ -f "${ZMBKP_SRC}/zmbackup" ]
+}
+
+@test "deploy_upgrade_java: pins the launcher to the java the installer found" {
+  run deploy_upgrade_java
+  grep -qxF "ZMBKP_JAVA_BIN=${MOCKS_DIR}/java" "$ZMBKP_SRC/zmbackup"
 }
 
 @test "deploy_upgrade_java: reinstalls the jar" {

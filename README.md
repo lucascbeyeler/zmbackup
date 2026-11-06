@@ -124,8 +124,12 @@ $ zmbackup --version
 
 Building the jar needs internet access on first run (to download Gradle and the project's Maven
 dependencies). Run `./install-java.sh --remove` to uninstall, or `./install-java.sh --force-upgrade`
-to rebuild and redeploy the jar without touching your existing configuration. See
-`./install-java.sh --help` for details.
+to rebuild and redeploy the jar. The upgrade compares `/etc/zmbackup/zmbackup.yaml` with what this
+version installs and asks for each setting it is missing, including a CA certificate when one is not
+set, with the value a new install would use as the default (an unattended upgrade uses that default
+without asking). It saves the previous file as
+`zmbackup.yaml.<timestamp>.bak` before adding your answers, and never changes settings you already
+have. See `./install-java.sh --help` for details.
 
 ### Unattended install (Ansible and other automation)
 
@@ -149,11 +153,18 @@ from an environment variable instead (anything left unset keeps its interactive 
 | `MAX_PARALLEL_PROCESS` | `3` |
 | `ROTATE_TIME` | `30` |
 | `LOCK_BACKUP` | `true` |
+| `ZMBKP_CA_CERT` | Zimbra's CA file when it validates the server, otherwise `none` to use the Java trust store. A file you set must be readable by `OSE_USER` |
+| `ZMBKP_SKIP_CRON_CHECK` | `N` - set to `Y` to install where no cron daemon runs, such as an image build |
 
 A missing required value stops the installer with exit code `5` before anything is built or
-deployed. Passwords are masked in the printed summary. `--unattended` combines with
+deployed, and so does a missing cron daemon, with exit code `3`, because the scheduled backups would
+never run without one. The interactive installer warns about a missing daemon and asks whether to
+continue. Passwords are masked in the printed summary. `--unattended` combines with
 `--force-upgrade` and with `--remove`; an unattended `--remove` never truncates the metadata
-database and always keeps the backup storage.
+database and always keeps the backup storage. An unattended `--force-upgrade` adds any missing
+setting with the value an unattended install would use, and chooses a CA certificate the same way.
+A password with no value to fall back on, such as the REST password without
+`ZMBKP_REST_ADMIN_PASS`, stays unset with a warning.
 
 ```
 # ZMBKP_REST_ADMIN_PASS='admin-password' ./install-java.sh --unattended

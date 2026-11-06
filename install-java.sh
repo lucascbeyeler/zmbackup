@@ -25,6 +25,7 @@ source installScriptJava/check.sh
 source installScriptJava/depDownload.sh
 source installScriptJava/build.sh
 source installScriptJava/deploy.sh
+source installScriptJava/config.sh
 source installScriptJava/menu.sh
 source installScriptJava/help.sh
 
@@ -42,11 +43,13 @@ if [[ $ACTION == "--remove" ]] || [[ $ACTION == "-r" ]]; then
   fi
 fi
 
-if [[ $UNATTENDED == "Y" ]]; then
-  if [[ $UPGRADE != "Y" ]]; then
-    check_required_java
-  fi
-else
+if [[ $UNATTENDED == "Y" && $UPGRADE != "Y" ]]; then
+  check_required_java
+fi
+
+check_cron_daemon
+
+if [[ $UNATTENDED != "Y" ]]; then
   contract
 fi
 
@@ -59,12 +62,14 @@ if [[ $NEED_JAVA == "Y" ]]; then
 fi
 
 if [[ $UPGRADE = "Y" ]]; then
+  review_config_java
   build_jar
   deploy_upgrade_java
 else
   if [[ $UNATTENDED != "Y" ]]; then
     set_values_java
   fi
+  resolve_ca_cert
   check_config_java
   build_jar
   deploy_new_java
