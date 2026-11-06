@@ -24,7 +24,7 @@ function check_java_runtime() {
 }
 
 function cron_daemon_running() {
-  local PROC_DIR="${1:-/proc}"
+  local PROC_DIR="$1"
   if command -v pgrep > /dev/null 2>&1; then
     pgrep -x cron > /dev/null 2>&1 || pgrep -x crond > /dev/null 2>&1
     return
@@ -38,7 +38,7 @@ function check_cron_daemon() {
     printf "[SKIPPED]\n"
     return
   fi
-  if cron_daemon_running; then
+  if cron_daemon_running /proc; then
     printf "[RUNNING]\n"
     return
   fi
