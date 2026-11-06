@@ -66,31 +66,7 @@ function deploy_new_java() {
   install --backup=numbered -o "$OSE_USER" -m 600 "$MYDIR"/project/config/blockedlist.conf "$ZMBKP_CONF"
   install --backup=numbered -o "$ZMBKP_CRON_OWNER" -m 644 "$MYDIR"/project/config/zmbackup-java.cron "$ZMBKP_CRON_FILE"
 
-  sed -i "s|{OSE_DEFAULT_BKP_DIR}|$(sed_replacement "$OSE_DEFAULT_BKP_DIR")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_MAIL_ALERT}|$(sed_replacement "$ZMBKP_MAIL_ALERT")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_MAIL_SENDER}|$(sed_replacement "$ZMBKP_MAIL_SENDER")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  if [[ "$OSE_INSTALL_ADDRESS" == *:* ]]; then
-    LDAP_ADDRESS="[$OSE_INSTALL_ADDRESS]"
-  else
-    LDAP_ADDRESS="$OSE_INSTALL_ADDRESS"
-  fi
-  sed -i "s|{OSE_INSTALL_ADDRESS}|$(sed_replacement "$LDAP_ADDRESS")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_INSTALL_LDAPPASS}|$(sed_replacement "$(yaml_single_quoted "$OSE_INSTALL_LDAPPASS")")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_REST_ADMIN}|$(sed_replacement "$ZMBKP_REST_ADMIN")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_REST_ADMIN_PASS}|$(sed_replacement "$(yaml_single_quoted "$ZMBKP_REST_ADMIN_PASS")")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_USER}|$(sed_replacement "$OSE_USER")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{OSE_INSTALL_DIR}|$(sed_replacement "$OSE_INSTALL_DIR")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ZMBKP_CONF}|$(sed_replacement "$ZMBKP_CONF")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{MAX_PARALLEL_PROCESS}|$(sed_replacement "$MAX_PARALLEL_PROCESS")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{ROTATE_TIME}|$(sed_replacement "$ROTATE_TIME")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  sed -i "s|{LOCK_BACKUP}|$(sed_replacement "$LOCK_BACKUP")|g" "$ZMBKP_CONF"/zmbackup.yaml
-  if [[ -n "$ZMBKP_METADATA_DIR" ]]; then
-    sed -i "s|^  # metadataDir: .*|  metadataDir: $(sed_replacement "$ZMBKP_METADATA_DIR")|" "$ZMBKP_CONF"/zmbackup.yaml
-  fi
-
-  if [[ -n "$ZMBKP_CA_CERT" && "$ZMBKP_CA_CERT" != "none" ]]; then
-    sed -i "s|^  # caCertificatePath: .*|  caCertificatePath: $(sed_replacement "$(yaml_single_quoted "$ZMBKP_CA_CERT")")|" "$ZMBKP_CONF"/zmbackup.yaml
-  fi
+  render_config_java "$ZMBKP_CONF"/zmbackup.yaml
 
   sed -i "s|{OSE_USER}|$(sed_replacement "$OSE_USER")|g" "$ZMBKP_CRON_FILE"
 
@@ -116,8 +92,11 @@ function deploy_upgrade_java() {
     chmod 644 "$ZMBKP_CRON_FILE"
   fi
 
+  complete_config_java
   migrate_legacy_sessions
-  warn_upgrade_without_ca
+  if [[ $UNATTENDED == "Y" ]]; then
+    warn_upgrade_without_ca
+  fi
 
   echo "Upgrade completed."
 }

@@ -538,3 +538,71 @@ $1"
   [ "$status" -eq 0 ]
   [[ "$output" == *"recipient: ops&backup|team@it.test"* ]]
 }
+
+@test "upgrade: an interactive upgrade asks for what an older config is missing and adds it" {
+  run in_sandbox "$TLS_FIXTURE"'
+    ./install-java.sh --unattended || exit 90
+    sed -i "/^storage:/,/^  backend:/d; /^metadata:/,/^  backend:/d; /^  rotateDays:/d" /etc/zmbackup/zmbackup.yaml
+    cp /etc/zmbackup/zmbackup.yaml /tmp/before.yaml
+    tls_ca zimbra-ca
+    install_zimbra_ca zimbra-ca
+    tls_server_signed_by zimbra-ca
+    printf "%s\n" y 45 "" "" "" n > /tmp/answers
+    bash -c "./install-java.sh --force-upgrade < /tmp/answers" || exit 91
+    echo "ca=$(grep -c "^  caCertificatePath: '"'"'/opt/zimbra/ssl/zimbra/ca/ca.pem'"'"'$" /etc/zmbackup/zmbackup.yaml)"
+    grep -E "^  (rotateDays|backend):" /etc/zmbackup/zmbackup.yaml | sed "s/^/value /"
+    cmp /tmp/before.yaml /etc/zmbackup/zmbackup.yaml.*.bak && echo BACKUP_MATCHES
+    stat -c "MODE %a" /etc/zmbackup/zmbackup.yaml
+    zmbackup list > /dev/null && echo CONFIG_LOADS
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Config File..."*"[INCOMPLETE]"* ]]
+  [[ "$output" == *"Inform backup.rotateDays - DEFAULT [30]"* ]]
+  [[ "$output" == *"Inform storage.backend - DEFAULT [local]"* ]]
+  [[ "$output" == *"Inform metadata.backend - DEFAULT [sqlite]"* ]]
+  [[ "$output" == *"has no CA certificate for zimbraLdap zimbraMailbox"* ]]
+  [[ "$output" == *"ca=2"* ]]
+  [[ "$output" == *"value   rotateDays: 45"* ]]
+  [[ "$output" == *"value   backend: local"* ]]
+  [[ "$output" == *"value   backend: sqlite"* ]]
+  [[ "$output" == *"BACKUP_MATCHES"* ]]
+  [[ "$output" == *"MODE 600"* ]]
+  [[ "$output" == *"CONFIG_LOADS"* ]]
+  [[ "$output" != *"has no caCertificatePath"* ]]
+}
+
+@test "upgrade: an interactive upgrade of a complete config asks nothing more and changes nothing" {
+  run in_sandbox "$TLS_FIXTURE"'
+    tls_ca zimbra-ca
+    install_zimbra_ca zimbra-ca
+    tls_server_signed_by zimbra-ca
+    ./install-java.sh --unattended || exit 90
+    BEFORE=$(sha256sum /etc/zmbackup/zmbackup.yaml)
+    printf "%s\n" y n > /tmp/answers
+    bash -c "./install-java.sh --force-upgrade < /tmp/answers" || exit 91
+    test "$BEFORE" = "$(sha256sum /etc/zmbackup/zmbackup.yaml)" && echo CONFIG_UNCHANGED
+    ls /etc/zmbackup/*.bak 2> /dev/null || echo NO_BACKUP
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Config File..."*"[COMPLETE]"* ]]
+  [[ "$output" != *"Inform "* ]]
+  [[ "$output" == *"CONFIG_UNCHANGED"* ]]
+  [[ "$output" == *"NO_BACKUP"* ]]
+}
+
+@test "upgrade: an unattended upgrade lists the missing settings and leaves the config untouched" {
+  run in_sandbox '
+    ./install-java.sh --unattended || exit 90
+    sed -i "/^  rotateDays:/d" /etc/zmbackup/zmbackup.yaml
+    BEFORE=$(sha256sum /etc/zmbackup/zmbackup.yaml)
+    unset ZMBKP_REST_ADMIN_PASS OSE_INSTALL_LDAPPASS
+    ./install-java.sh --unattended --force-upgrade || exit 91
+    test "$BEFORE" = "$(sha256sum /etc/zmbackup/zmbackup.yaml)" && echo CONFIG_UNCHANGED
+  '
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"is missing backup.rotateDays. Run ./install-java.sh --force-upgrade without --unattended"* ]]
+  [[ "$output" == *"CONFIG_UNCHANGED"* ]]
+}

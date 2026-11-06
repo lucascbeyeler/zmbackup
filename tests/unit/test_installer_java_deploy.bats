@@ -10,6 +10,7 @@ setup() {
   source "${PROJECT_ROOT}/installScript/deploy.sh"
   source "${INSTALLER_JAVA_DIR}/menu.sh"
   source "${INSTALLER_JAVA_DIR}/deploy.sh"
+  source "${INSTALLER_JAVA_DIR}/config.sh"
 
   DEPLOY_ROOT="$(mktemp -d)"
   OSE_DEFAULT_BKP_DIR="${DEPLOY_ROOT}/backup"

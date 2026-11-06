@@ -25,6 +25,7 @@ source installScriptJava/check.sh
 source installScriptJava/depDownload.sh
 source installScriptJava/build.sh
 source installScriptJava/deploy.sh
+source installScriptJava/config.sh
 source installScriptJava/menu.sh
 source installScriptJava/help.sh
 
@@ -61,6 +62,7 @@ if [[ $NEED_JAVA == "Y" ]]; then
 fi
 
 if [[ $UPGRADE = "Y" ]]; then
+  review_config_java
   build_jar
   deploy_upgrade_java
 else
