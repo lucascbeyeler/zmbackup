@@ -117,8 +117,14 @@ ZMBKP_REST_ADMIN="${ZMBKP_REST_ADMIN:-admin@$DOMAIN}"
 remote "mkdir -p ~/$SRC_DIR"
 tar -C "$REPO_ROOT" --exclude='./.git' --exclude='.gradle' --exclude='build' --exclude='./node_modules' -czf - . |
   remote "tar -xzf - -C ~/$SRC_DIR"
+INSTALL_STARTED="$(remote "date '+%Y-%m-%d %H:%M:%S'")"
+# sudo logs the command line and every variable passed through it, so the password goes over stdin
+# to a root shell that reads it and runs the installer
 printf '%s' "$ZMBKP_REST_ADMIN_PASS" |
-  remote "cd ~/$SRC_DIR && IFS= read -r -d '' PASS || true; export ZMBKP_REST_ADMIN='$ZMBKP_REST_ADMIN' ZMBKP_REST_ADMIN_PASS=\"\$PASS\"; sudo -n --preserve-env=ZMBKP_REST_ADMIN,ZMBKP_REST_ADMIN_PASS ./install-java.sh --unattended"
+  remote "cd ~/$SRC_DIR && sudo -n bash -c 'IFS= read -r -d \"\" ZMBKP_REST_ADMIN_PASS || true; export ZMBKP_REST_ADMIN=$ZMBKP_REST_ADMIN ZMBKP_REST_ADMIN_PASS; exec ./install-java.sh --unattended'"
+assert_equal "the REST password is not in the system journal" "0" \
+  "$(printf '%s' "$ZMBKP_REST_ADMIN_PASS" |
+    remote "sudo -n bash -c 'IFS= read -r -d \"\" PASS || true; journalctl --no-pager --since \"$INSTALL_STARTED\" | grep -cF -f <(printf \"%s\\n\" \"\$PASS\")'" || true)"
 CRON_PATH="$(remote "sudo -n sed -n 's/^PATH=//p' /etc/cron.d/zmbackup")"
 assert_equal "the installer set the Zimbra CA in both config sections" "2" \
   "$(remote "sudo -n grep -cxF \"  caCertificatePath: '/opt/zimbra/ssl/zimbra/ca/ca.pem'\" /etc/zmbackup/zmbackup.yaml")"
