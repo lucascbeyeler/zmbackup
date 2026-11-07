@@ -126,6 +126,7 @@ public final class YamlConfigLoader {
                 optionalInt(root, "backup.maxParallelProcesses", 3),
                 optionalInt(root, "backup.rotateDays", 30),
                 optionalBoolean(root, "backup.lockBackup", true),
+                optionalBoolean(root, "backup.preserveIncrementalChains", false),
                 parseEmailNotify(root));
     }
 

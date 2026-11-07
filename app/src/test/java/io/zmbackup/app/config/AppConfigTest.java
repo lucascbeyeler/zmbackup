@@ -23,6 +23,7 @@ class AppConfigTest {
             3,
             30,
             true,
+            false,
             new EmailNotifyConfig(
                     EmailNotifyLevel.ALL,
                     "admin@example.com",

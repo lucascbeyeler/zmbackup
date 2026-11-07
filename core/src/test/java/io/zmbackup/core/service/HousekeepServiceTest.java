@@ -75,6 +75,100 @@ class HousekeepServiceTest {
     }
 
     @Test
+    void withoutChainPreservationAnExpiredFullIsRemovedEvenWhenItsIncrementalsAreRecent() throws IOException {
+        Instant now = Instant.now();
+        BackupSession full = session("full-old", BackupType.FULL, now.minus(10, ChronoUnit.DAYS));
+        BackupSession inc = session("inc-recent", BackupType.INCREMENTAL, now.minus(1, ChronoUnit.DAYS));
+        metadataStore.save(full);
+        metadataStore.save(inc);
+
+        List<BackupSession> removed = housekeepService.rotateOldSessions(7, false);
+
+        assertEquals(List.of(full), removed);
+        assertTrue(metadataStore.findSession("inc-recent").isPresent());
+    }
+
+    @Test
+    void keepsAnExpiredFullAndItsExpiredIncrementalsWhileTheLastIncrementalIsUnexpired() throws IOException {
+        Instant now = Instant.now();
+        BackupSession full = session("full-old", BackupType.FULL, now.minus(10, ChronoUnit.DAYS));
+        BackupSession oldInc = session("inc-old", BackupType.INCREMENTAL, now.minus(9, ChronoUnit.DAYS));
+        BackupSession recentInc = session("inc-recent", BackupType.INCREMENTAL, now.minus(1, ChronoUnit.DAYS));
+        metadataStore.save(full);
+        metadataStore.save(oldInc);
+        metadataStore.save(recentInc);
+
+        List<BackupSession> removed = housekeepService.rotateOldSessions(7, true);
+
+        assertEquals(List.of(), removed);
+        assertTrue(metadataStore.findSession("full-old").isPresent());
+        assertTrue(metadataStore.findSession("inc-old").isPresent());
+        assertTrue(metadataStore.findSession("inc-recent").isPresent());
+        assertEquals(1, metadataStore.vacuumCalls);
+    }
+
+    @Test
+    void removesAWholeChainOnceItsLastIncrementalBeforeTheNextFullExpires() throws IOException {
+        Instant now = Instant.now();
+        BackupSession oldFull = session("full-old", BackupType.FULL, now.minus(20, ChronoUnit.DAYS));
+        BackupSession oldInc = session("inc-old", BackupType.INCREMENTAL, now.minus(15, ChronoUnit.DAYS));
+        BackupSession newFull = session("full-new", BackupType.FULL, now.minus(10, ChronoUnit.DAYS));
+        BackupSession newInc = session("inc-new", BackupType.INCREMENTAL, now.minus(1, ChronoUnit.DAYS));
+        metadataStore.save(oldFull);
+        metadataStore.save(oldInc);
+        metadataStore.save(newFull);
+        metadataStore.save(newInc);
+
+        List<BackupSession> removed = housekeepService.rotateOldSessions(7, true);
+
+        assertEquals(Set.of(oldFull, oldInc), Set.copyOf(removed));
+        assertTrue(metadataStore.findSession("full-new").isPresent());
+        assertTrue(metadataStore.findSession("inc-new").isPresent());
+    }
+
+    @Test
+    void aFailedOrInProgressFullDoesNotStartANewChain() throws IOException {
+        Instant now = Instant.now();
+        BackupSession full = session("full-old", BackupType.FULL, now.minus(20, ChronoUnit.DAYS));
+        BackupSession failedFull = new BackupSession(
+                "full-failed",
+                BackupType.FULL,
+                SessionStatus.FAILED,
+                now.minus(15, ChronoUnit.DAYS),
+                now.minus(15, ChronoUnit.DAYS),
+                0L);
+        BackupSession stuckFull = new BackupSession(
+                "full-stuck", BackupType.FULL, SessionStatus.IN_PROGRESS, now.minus(12, ChronoUnit.DAYS), null, null);
+        BackupSession inc = session("inc-recent", BackupType.INCREMENTAL, now.minus(1, ChronoUnit.DAYS));
+        metadataStore.save(full);
+        metadataStore.save(failedFull);
+        metadataStore.save(stuckFull);
+        metadataStore.save(inc);
+
+        List<BackupSession> removed = housekeepService.rotateOldSessions(7, true);
+
+        assertEquals(List.of(), removed);
+        assertTrue(metadataStore.findSession("full-old").isPresent());
+        assertTrue(metadataStore.findSession("full-failed").isPresent());
+    }
+
+    @Test
+    void chainPreservationLeavesOtherSessionTypesOnPlainAgeRotation() throws IOException {
+        Instant now = Instant.now();
+        BackupSession ldap = session("ldap-old", now.minus(10, ChronoUnit.DAYS));
+        BackupSession mbox = session("mbox-old", BackupType.MAILBOX, now.minus(10, ChronoUnit.DAYS));
+        BackupSession inc = session("inc-recent", BackupType.INCREMENTAL, now.minus(1, ChronoUnit.DAYS));
+        metadataStore.save(ldap);
+        metadataStore.save(mbox);
+        metadataStore.save(inc);
+
+        List<BackupSession> removed = housekeepService.rotateOldSessions(7, true);
+
+        assertEquals(Set.of(ldap, mbox), Set.copyOf(removed));
+        assertTrue(metadataStore.findSession("inc-recent").isPresent());
+    }
+
+    @Test
     void cleanEmptyRemovesZeroByteFilesButKeepsTheSessionAndOtherContent() throws IOException {
         BackupSession session = session("ldap-full", Instant.now());
         metadataStore.save(session);
@@ -113,8 +207,12 @@ class HousekeepServiceTest {
     }
 
     private static BackupSession session(String sessionId, Instant completedAt) {
+        return session(sessionId, BackupType.LDAP, completedAt);
+    }
+
+    private static BackupSession session(String sessionId, BackupType type, Instant completedAt) {
         return new BackupSession(
-                sessionId, BackupType.LDAP, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, 1024L);
+                sessionId, type, SessionStatus.FINISHED, completedAt.minusSeconds(60), completedAt, 1024L);
     }
 
     private static final class InMemoryStorageProvider implements StorageProvider {

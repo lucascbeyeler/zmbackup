@@ -26,8 +26,9 @@ public final class HousekeepCommand implements Callable<Integer> {
         return LockedExecution.run(parent.configFile(), spec.commandLine().getErr(), context -> {
             HousekeepService housekeepService = context.housekeepService();
             out.println("Removing old backup sessions - please wait.");
-            List<BackupSession> rotated =
-                    housekeepService.rotateOldSessions(context.config().backup().rotateDays());
+            List<BackupSession> rotated = housekeepService.rotateOldSessions(
+                    context.config().backup().rotateDays(),
+                    context.config().backup().preserveIncrementalChains());
             for (BackupSession session : rotated) {
                 out.println("Backup session " + session.sessionId() + " removed.");
             }

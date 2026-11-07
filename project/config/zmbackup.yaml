@@ -68,6 +68,10 @@ backup:
   maxParallelProcesses: {MAX_PARALLEL_PROCESS}
   # How many days of backups to keep before housekeeping deletes them. Optional, defaults to 30.
   rotateDays: {ROTATE_TIME}
+  # Whether housekeeping keeps an expired full backup, and the incremental backups that follow it,
+  # until the last incremental before the next full backup has also expired - so incremental
+  # backups are never left without the full backup they build on. Optional, defaults to false.
+  preserveIncrementalChains: false
   # Whether to allow only one backup session per type per day. Optional, defaults to true.
   lockBackup: {LOCK_BACKUP}
   emailNotify:

@@ -11,6 +11,7 @@ public record BackupConfig(
         int maxParallelProcesses,
         int rotateDays,
         boolean lockBackup,
+        boolean preserveIncrementalChains,
         EmailNotifyConfig emailNotify) {
 
     private static final int MAX_PARALLEL_PROCESSES = 256;
