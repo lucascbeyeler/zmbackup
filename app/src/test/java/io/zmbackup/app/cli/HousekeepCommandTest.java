@@ -70,6 +70,43 @@ class HousekeepCommandTest {
     }
 
     @Test
+    void keepsAnExpiredFullWhileItsLastIncrementalIsUnexpiredWhenChainPreservationIsEnabled() throws Exception {
+        Path configFile = writeConfig(7, true);
+        AppContext context = AppContext.fromConfigFile(configFile);
+        Instant now = Instant.now();
+
+        BackupSession full = new BackupSession(
+                "full-old",
+                BackupType.FULL,
+                SessionStatus.FINISHED,
+                now.minus(10, ChronoUnit.DAYS),
+                now.minus(10, ChronoUnit.DAYS),
+                1024L);
+        BackupSession inc = new BackupSession(
+                "inc-recent",
+                BackupType.INCREMENTAL,
+                SessionStatus.FINISHED,
+                now.minus(1, ChronoUnit.DAYS),
+                now.minus(1, ChronoUnit.DAYS),
+                1024L);
+        context.metadataStore().save(full);
+        context.metadataStore().save(inc);
+        for (String sessionId : new String[] {"full-old", "inc-recent"}) {
+            try (var writer = context.storageProvider().openWrite(sessionId, "alice@example.com", "tgz")) {
+                writer.write(new byte[] {1});
+            }
+        }
+
+        StringWriter out = new StringWriter();
+        int exitCode = commandLine(out).execute("--config", configFile.toString(), "housekeep");
+
+        assertEquals(0, exitCode);
+        assertFalse(out.toString().contains("Backup session full-old removed."));
+        assertTrue(context.metadataStore().findSession("full-old").isPresent());
+        assertTrue(context.storageProvider().exists("full-old", "alice@example.com", "tgz"));
+    }
+
+    @Test
     void warnsAboutASessionWithNoBackupContentInStorage() throws Exception {
         Path configFile = writeConfig(30);
         AppContext context = AppContext.fromConfigFile(configFile);
@@ -116,6 +153,10 @@ class HousekeepCommandTest {
     }
 
     private Path writeConfig(int rotateDays) throws IOException {
+        return writeConfig(rotateDays, false);
+    }
+
+    private Path writeConfig(int rotateDays, boolean preserveIncrementalChains) throws IOException {
         Path configFile = tempDir.resolve("zmbackup.yaml");
         Files.writeString(
                 configFile,
@@ -135,6 +176,7 @@ class HousekeepCommandTest {
                   logFile: %s
                   blockedListFile: %s
                   rotateDays: %d
+                  preserveIncrementalChains: %b
                   emailNotify:
                     recipient: admin@example.com
                     sender: root@example.com
@@ -145,7 +187,8 @@ class HousekeepCommandTest {
                                 tempDir,
                                 tempDir.resolve("zmbackup.log"),
                                 tempDir.resolve("blockedlist.conf"),
-                                rotateDays));
+                                rotateDays,
+                                preserveIncrementalChains));
         return configFile;
     }
 

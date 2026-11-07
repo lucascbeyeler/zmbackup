@@ -1,6 +1,7 @@
 package io.zmbackup.app.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,6 +46,7 @@ class YamlConfigLoaderTest {
               maxParallelProcesses: 5
               rotateDays: 14
               lockBackup: false
+              preserveIncrementalChains: true
               emailNotify:
                 level: ERROR
                 recipient: admin@example.com
@@ -121,6 +123,7 @@ class YamlConfigLoaderTest {
         assertEquals(5, config.backup().maxParallelProcesses());
         assertEquals(14, config.backup().rotateDays());
         assertEquals(false, config.backup().lockBackup());
+        assertTrue(config.backup().preserveIncrementalChains());
         assertEquals(EmailNotifyLevel.ERROR, config.backup().emailNotify().level());
         assertEquals("admin@example.com", config.backup().emailNotify().recipient());
         assertEquals("root@example.com", config.backup().emailNotify().sender());
@@ -182,6 +185,7 @@ class YamlConfigLoaderTest {
         assertEquals(3, config.backup().maxParallelProcesses());
         assertEquals(30, config.backup().rotateDays());
         assertTrue(config.backup().lockBackup());
+        assertFalse(config.backup().preserveIncrementalChains());
         assertEquals(EmailNotifyLevel.ALL, config.backup().emailNotify().level());
         assertEquals(EmailNotifyConfig.DEFAULT_SMTP_HOST, config.backup().emailNotify().smtpHost());
         assertEquals(EmailNotifyConfig.DEFAULT_SMTP_PORT, config.backup().emailNotify().smtpPort());

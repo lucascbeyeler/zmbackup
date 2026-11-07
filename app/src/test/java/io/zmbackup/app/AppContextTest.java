@@ -148,6 +148,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.NONE,
                                 null,
@@ -319,6 +320,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.ALL,
                                 "admin@example.com",
@@ -351,6 +353,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.ALL,
                                 "admin@example.com",
@@ -396,6 +399,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.ALL,
                                 "admin@example.com",
@@ -421,6 +425,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.ALL,
                                 "admin@example.com",
@@ -459,6 +464,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.ALL,
                                 "admin@example.com",
@@ -491,6 +497,7 @@ class AppContextTest {
                         3,
                         30,
                         true,
+                        false,
                         new EmailNotifyConfig(
                                 EmailNotifyLevel.ALL,
                                 "admin@example.com",

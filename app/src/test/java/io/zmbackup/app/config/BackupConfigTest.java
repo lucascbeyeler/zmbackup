@@ -28,6 +28,7 @@ class BackupConfigTest {
                         0,
                         30,
                         true,
+                        false,
                         EMAIL_NOTIFY));
 
         assertEquals("maxParallelProcesses must be at least 1", exception.getMessage());
@@ -45,6 +46,7 @@ class BackupConfigTest {
                         257,
                         30,
                         true,
+                        false,
                         EMAIL_NOTIFY));
 
         assertEquals("maxParallelProcesses must be at most 256", exception.getMessage());
@@ -60,6 +62,7 @@ class BackupConfigTest {
                 256,
                 30,
                 true,
+                false,
                 EMAIL_NOTIFY);
 
         assertEquals(256, config.maxParallelProcesses());
@@ -77,6 +80,7 @@ class BackupConfigTest {
                         3,
                         -1,
                         true,
+                        false,
                         EMAIL_NOTIFY));
 
         assertEquals("rotateDays must not be negative", exception.getMessage());
@@ -94,6 +98,7 @@ class BackupConfigTest {
                         3,
                         30,
                         true,
+                        false,
                         EMAIL_NOTIFY));
     }
 
@@ -109,6 +114,7 @@ class BackupConfigTest {
                         3,
                         30,
                         true,
+                        false,
                         EMAIL_NOTIFY));
     }
 
@@ -124,6 +130,7 @@ class BackupConfigTest {
                         3,
                         30,
                         true,
+                        false,
                         EMAIL_NOTIFY));
     }
 
@@ -133,7 +140,7 @@ class BackupConfigTest {
                 NullPointerException.class,
                 () -> new BackupConfig(
                         Path.of("/opt/zimbra/backup"), Path.of("/opt/zimbra/backup"),
-                        Path.of("/opt/zimbra/log/zmbackup.log"), null, 3, 30, true,
+                        Path.of("/opt/zimbra/log/zmbackup.log"), null, 3, 30, true, false,
                         EMAIL_NOTIFY));
     }
 
@@ -149,6 +156,7 @@ class BackupConfigTest {
                         3,
                         30,
                         true,
+                        false,
                         null));
     }
 
@@ -162,6 +170,7 @@ class BackupConfigTest {
                 1,
                 0,
                 true,
+                false,
                 EMAIL_NOTIFY);
 
         assertEquals(1, config.maxParallelProcesses());
@@ -178,6 +187,7 @@ class BackupConfigTest {
                 3,
                 30,
                 true,
+                false,
                 EMAIL_NOTIFY);
 
         assertEquals(Path.of("/mnt/nas/zmbackup"), config.workDir());

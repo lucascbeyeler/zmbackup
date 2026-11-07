@@ -74,6 +74,16 @@ leaf() {
   [ "${lines[1]}" = $'storage.backend\tlocal' ]
 }
 
+@test "missing_config_keys: an older config without preserveIncrementalChains gets it disabled" {
+  complete_config
+  sed -i '/^  preserveIncrementalChains:/d' "$CONFIG"
+  cp "$PROJECT_ROOT/project/config/zmbackup.yaml" "$BATS_TEST_TMPDIR/template"
+  render_config_java "$BATS_TEST_TMPDIR/template"
+  run missing_config_keys "$BATS_TEST_TMPDIR/template" "$CONFIG"
+  [ "${#lines[@]}" -eq 1 ]
+  [ "${lines[0]}" = $'backup.preserveIncrementalChains\tfalse' ]
+}
+
 @test "yaml_insert_leaf: adds a setting at the end of its section" {
   complete_config
   sed -i '/^  rotateDays:/d' "$CONFIG"
