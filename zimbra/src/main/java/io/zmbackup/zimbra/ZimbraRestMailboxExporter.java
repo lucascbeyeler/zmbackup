@@ -6,6 +6,7 @@ import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.port.ZimbraMailboxExporter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URI;
@@ -15,17 +16,26 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscribers;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLHandshakeException;
@@ -37,16 +47,19 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
     private static final DateTimeFormatter AFTER_DATE_FORMAT =
             DateTimeFormatter.ofPattern("MM/dd/yyyy").withZone(ZoneId.systemDefault());
 
+    private static final Logger LOG = Logger.getLogger(ZimbraRestMailboxExporter.class.getName());
+
     private static final Pattern ACCOUNT_PATTERN = Identifiers.EMAIL;
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
-
-    private static final Duration REQUEST_TIMEOUT = Duration.ofHours(6);
 
     private final URI baseUri;
     private final String adminUser;
     private final String adminPassword;
     private final HttpClient httpClient;
+    private final MailboxTransferSettings settings;
+    private final RestTransport transport;
+    private final RestTransport.Retrier retrier;
 
     public ZimbraRestMailboxExporter(String baseUrl, String adminUser, String adminPassword) {
         this(baseUrl, adminUser, adminPassword, null, false);
@@ -58,6 +71,17 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
             String adminPassword,
             String caCertificatePath,
             boolean trustAllCertificates) {
+        this(baseUrl, adminUser, adminPassword, caCertificatePath, trustAllCertificates,
+                MailboxTransferSettings.defaults());
+    }
+
+    public ZimbraRestMailboxExporter(
+            String baseUrl,
+            String adminUser,
+            String adminPassword,
+            String caCertificatePath,
+            boolean trustAllCertificates,
+            MailboxTransferSettings settings) {
         Objects.requireNonNull(baseUrl, "baseUrl must not be null");
         this.baseUri = URI.create(baseUrl);
         this.adminUser = Objects.requireNonNull(adminUser, "adminUser must not be null");
@@ -71,6 +95,9 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
             builder.sslContext(sslContext);
         }
         this.httpClient = builder.build();
+        this.settings = Objects.requireNonNull(settings, "settings must not be null");
+        this.transport = new HttpTransport();
+        this.retrier = new RestTransport.Retrier(settings.retries(), settings.retryBackoff(), LOG);
     }
 
     private static SSLContext restSslContext(String caCertificatePath, boolean trustAllCertificates) {
@@ -137,68 +164,101 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
 
     @Override
     public boolean export(String account, OutputStream destination, Instant since) throws IOException {
-        HttpRequest request = HttpRequest.newBuilder(exportUri(account, since))
-                .header("Authorization", basicAuthHeader())
-                .timeout(REQUEST_TIMEOUT)
-                .GET()
-                .build();
-
-        HttpResponse<InputStream> response;
-        try {
-            response = httpClient.send(request, BodyHandlers.ofInputStream());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while exporting mailbox for " + account, e);
-        } catch (IOException e) {
-            throw enrichIfCertificateFailure(e);
+        String query = "fmt=tar";
+        if (since != null) {
+            query += "&query=after:\"" + AFTER_DATE_FORMAT.format(since) + "\"";
         }
-
-        try (InputStream body = response.body()) {
-            return switch (response.statusCode()) {
-                case 200 -> {
-                    body.transferTo(destination);
-                    yield true;
-                }
-                case 204 -> false;
-                default -> throw new IOException(
-                        "Failed to export mailbox for " + account + ": HTTP " + response.statusCode());
-            };
+        restUri(account, query);
+        if (settings.batchedExport()) {
+            String metadataQuery = since == null
+                    ? "fmt=tar&body=0"
+                    : "fmt=tar&body=0&query=after:\"" + AFTER_DATE_FORMAT.format(since) + "\"";
+            return new BatchedMailboxExport(transport, retrier, settings, Clock.systemUTC())
+                    .export(account, destination, since, metadataQuery, q -> restUri(account, q));
+        }
+        URI uri = restUri(account, query);
+        try (InputStream body = transport.get(uri, "mailbox export for " + account)) {
+            if (body == null) {
+                return false;
+            }
+            GZIPOutputStream gzip = new GZIPOutputStream(
+                    new BatchedMailboxExport.NonClosingOutputStream(destination), 64 * 1024);
+            body.transferTo(gzip);
+            gzip.finish();
+            destination.flush();
+            return true;
         }
     }
 
     @Override
     public void restore(String account, InputStream source) throws IOException {
-        HttpRequest request = HttpRequest.newBuilder(restoreUri(account))
-                .header("Authorization", basicAuthHeader())
-                .timeout(REQUEST_TIMEOUT)
-                .POST(BodyPublishers.ofInputStream(() -> source))
-                .build();
-
-        HttpResponse<Void> response;
-        try {
-            response = httpClient.send(request, BodyHandlers.discarding());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while restoring mailbox for " + account, e);
-        } catch (IOException e) {
-            throw enrichIfCertificateFailure(e);
+        if (settings.batchedRestore()) {
+            URI tarUri = restUri(account, "fmt=tar&resolve=skip");
+            new BatchedMailboxRestore(transport, retrier).restore(account, source, tarUri);
+            return;
         }
-
-        if (response.statusCode() / 100 != 2) {
-            throw new IOException("Failed to restore mailbox for " + account + ": HTTP " + response.statusCode());
-        }
+        transport.post(
+                restUri(account, "fmt=tgz&resolve=skip"),
+                BodyPublishers.ofInputStream(() -> source),
+                "mailbox restore for " + account);
     }
 
-    private URI exportUri(String account, Instant since) throws IOException {
-        String query = "fmt=tgz&resolve=skip";
-        if (since != null) {
-            query += "&query=after:\"" + AFTER_DATE_FORMAT.format(since) + "\"";
-        }
-        return restUri(account, query);
-    }
+    /** The HTTP client calls, with header deadlines and the export body's inactivity watchdog. */
+    private final class HttpTransport implements RestTransport {
 
-    private URI restoreUri(String account) throws IOException {
-        return restUri(account, "fmt=tgz&resolve=skip");
+        @Override
+        public InputStream get(URI uri, String description) throws IOException {
+            HttpRequest request = HttpRequest.newBuilder(uri)
+                    .header("Authorization", basicAuthHeader())
+                    .GET()
+                    .build();
+            HttpResponse.BodyHandler<InputStream> handler = info -> info.statusCode() == 200
+                    ? new InactivityTimeoutBodySubscriber(settings.exportInactivityTimeout(), description)
+                    : BodySubscribers.replacing(null);
+            HttpResponse<InputStream> response =
+                    awaitHeaders(httpClient.sendAsync(request, handler), settings.exportHeaderTimeout(), description);
+            return switch (response.statusCode()) {
+                case 200 -> response.body();
+                case 204 -> null;
+                default -> throw new HttpStatusException(
+                        "Failed " + description + ": HTTP " + response.statusCode(), response.statusCode());
+            };
+        }
+
+        @Override
+        public void post(URI uri, HttpRequest.BodyPublisher body, String description) throws IOException {
+            HttpRequest request = HttpRequest.newBuilder(uri)
+                    .header("Authorization", basicAuthHeader())
+                    .POST(body)
+                    .build();
+            HttpResponse<Void> response = awaitHeaders(
+                    httpClient.sendAsync(request, BodyHandlers.discarding()), settings.restoreTimeout(), description);
+            if (response.statusCode() / 100 != 2) {
+                throw new HttpStatusException(
+                        "Failed " + description + ": HTTP " + response.statusCode(), response.statusCode());
+            }
+        }
+
+        private <T> HttpResponse<T> awaitHeaders(
+                CompletableFuture<HttpResponse<T>> future, Duration deadline, String description) throws IOException {
+            try {
+                return future.get(deadline.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                throw new HttpTimeoutException("No reply from Zimbra within " + deadline.toSeconds() + " s for "
+                        + description + "; the request was cancelled");
+            } catch (InterruptedException e) {
+                future.cancel(true);
+                Thread.currentThread().interrupt();
+                throw new InterruptedIOException("Interrupted during " + description);
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                IOException failure = cause instanceof IOException io
+                        ? io
+                        : new IOException("Failed " + description, cause);
+                throw enrichIfCertificateFailure(failure);
+            }
+        }
     }
 
     private URI restUri(String account, String query) throws IOException {

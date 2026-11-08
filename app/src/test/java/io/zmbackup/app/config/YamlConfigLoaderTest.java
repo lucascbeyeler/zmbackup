@@ -38,6 +38,13 @@ class YamlConfigLoaderTest {
               backupInactiveAccounts: false
               caCertificatePath: /etc/zmbackup/rest-ca.pem
               trustAllCertificates: true
+              exportHeaderTimeoutSeconds: 120
+              exportInactivityTimeoutSeconds: 900
+              restoreTimeoutSeconds: 172800
+              batchedExport: false
+              batchedRestore: false
+              transferRetries: 5
+              exportJournalDir: /var/zmbackup/journal
             backup:
               workDir: /opt/zimbra/backup
               metadataDir: /var/zmbackup
@@ -115,6 +122,13 @@ class YamlConfigLoaderTest {
         assertEquals("secret", config.zimbraMailbox().adminPassword());
         assertEquals("/etc/zmbackup/rest-ca.pem", config.zimbraMailbox().caCertificatePath());
         assertEquals(true, config.zimbraMailbox().trustAllCertificates());
+        assertEquals(120, config.zimbraMailbox().exportHeaderTimeoutSeconds());
+        assertEquals(900, config.zimbraMailbox().exportInactivityTimeoutSeconds());
+        assertEquals(172800, config.zimbraMailbox().restoreTimeoutSeconds());
+        assertEquals(false, config.zimbraMailbox().batchedExport());
+        assertEquals(false, config.zimbraMailbox().batchedRestore());
+        assertEquals(5, config.zimbraMailbox().transferRetries());
+        assertEquals(Path.of("/var/zmbackup/journal"), config.zimbraMailbox().exportJournalDir());
 
         assertEquals(Path.of("/opt/zimbra/backup"), config.backup().workDir());
         assertEquals(Path.of("/var/zmbackup"), config.backup().metadataDir());
@@ -146,6 +160,27 @@ class YamlConfigLoaderTest {
 
         assertEquals(
                 List.of("/opt/zimbra/conf", "/opt/zimbra/ssl", "/etc/zimbra"), config.serverConfig().paths());
+    }
+
+    @Test
+    void usesDefaultMailboxTransferSettingsWhenOmitted() {
+        ZimbraMailboxConfig mailbox = YamlConfigLoader.load(new StringReader(MINIMAL_YAML)).zimbraMailbox();
+
+        assertEquals(300, mailbox.exportHeaderTimeoutSeconds());
+        assertEquals(600, mailbox.exportInactivityTimeoutSeconds());
+        assertEquals(86400, mailbox.restoreTimeoutSeconds());
+        assertEquals(true, mailbox.batchedExport());
+        assertEquals(true, mailbox.batchedRestore());
+        assertEquals(3, mailbox.transferRetries());
+        assertEquals(null, mailbox.exportJournalDir());
+    }
+
+    @Test
+    void rejectsANonPositiveInactivityTimeout() {
+        String yaml = MINIMAL_YAML.replace("  adminPassword: secret\n",
+                "  adminPassword: secret\n  exportInactivityTimeoutSeconds: 0\n");
+
+        assertThrows(IllegalArgumentException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
     }
 
     @Test

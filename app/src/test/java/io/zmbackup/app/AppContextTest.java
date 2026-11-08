@@ -30,12 +30,14 @@ import io.zmbackup.aws.S3StorageProvider;
 import io.zmbackup.core.port.RunLock;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
+import io.zmbackup.zimbra.MailboxTransferSettings;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
@@ -373,6 +375,23 @@ class AppContextTest {
                                 endpointOverride)),
                 DEFAULT_SERVER_CONFIG,
                 allowInsecure);
+    }
+
+    @Test
+    void exportJournalDefaultsToAFolderInTheMetadataDir() {
+        Path workDir = tempDir.resolve("work");
+        Path metadataDir = tempDir.resolve("meta");
+
+        MailboxTransferSettings settings =
+                AppContext.transferSettings(configWithWorkDirAndMetadataDir(workDir, metadataDir));
+
+        assertEquals(metadataDir.resolve("mailbox-export-journal"), settings.exportJournalDir());
+        assertEquals(Duration.ofMinutes(5), settings.exportHeaderTimeout());
+        assertEquals(Duration.ofMinutes(10), settings.exportInactivityTimeout());
+        assertEquals(Duration.ofHours(24), settings.restoreTimeout());
+        assertTrue(settings.batchedExport());
+        assertTrue(settings.batchedRestore());
+        assertEquals(3, settings.retries());
     }
 
     private static AppConfig configWithWorkDir(Path workDir) {
