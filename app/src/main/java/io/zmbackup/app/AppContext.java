@@ -1,5 +1,6 @@
 package io.zmbackup.app;
 
+import io.zmbackup.app.config.ZimbraMailboxConfig;
 import io.zmbackup.app.config.AppConfig;
 import io.zmbackup.app.config.ConfigException;
 import io.zmbackup.app.config.DynamoDbConfig;
@@ -32,6 +33,7 @@ import io.zmbackup.local.FileBlocklist;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.ServerConfigFileArchiver;
 import io.zmbackup.local.SqliteMetadataStore;
+import io.zmbackup.zimbra.MailboxTransferSettings;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import ch.qos.logback.classic.Level;
@@ -111,7 +113,8 @@ public final class AppContext {
                     config.zimbraMailbox().adminUser(),
                     config.zimbraMailbox().adminPassword(),
                     config.zimbraMailbox().caCertificatePath(),
-                    config.zimbraMailbox().trustAllCertificates());
+                    config.zimbraMailbox().trustAllCertificates(),
+                    transferSettings(config));
             Blocklist blocklist = new FileBlocklist(config.backup().blockedListFile());
             Notifier notifier = emailNotifier(config);
             ServerConfigArchiver serverConfigArchiver = new ServerConfigFileArchiver(
@@ -294,6 +297,25 @@ public final class AppContext {
         appender.setName("zmbackup-syslog");
         appender.start();
         return appender;
+    }
+
+    static final String EXPORT_JOURNAL_DIR_NAME = "mailbox-export-journal";
+
+    static MailboxTransferSettings transferSettings(AppConfig config) {
+        ZimbraMailboxConfig mailbox = config.zimbraMailbox();
+        Path journalDir = mailbox.exportJournalDir() != null
+                ? mailbox.exportJournalDir()
+                : config.backup().metadataDir().resolve(EXPORT_JOURNAL_DIR_NAME);
+        return new MailboxTransferSettings(
+                Duration.ofSeconds(mailbox.exportHeaderTimeoutSeconds()),
+                Duration.ofSeconds(mailbox.exportInactivityTimeoutSeconds()),
+                Duration.ofSeconds(mailbox.restoreTimeoutSeconds()),
+                mailbox.batchedExport(),
+                mailbox.batchedRestore(),
+                journalDir,
+                mailbox.transferRetries(),
+                MailboxTransferSettings.DEFAULT_RETRY_BACKOFF,
+                MailboxTransferSettings.DEFAULT_JOURNAL_MAX_AGE);
     }
 
     private static Notifier emailNotifier(AppConfig config) {

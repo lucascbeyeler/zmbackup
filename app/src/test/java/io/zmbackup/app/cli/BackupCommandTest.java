@@ -537,6 +537,8 @@ class BackupCommandTest {
                   restBaseUrl: %s
                   adminUser: zimbra
                   adminPassword: secret
+                  batchedExport: false
+                  batchedRestore: false
                 backup:
                   workDir: %s
                   logFile: %s
@@ -606,6 +608,8 @@ class BackupCommandTest {
                   restBaseUrl: %s
                   adminUser: zimbra
                   adminPassword: secret
+                  batchedExport: false
+                  batchedRestore: false
                 backup:
                   workDir: %s
                   logFile: %s

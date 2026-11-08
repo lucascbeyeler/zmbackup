@@ -36,8 +36,10 @@ import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
+import io.zmbackup.zimbra.MailboxTransferSettings;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,11 +48,13 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.zip.GZIPInputStream;
 
 public class BackupIntegrationSteps {
 
@@ -98,7 +102,8 @@ public class BackupIntegrationSteps {
         mailboxServer.start();
         mailboxServer.stubFor(post(anyUrl()).willReturn(aResponse().withStatus(200)));
         ZimbraRestMailboxExporter mailboxExporter =
-                new ZimbraRestMailboxExporter(mailboxServer.baseUrl(), MAILBOX_ADMIN_USER, MAILBOX_ADMIN_PASSWORD);
+                new ZimbraRestMailboxExporter(mailboxServer.baseUrl(), MAILBOX_ADMIN_USER, MAILBOX_ADMIN_PASSWORD,
+                        null, false, singleStreamTransfers());
 
         String cacheName = "cucumber-" + UUID.randomUUID();
         String sqliteUrl = "jdbc:sqlite:file:" + cacheName + "?mode=memory&cache=shared";
@@ -289,7 +294,9 @@ public class BackupIntegrationSteps {
     public void theMailboxArchiveForContains(String identifier, String expectedContent) throws IOException {
         Path tgz = tempDir.resolve(lastSession.sessionId()).resolve(identifier + ".tgz");
         assertTrue(Files.exists(tgz), "expected " + tgz + " to exist");
-        assertEquals(expectedContent, Files.readString(tgz));
+        try (InputStream in = new GZIPInputStream(Files.newInputStream(tgz))) {
+            assertEquals(expectedContent, new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
     }
 
     @Then("the metadata store has {int} account records for the session")
@@ -337,8 +344,16 @@ public class BackupIntegrationSteps {
 
     @Then("the WireMock server received a mailbox restore POST for {string} with body {string}")
     public void theWireMockServerReceivedAMailboxRestorePostForWithBody(String account, String expectedBody) {
+        // The posted body is the stored, gzipped export; WireMock gunzips gzipped request bodies.
         mailboxServer.verify(postRequestedFor(urlPathEqualTo("/service/home/" + account + "/"))
                 .withRequestBody(equalTo(expectedBody)));
+    }
+
+    /** Fake mailbox bodies here aren't tars, so these scenarios use the single-stream transfer. */
+    private static MailboxTransferSettings singleStreamTransfers() {
+        return new MailboxTransferSettings(java.time.Duration.ofSeconds(30), java.time.Duration.ofSeconds(30),
+                java.time.Duration.ofSeconds(30), false, false, null, 0, java.time.Duration.ZERO,
+                java.time.Duration.ofHours(1));
     }
 
     private static String accountDn(String account) {

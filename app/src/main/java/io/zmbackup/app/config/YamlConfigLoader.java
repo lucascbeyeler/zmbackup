@@ -113,7 +113,23 @@ public final class YamlConfigLoader {
                 requireString(root, "zimbraMailbox.adminUser"),
                 requireString(root, "zimbraMailbox.adminPassword"),
                 optionalString(root, "zimbraMailbox.caCertificatePath"),
-                optionalBoolean(root, "zimbraMailbox.trustAllCertificates", false));
+                optionalBoolean(root, "zimbraMailbox.trustAllCertificates", false),
+                optionalInt(
+                        root,
+                        "zimbraMailbox.exportHeaderTimeoutSeconds",
+                        ZimbraMailboxConfig.DEFAULT_EXPORT_HEADER_TIMEOUT_SECONDS),
+                optionalInt(
+                        root,
+                        "zimbraMailbox.exportInactivityTimeoutSeconds",
+                        ZimbraMailboxConfig.DEFAULT_EXPORT_INACTIVITY_TIMEOUT_SECONDS),
+                optionalInt(
+                        root,
+                        "zimbraMailbox.restoreTimeoutSeconds",
+                        ZimbraMailboxConfig.DEFAULT_RESTORE_TIMEOUT_SECONDS),
+                optionalBoolean(root, "zimbraMailbox.batchedExport", true),
+                optionalBoolean(root, "zimbraMailbox.batchedRestore", true),
+                optionalInt(root, "zimbraMailbox.transferRetries", ZimbraMailboxConfig.DEFAULT_TRANSFER_RETRIES),
+                optionalPath(root, "zimbraMailbox.exportJournalDir", null));
     }
 
     private static BackupConfig parseBackup(Map<String, Object> root) {
