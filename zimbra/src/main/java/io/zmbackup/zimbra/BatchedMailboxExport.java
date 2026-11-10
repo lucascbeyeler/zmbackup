@@ -16,32 +16,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Logger;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-/**
- * Exports a mailbox as a metadata-only pass followed by small {@code list=} batches, each retried on
- * its own and recorded in an {@link ExportJournal}, then assembles the result into one {@code .tgz}.
- *
- * <ol>
- *   <li>The metadata pass ({@code fmt=tar&body=0}) lists every item's {@code .meta}, and, for a full
- *       export, the folder structure, which {@code list=} requests never include. The structure entries
- *       are kept as they are; the item IDs are deduplicated and cut into batches whose URL stays under
- *       {@link #MAX_URL_LENGTH}.</li>
- *   <li>Each batch ({@code fmt=tar&list=...}) is gzipped into its own journal file. Zimbra skips
- *       unknown IDs silently, so the returned IDs are counted against the requested ones; missing IDs
- *       are asked for once more, then reported. Usually they were deleted during the export.</li>
- *   <li>The structure member, the batch members and an end-of-archive member are concatenated into
- *       the destination: a multi-member gzip, which is a valid {@code .tgz}.</li>
- * </ol>
- *
- * Batches are never split by date (a query drops the structure entries) or by folder (an item moved
- * between folders mid-export would be missed); ID batches have neither problem.
- */
 final class BatchedMailboxExport {
 
     private static final Logger LOG = Logger.getLogger(BatchedMailboxExport.class.getName());
 
-    /** Jetty's request header limit on Zimbra is 8192 bytes; longer URLs get {@code 414}. */
     static final int MAX_URL_LENGTH = 6000;
     static final int MAX_IDS_PER_BATCH = 1000;
 
@@ -63,12 +44,6 @@ final class BatchedMailboxExport {
         this.clock = clock;
     }
 
-    /**
-     * Exports {@code account} into {@code destination} as a {@code .tgz}.
-     *
-     * @param metadataQuery the query for the metadata pass, such as {@code fmt=tar&body=0}
-     * @return {@code false} if there was nothing to export; nothing is written then
-     */
     boolean export(String account, OutputStream destination, Instant since, String metadataQuery, UriBuilder uris)
             throws IOException {
         Instant normalizedSince = since == null ? null : Instant.ofEpochMilli(since.toEpochMilli());
@@ -177,7 +152,6 @@ final class BatchedMailboxExport {
         return new MetadataResult(ids, structure);
     }
 
-    /** Cuts the IDs, in metadata-pass order, into batches whose request URL stays under the limit. */
     static List<List<Integer>> partition(Set<Integer> ids, UriBuilder uris) throws IOException {
         int baseLength = uris.build("fmt=tar&list=").toASCIIString().length();
         List<List<Integer>> batches = new ArrayList<>();
@@ -230,7 +204,6 @@ final class BatchedMailboxExport {
     private Set<Integer> fetchInto(Set<Integer> ids, UriBuilder uris, OutputStream out, String description)
             throws IOException {
         if (ids.isEmpty()) {
-            // Never send an empty list=: Zimbra would export the whole mailbox.
             return Set.of();
         }
         StringBuilder list = new StringBuilder();
@@ -275,15 +248,19 @@ final class BatchedMailboxExport {
     private static void assemble(ExportJournal.Plan plan, ExportJournal journal, OutputStream destination)
             throws IOException {
         if (plan.hasStructure()) {
-            Files.copy(journal.structureFile(), destination);
+            copyUnzipped(journal.structureFile(), destination);
         }
         for (int i = 0; i < plan.batches().size(); i++) {
-            Files.copy(journal.batchFile(i), destination);
+            copyUnzipped(journal.batchFile(i), destination);
         }
-        GZIPOutputStream end = new GZIPOutputStream(new NonClosingOutputStream(destination));
-        end.write(TarEntryGroupReader.END_OF_ARCHIVE);
-        end.finish();
+        destination.write(TarEntryGroupReader.END_OF_ARCHIVE);
         destination.flush();
+    }
+
+    private static void copyUnzipped(Path part, OutputStream destination) throws IOException {
+        try (InputStream in = new GZIPInputStream(Files.newInputStream(part), 64 * 1024)) {
+            in.transferTo(destination);
+        }
     }
 
     private static void warnIfError(TarEntryGroupReader.Entry entry, String description) {
@@ -300,22 +277,5 @@ final class BatchedMailboxExport {
 
     private static OutputStream gzipTo(Path file) throws IOException {
         return new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(file), 64 * 1024), 64 * 1024);
-    }
-
-    /** Lets a {@link GZIPOutputStream} finish without closing the caller's stream. */
-    static final class NonClosingOutputStream extends java.io.FilterOutputStream {
-        NonClosingOutputStream(OutputStream out) {
-            super(out);
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            out.write(b, off, len);
-        }
-
-        @Override
-        public void close() throws IOException {
-            out.flush();
-        }
     }
 }

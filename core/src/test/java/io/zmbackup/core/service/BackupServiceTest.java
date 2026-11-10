@@ -9,10 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.core.domain.CompressionSettings;
 import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
+import io.zmbackup.core.port.Compressor;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.StorageProvider;
@@ -899,6 +902,99 @@ class BackupServiceTest {
                 types.addAll(exportedTypes.getOrDefault(identifier, List.of()));
             }
             return types;
+        }
+    }
+
+    @Test
+    void writesMailboxArchivesThroughTheConfiguredCompressorUnderItsSuffix() throws IOException {
+        RecordingCompressor compressor = new RecordingCompressor();
+        CompressionSettings zstd = new CompressionSettings(Compression.ZSTD, 19, 2);
+        BackupService service = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .compression(compressor, zstd)
+                .build();
+
+        BackupSession session =
+                service.backup(BackupType.FULL, List.of("alice@example.com")).orElseThrow();
+
+        String key = session.sessionId() + "/alice@example.com.tzst";
+        assertEquals("zstd:tgz:alice@example.com", new String(storageProvider.content.get(key), StandardCharsets.UTF_8));
+        assertTrue(storageProvider.content.containsKey(session.sessionId() + "/alice@example.com.ldiff"));
+        assertFalse(storageProvider.content.containsKey(session.sessionId() + "/alice@example.com.tgz"));
+        assertEquals(List.of("alice@example.com.tar"), compressor.entryNames);
+        assertEquals(List.of(zstd), compressor.settings);
+        assertEquals(zstd, service.compression());
+    }
+
+    @Test
+    void aPerRunCompressionOverridesTheConfiguredOne() throws IOException {
+        RecordingCompressor compressor = new RecordingCompressor();
+        BackupService service = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .compression(compressor, CompressionSettings.DEFAULT)
+                .build();
+        CompressionSettings xz = new CompressionSettings(Compression.XZ, 9, 0);
+
+        BackupSession session = service.backup(
+                        BackupType.MAILBOX, List.of("alice@example.com"), List.of(), false, xz)
+                .orElseThrow();
+
+        assertEquals("xz:tgz:alice@example.com", new String(
+                storageProvider.content.get(session.sessionId() + "/alice@example.com.txz"), StandardCharsets.UTF_8));
+        assertEquals(List.of(xz), compressor.settings);
+        assertThrows(NullPointerException.class,
+                () -> service.backup(BackupType.MAILBOX, List.of("alice@example.com"), List.of(), true, null));
+    }
+
+    @Test
+    void anIncrementalWithNothingNewLeavesAnEmptyArchiveWithoutCompressorFraming() throws IOException {
+        RecordingCompressor compressor = new RecordingCompressor();
+        BackupService service = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .compression(compressor, CompressionSettings.DEFAULT)
+                .build();
+        mailboxExporter.noNewContent.add("alice@example.com");
+
+        BackupSession session =
+                service.backup(BackupType.MAILBOX, List.of("alice@example.com")).orElseThrow();
+
+        assertEquals(0, storageProvider.content.get(session.sessionId() + "/alice@example.com.tgz").length);
+        assertTrue(compressor.entryNames.isEmpty());
+    }
+
+    @Test
+    void withoutACompressorOnlyUncompressedArchivesCanBeWritten() throws IOException {
+        BackupService service = BackupService.builder(
+                        accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .build();
+
+        BackupSession plain = service.backup(BackupType.MAILBOX, List.of("alice@example.com")).orElseThrow();
+        assertEquals("tgz:alice@example.com", new String(
+                storageProvider.content.get(plain.sessionId() + "/alice@example.com.tar"), StandardCharsets.UTF_8));
+        assertEquals(Compression.NONE, service.compression().algorithm());
+
+        BackupSession gzip = service.backup(
+                        BackupType.MAILBOX, List.of("bob@example.com"), List.of(), true, CompressionSettings.DEFAULT)
+                .orElseThrow();
+        assertEquals(SessionStatus.FAILED, gzip.status());
+    }
+
+    private static final class RecordingCompressor implements Compressor {
+        final List<String> entryNames = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final List<CompressionSettings> settings = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        @Override
+        public OutputStream compress(OutputStream destination, String entryName, CompressionSettings settings)
+                throws IOException {
+            entryNames.add(entryName);
+            this.settings.add(settings);
+            destination.write((settings.algorithm().configName() + ":").getBytes(StandardCharsets.UTF_8));
+            return destination;
+        }
+
+        @Override
+        public InputStream decompress(InputStream source, Compression algorithm) {
+            throw new UnsupportedOperationException();
         }
     }
 

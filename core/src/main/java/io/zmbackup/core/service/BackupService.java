@@ -3,12 +3,15 @@ package io.zmbackup.core.service;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.core.domain.CompressionSettings;
 import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
+import io.zmbackup.core.port.Compressor;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.ServerConfigArchiver;
@@ -59,10 +62,29 @@ public class BackupService {
         }
     };
 
+    private static final Compressor NO_COMPRESSOR = new Compressor() {
+        @Override
+        public OutputStream compress(OutputStream destination, String entryName, CompressionSettings settings)
+                throws IOException {
+            if (settings.algorithm() != Compression.NONE) {
+                throw new IOException("No compressor is configured for " + settings.algorithm().configName());
+            }
+            return destination;
+        }
+
+        @Override
+        public InputStream decompress(InputStream source, Compression algorithm) throws IOException {
+            if (algorithm != Compression.NONE) {
+                throw new IOException("No compressor is configured for " + algorithm.configName());
+            }
+            return source;
+        }
+    };
+
     private static final DateTimeFormatter SESSION_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault());
     private static final String LDIFF_SUFFIX = "ldiff";
-    private static final String TGZ_SUFFIX = "tgz";
+    private static final String TAR_ENTRY_SUFFIX = ".tar";
     private static final String ZIP_SUFFIX = "zip";
     private static final String SQLITE_SUFFIX = "sqlite3";
     private static final String SERVER_CONFIG_IDENTIFIER = "serverconfig";
@@ -80,6 +102,8 @@ public class BackupService {
     private final Blocklist blocklist;
     private final Notifier notifier;
     private final ServerConfigArchiver serverConfigArchiver;
+    private final Compressor compressor;
+    private final CompressionSettings compression;
     private final int maxParallelProcesses;
     private final boolean lockBackup;
     private final Clock clock;
@@ -93,6 +117,8 @@ public class BackupService {
             Blocklist blocklist,
             Notifier notifier,
             ServerConfigArchiver serverConfigArchiver,
+            Compressor compressor,
+            CompressionSettings compression,
             int maxParallelProcesses,
             boolean lockBackup,
             Clock clock) {
@@ -104,6 +130,8 @@ public class BackupService {
         this.blocklist = Objects.requireNonNull(blocklist, "blocklist must not be null");
         this.notifier = Objects.requireNonNull(notifier, "notifier must not be null");
         this.serverConfigArchiver = Objects.requireNonNull(serverConfigArchiver, "serverConfigArchiver must not be null");
+        this.compressor = Objects.requireNonNull(compressor, "compressor must not be null");
+        this.compression = Objects.requireNonNull(compression, "compression must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
         this.lockBackup = lockBackup;
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -127,6 +155,8 @@ public class BackupService {
         private Blocklist blocklist = NO_BLOCKLIST;
         private Notifier notifier = NO_NOTIFIER;
         private ServerConfigArchiver serverConfigArchiver = NO_SERVER_CONFIG_ARCHIVER;
+        private Compressor compressor = NO_COMPRESSOR;
+        private CompressionSettings compression = CompressionSettings.of(Compression.NONE);
         private int maxParallelProcesses = 1;
         private boolean lockBackup = false;
         private Clock clock = Clock.systemDefaultZone();
@@ -159,6 +189,12 @@ public class BackupService {
             return this;
         }
 
+        public Builder compression(Compressor compressor, CompressionSettings compression) {
+            this.compressor = compressor;
+            this.compression = compression;
+            return this;
+        }
+
         public Builder maxParallelProcesses(int maxParallelProcesses) {
             this.maxParallelProcesses = maxParallelProcesses;
             return this;
@@ -184,6 +220,8 @@ public class BackupService {
                     blocklist,
                     notifier,
                     serverConfigArchiver,
+                    compressor,
+                    compression,
                     maxParallelProcesses,
                     lockBackup,
                     clock);
@@ -205,6 +243,21 @@ public class BackupService {
 
     public Optional<BackupSession> backup(
             BackupType type, List<String> identifiers, List<String> domains, boolean force) throws IOException {
+        return backup(type, identifiers, domains, force, compression);
+    }
+
+    public CompressionSettings compression() {
+        return compression;
+    }
+
+    public Optional<BackupSession> backup(
+            BackupType type,
+            List<String> identifiers,
+            List<String> domains,
+            boolean force,
+            CompressionSettings compression)
+            throws IOException {
+        Objects.requireNonNull(compression, "compression must not be null");
         List<String> resolved = resolveIdentifiers(type, identifiers, domains, force);
         if (resolved.isEmpty()) {
             return Optional.empty();
@@ -217,7 +270,7 @@ public class BackupService {
 
         List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String identifier : resolved) {
-            tasks.add(() -> backupOne(sessionId, type, identifier));
+            tasks.add(() -> backupOne(sessionId, type, identifier, compression));
         }
         boolean allSucceeded;
         try {
@@ -288,29 +341,24 @@ public class BackupService {
         }
     }
 
-    private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
+    private boolean backupOne(
+            String sessionId, BackupType type, String identifier, CompressionSettings compression)
+            throws IOException {
         Instant startedAt = Instant.now();
         try {
             if (type == BackupType.MAILBOX) {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
-                }
+                exportMailbox(sessionId, identifier, null, compression);
             } else if (type == BackupType.INCREMENTAL) {
                 Optional<Instant> lastBackup = metadataStore.lastSuccessfulBackupTime(identifier);
                 if (lastBackup.isEmpty()) {
                     LOG.info(() -> "No prior successful backup found for " + identifier
                             + " - running a full backup instead of an incremental one.");
-                    fullExport(sessionId, identifier);
+                    fullExport(sessionId, identifier, compression);
                 } else {
-                    try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                        logIfNothingExported(
-                                identifier,
-                                mailboxExporter.export(
-                                        identifier, destination, lastBackup.get().minus(INCREMENTAL_LOOKBACK)));
-                    }
+                    exportMailbox(sessionId, identifier, lastBackup.get().minus(INCREMENTAL_LOOKBACK), compression);
                 }
             } else if (type == BackupType.FULL) {
-                fullExport(sessionId, identifier);
+                fullExport(sessionId, identifier, compression);
             } else if (type == BackupType.SERVER_CONFIG) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, ZIP_SUFFIX)) {
                     serverConfigArchiver.export(destination);
@@ -339,13 +387,23 @@ public class BackupService {
         return true;
     }
 
-    private void fullExport(String sessionId, String identifier) throws IOException {
+    private void fullExport(String sessionId, String identifier, CompressionSettings compression)
+            throws IOException {
         try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
             ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
         }
-        try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-            logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
+        exportMailbox(sessionId, identifier, null, compression);
+    }
+
+    private void exportMailbox(String sessionId, String identifier, Instant since, CompressionSettings compression)
+            throws IOException {
+        boolean exported;
+        try (OutputStream destination = new LazyCompressingOutputStream(
+                storageProvider.openWrite(sessionId, identifier, compression.algorithm().archiveSuffix()),
+                stored -> compressor.compress(stored, identifier + TAR_ENTRY_SUFFIX, compression))) {
+            exported = mailboxExporter.export(identifier, destination, since);
         }
+        logIfNothingExported(identifier, exported);
     }
 
     private List<String> resolveIdentifiers(

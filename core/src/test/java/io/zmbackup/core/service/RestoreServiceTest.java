@@ -7,8 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.core.domain.CompressionSettings;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.RestoreResult;
+import io.zmbackup.core.port.Compressor;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.port.StorageProvider;
@@ -29,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 
 class RestoreServiceTest {
@@ -39,8 +41,9 @@ class RestoreServiceTest {
     private final InMemoryStorageProvider storageProvider = new InMemoryStorageProvider();
     private final InMemoryMetadataStore metadataStore = new InMemoryMetadataStore();
     private final FakeServerConfigArchiver serverConfigArchiver = new FakeServerConfigArchiver();
+    private final IdentityCompressor compressor = new IdentityCompressor();
     private final RestoreService restoreService = new RestoreService(
-            ldapExporter, mailboxExporter, storageProvider, metadataStore, 1, serverConfigArchiver);
+            ldapExporter, mailboxExporter, storageProvider, metadataStore, 1, serverConfigArchiver, compressor);
 
     @Test
     void restoreLdapRestoresExplicitAccounts() throws IOException {
@@ -168,6 +171,57 @@ class RestoreServiceTest {
     }
 
     @Test
+    void restoreMailboxFindsAnArchiveWrittenWithAnyCompressionAndDecompressesItWithThatAlgorithm()
+            throws IOException {
+        storageProvider.put("mbox-1", "alice@example.com", "tzst", "tar:alice");
+        storageProvider.put("mbox-1", "bob@example.com", "zip", "tar:bob");
+        storageProvider.put("mbox-1", "carol@example.com", "tar", "tar:carol");
+
+        RestoreResult result = restoreService.restoreMailbox(
+                "mbox-1", List.of("alice@example.com", "bob@example.com", "carol@example.com"));
+
+        assertTrue(result.allSucceeded());
+        assertEquals(List.of("tar:alice"), mailboxExporter.restoredInto.get("alice@example.com"));
+        assertEquals(List.of("tar:bob"), mailboxExporter.restoredInto.get("bob@example.com"));
+        assertEquals(List.of("tar:carol"), mailboxExporter.restoredInto.get("carol@example.com"));
+        assertEquals(List.of(Compression.ZSTD, Compression.ZIP, Compression.NONE), compressor.decompressed);
+    }
+
+    @Test
+    void restoreMailboxPrefersTheGzipArchiveWhenSeveralExist() throws IOException {
+        storageProvider.put("mbox-1", "alice@example.com", "tgz", "from-gzip");
+        storageProvider.put("mbox-1", "alice@example.com", "txz", "from-xz");
+
+        restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"));
+
+        assertEquals(List.of("from-gzip"), mailboxExporter.restoredInto.get("alice@example.com"));
+        assertEquals(List.of(Compression.GZIP), compressor.decompressed);
+    }
+
+    @Test
+    void restoreMailboxFailsWhenTheArchiveCannotBeDecompressed() throws IOException {
+        storageProvider.put("mbox-1", "alice@example.com", "tbz2", "tar:alice");
+        compressor.failing.add(Compression.BZIP2);
+
+        RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"));
+
+        assertEquals(List.of("alice@example.com"), result.failedAccounts());
+        assertTrue(mailboxExporter.restoredInto.isEmpty());
+    }
+
+    @Test
+    void withoutACompressorOnlyUncompressedArchivesCanBeRestored() throws IOException {
+        RestoreService plain = new RestoreService(ldapExporter, mailboxExporter, storageProvider, metadataStore);
+        storageProvider.put("mbox-1", "alice@example.com", "tar", "tar:alice");
+        storageProvider.put("mbox-1", "bob@example.com", "tgz", "tgz:bob");
+
+        RestoreResult result = plain.restoreMailbox("mbox-1", List.of("alice@example.com", "bob@example.com"));
+
+        assertEquals(List.of("bob@example.com"), result.failedAccounts());
+        assertEquals(List.of("tar:alice"), mailboxExporter.restoredInto.get("alice@example.com"));
+    }
+
+    @Test
     void restoreMailboxRestoresIntoTheSameAccountByDefault() throws IOException {
         storageProvider.put("mbox-1", "alice@example.com", "tgz", "tgz:alice");
 
@@ -234,7 +288,7 @@ class RestoreServiceTest {
 
     @Test
     void restoreMailboxVerifySucceedsWhenDestinationGainsTheExpectedItemCount() throws IOException {
-        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(3));
+        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tarWithEntries(3));
         mailboxExporter.gainOnRestore.put("alice@example.com", 3);
 
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"), null, true);
@@ -244,7 +298,7 @@ class RestoreServiceTest {
 
     @Test
     void restoreMailboxVerifyFailsWhenZimbraSilentlyDropsEveryItemDespiteReportingSuccess() throws IOException {
-        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(3));
+        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tarWithEntries(3));
         mailboxExporter.gainOnRestore.put("alice@example.com", 0);
 
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"), null, true);
@@ -255,7 +309,7 @@ class RestoreServiceTest {
 
     @Test
     void restoreMailboxVerifyFailsOnPartialItemLoss() throws IOException {
-        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(5));
+        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tarWithEntries(5));
         mailboxExporter.gainOnRestore.put("alice@example.com", 2);
 
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"), null, true);
@@ -265,7 +319,7 @@ class RestoreServiceTest {
 
     @Test
     void restoreMailboxVerifyAccountsForPreExistingDestinationContent() throws IOException {
-        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(3));
+        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tarWithEntries(3));
         mailboxExporter.itemCountsByAccount.put("bob@example.com", 10);
         mailboxExporter.gainOnRestore.put("bob@example.com", 1);
 
@@ -277,7 +331,7 @@ class RestoreServiceTest {
 
     @Test
     void restoreMailboxVerifyIsANoOpWhenTheSourceArchiveIsEmpty() throws IOException {
-        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(0));
+        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tarWithEntries(0));
 
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"), null, true);
 
@@ -287,7 +341,7 @@ class RestoreServiceTest {
 
     @Test
     void restoreMailboxWithoutVerifySucceedsEvenWhenContentWasSilentlyDropped() throws IOException {
-        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tgzWithEntries(3));
+        storageProvider.putBytes("mbox-1", "alice@example.com", "tgz", tarWithEntries(3));
         mailboxExporter.gainOnRestore.put("alice@example.com", 0);
 
         RestoreResult result = restoreService.restoreMailbox("mbox-1", List.of("alice@example.com"));
@@ -329,12 +383,31 @@ class RestoreServiceTest {
                 () -> new RestoreService(ldapExporter, mailboxExporter, storageProvider, null));
     }
 
+    private static final class IdentityCompressor implements Compressor {
+        final List<Compression> decompressed = new java.util.concurrent.CopyOnWriteArrayList<>();
+        final Set<Compression> failing = new HashSet<>();
+
+        @Override
+        public OutputStream compress(OutputStream destination, String entryName, CompressionSettings settings) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public InputStream decompress(InputStream source, Compression algorithm) throws IOException {
+            if (failing.contains(algorithm)) {
+                throw new IOException("simulated corrupt " + algorithm.configName() + " archive");
+            }
+            decompressed.add(algorithm);
+            return source;
+        }
+    }
+
     private static BackupAccountRecord recordFor(String sessionId, String email) {
         Instant now = Instant.now();
         return new BackupAccountRecord(null, sessionId, email, 1024L, now, now);
     }
 
-    private static byte[] tgzWithEntries(int entryCount) throws IOException {
+    private static byte[] tarWithEntries(int entryCount) throws IOException {
         int blockSize = 512;
         ByteArrayOutputStream tar = new ByteArrayOutputStream();
         for (int i = 0; i < entryCount; i++) {
@@ -360,11 +433,7 @@ class RestoreServiceTest {
         }
         tar.write(new byte[blockSize * 2]);
 
-        ByteArrayOutputStream gzipped = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzipOut = new GZIPOutputStream(gzipped)) {
-            gzipOut.write(tar.toByteArray());
-        }
-        return gzipped.toByteArray();
+        return tar.toByteArray();
     }
 
     private static void writeOctalField(byte[] header, int offset, int length, long value) {
@@ -443,7 +512,7 @@ class RestoreServiceTest {
         @Override
         public boolean export(String account, OutputStream destination, Instant since) throws IOException {
             exportCalls++;
-            destination.write(tgzWithEntries(itemCountsByAccount.getOrDefault(account, 0)));
+            destination.write(tarWithEntries(itemCountsByAccount.getOrDefault(account, 0)));
             return true;
         }
 

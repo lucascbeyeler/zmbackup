@@ -1,6 +1,7 @@
 package io.zmbackup.app.cli;
 
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.CompressionSettings;
 import java.util.List;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Model.CommandSpec;
@@ -28,6 +29,10 @@ abstract class AbstractBackupCommand implements Callable<Integer> {
 
     abstract List<String> domains();
 
+    CompressionSettings compression(CompressionSettings configured) {
+        return configured;
+    }
+
     @Override
     public final Integer call() throws Exception {
         return LockedExecution.run(
@@ -41,6 +46,7 @@ abstract class AbstractBackupCommand implements Callable<Integer> {
                         type(),
                         identifiers(),
                         domains(),
-                        force));
+                        force,
+                        this::compression));
     }
 }

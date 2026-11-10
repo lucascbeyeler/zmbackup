@@ -7,7 +7,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 
 class TarEntryCounterTest {
@@ -16,88 +15,83 @@ class TarEntryCounterTest {
 
     @Test
     void countsZeroEntriesInAnEmptyArchive() throws IOException {
-        assertEquals(0, TarEntryCounter.countNestedFileEntries(tgz()));
+        assertEquals(0, TarEntryCounter.countNestedFileEntries(tar()));
     }
 
     @Test
     void countsOneFileEntryNestedUnderAFolder() throws IOException {
-        byte[] tgz = tgz(regularFileEntry("Inbox/0000000257-hello.eml", "hello world"));
+        byte[] tar = tar(regularFileEntry("Inbox/0000000257-hello.eml", "hello world"));
 
-        assertEquals(1, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(1, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
     @Test
     void doesNotCountTopLevelFolderDefinitionEntries() throws IOException {
-        byte[] tgz = tgz(
+        byte[] tar = tar(
                 regularFileEntry("0000000002-Inbox.meta", "{\"id\":2}"),
                 regularFileEntry("0000000003-Trash.meta", "{\"id\":3}"));
 
-        assertEquals(0, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(0, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
     @Test
     void countsMultipleNestedFileEntriesButNotDirectoriesOrTopLevelEntries() throws IOException {
-        byte[] tgz = tgz(
+        byte[] tar = tar(
                 regularFileEntry("0000000002-Inbox.meta", "{\"id\":2}"),
                 directoryEntry("Inbox/"),
                 regularFileEntry("Inbox/0000000257-a.eml", "message a"),
                 regularFileEntry("Inbox/0000000258-b.eml", "message b"),
                 regularFileEntry("Inbox/0000000258-b.eml.meta", "{\"id\":258}"));
 
-        assertEquals(3, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(3, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
     @Test
     void handlesEntryContentThatIsNotA512ByteMultiple() throws IOException {
-        byte[] tgz = tgz(
+        byte[] tar = tar(
                 regularFileEntry("Inbox/0000000257-a.eml", "x".repeat(513)),
                 regularFileEntry("Inbox/0000000258-b.eml", "y"));
 
-        assertEquals(2, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(2, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
     @Test
     void usesTheRealPathFromAGnuLongNameEntryRatherThanTheTruncatedHeaderName() throws IOException {
         String longName = "Inbox/" + "a".repeat(150) + ".eml";
-        byte[] tgz = tgz(
+        byte[] tar = tar(
                 extensionEntry('L', longName),
                 regularFileEntry("truncated-decoy-name.eml", "content"));
 
-        assertEquals(1, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(1, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
     @Test
     void aGnuLongNameEntryIsNeverCountedByItself() throws IOException {
-        byte[] tgz = tgz(extensionEntry('L', "Inbox/" + "a".repeat(150) + ".eml"));
+        byte[] tar = tar(extensionEntry('L', "Inbox/" + "a".repeat(150) + ".eml"));
 
-        assertEquals(0, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(0, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
     @Test
     void aPaxExtendedHeaderEntryIsSkippedAndTheFollowingEntryUsesItsOwnHeaderName() throws IOException {
-        byte[] tgz = tgz(
+        byte[] tar = tar(
                 extensionEntry('x', "30 path=some/pax/override/path.eml\n"),
                 regularFileEntry("Inbox/own-short-name.eml", "content"));
 
-        assertEquals(1, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tgz)));
+        assertEquals(1, TarEntryCounter.countNestedFileEntries(new ByteArrayInputStream(tar)));
     }
 
-    private static byte[] tgz(byte[]... entries) throws IOException {
+    private static byte[] tar(byte[]... entries) throws IOException {
         ByteArrayOutputStream tar = new ByteArrayOutputStream();
         for (byte[] entry : entries) {
             tar.write(entry);
         }
         tar.write(new byte[BLOCK_SIZE * 2]);
-
-        ByteArrayOutputStream gzipped = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzipOut = new GZIPOutputStream(gzipped)) {
-            gzipOut.write(tar.toByteArray());
-        }
-        return gzipped.toByteArray();
+        return tar.toByteArray();
     }
 
-    private static ByteArrayInputStream tgz() throws IOException {
-        return new ByteArrayInputStream(tgz(new byte[0][]));
+    private static ByteArrayInputStream tar() throws IOException {
+        return new ByteArrayInputStream(tar(new byte[0][]));
     }
 
     private static byte[] regularFileEntry(String name, String content) {

@@ -10,19 +10,7 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Logger;
-import java.util.zip.GZIPInputStream;
 
-/**
- * Restores a {@code .tgz} as several smaller imports: first the folder structure (the leading folder,
- * tag and other structure entries), then the items in batches, each posted with {@code resolve=skip}
- * and retried on its own. Re-posting a batch that already went in is harmless, because
- * {@code resolve=skip} leaves existing items alone.
- *
- * <p>The structure goes first because an item batch whose folders don't exist yet makes Zimbra create
- * plain folders from the item paths, without the original folder's view, color or permissions, and
- * without the tags. A {@code .meta} entry is always kept in the same batch as the content entry that
- * follows it, because Zimbra's import pairs them.
- */
 final class BatchedMailboxRestore {
 
     private static final Logger LOG = Logger.getLogger(BatchedMailboxRestore.class.getName());
@@ -46,9 +34,8 @@ final class BatchedMailboxRestore {
         this.maxBytes = maxBytes;
     }
 
-    void restore(String account, InputStream tgz, URI tarImportUri) throws IOException {
-        TarEntryGroupReader reader =
-                new TarEntryGroupReader(new GZIPInputStream(new BufferedInputStream(tgz, 64 * 1024), 64 * 1024));
+    void restore(String account, InputStream tar, URI tarImportUri) throws IOException {
+        TarEntryGroupReader reader = new TarEntryGroupReader(new BufferedInputStream(tar, 64 * 1024));
         Spool spool = new Spool();
         boolean structurePhase = true;
         boolean lastWasMeta = false;
@@ -120,7 +107,6 @@ final class BatchedMailboxRestore {
         }
     }
 
-    /** One batch being collected, as an uncompressed tar in a temporary file. */
     private final class Spool {
         private Path file;
         private OutputStream out;

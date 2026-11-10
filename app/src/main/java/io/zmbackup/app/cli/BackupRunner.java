@@ -3,12 +3,14 @@ package io.zmbackup.app.cli;
 import io.zmbackup.app.AppContext;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.CompressionSettings;
 import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.SessionStatus;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import picocli.CommandLine;
 
 final class BackupRunner {
@@ -22,7 +24,8 @@ final class BackupRunner {
             BackupType type,
             List<String> identifiers,
             List<String> domains,
-            boolean force)
+            boolean force,
+            UnaryOperator<CompressionSettings> compressionOverride)
             throws IOException {
         boolean valid = type == BackupType.DOMAIN
                 ? CliValidation.validateDomains(identifiers, err)
@@ -30,7 +33,15 @@ final class BackupRunner {
         if (!valid) {
             return CommandLine.ExitCode.USAGE;
         }
-        Optional<BackupSession> result = context.backupService().backup(type, identifiers, domains, force);
+        CompressionSettings compression;
+        try {
+            compression = compressionOverride.apply(context.backupService().compression());
+        } catch (IllegalArgumentException e) {
+            err.println(e.getMessage());
+            return CommandLine.ExitCode.USAGE;
+        }
+        Optional<BackupSession> result =
+                context.backupService().backup(type, identifiers, domains, force, compression);
         if (result.isEmpty()) {
             out.println("Nothing found to back up for " + type.sessionPrefix() + ".");
             return 0;

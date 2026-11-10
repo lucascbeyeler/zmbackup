@@ -43,7 +43,6 @@ class BatchedMailboxTransferTest {
 
     private final FakeTransport transport = new FakeTransport();
 
-    // --- export ---------------------------------------------------------------------------------
 
     @Test
     void fullExportKeepsStructureFromTheMetadataPassAndFetchesItemsInBatches() throws Exception {
@@ -61,7 +60,7 @@ class BatchedMailboxTransferTest {
         ByteArrayOutputStream destination = new ByteArrayOutputStream();
         assertTrue(export(null, destination));
 
-        List<TestTars.Entry> entries = TestTars.readTgz(destination.toByteArray());
+        List<TestTars.Entry> entries = TestTars.read(destination.toByteArray());
         assertEquals(List.of(
                         "Inbox.meta", "Projects.meta", "Tags/red.meta",
                         "Inbox/0000000260-msg.eml.meta", "Inbox/0000000260-msg.eml",
@@ -101,7 +100,7 @@ class BatchedMailboxTransferTest {
                 this::uri));
 
         assertEquals(List.of("Inbox/0000000300-msg.eml.meta", "Inbox/0000000300-msg.eml"),
-                names(TestTars.readTgz(destination.toByteArray())));
+                names(TestTars.read(destination.toByteArray())));
     }
 
     @Test
@@ -127,7 +126,7 @@ class BatchedMailboxTransferTest {
         assertTrue(export(null, destination));
 
         assertEquals(List.of(FULL_METADATA, "fmt=tar&list=1,2,3", "fmt=tar&list=2"), transport.queries());
-        assertEquals(4, TestTars.readTgz(destination.toByteArray()).size());
+        assertEquals(4, TestTars.read(destination.toByteArray()).size());
     }
 
     @Test
@@ -143,7 +142,7 @@ class BatchedMailboxTransferTest {
 
         assertEquals(List.of(FULL_METADATA, "fmt=tar&list=1", "fmt=tar&list=1", "fmt=tar&list=1"),
                 transport.queries());
-        assertEquals("full", TestTars.readTgz(destination.toByteArray()).get(1).text());
+        assertEquals("full", TestTars.read(destination.toByteArray()).get(1).text());
     }
 
     @Test
@@ -160,7 +159,6 @@ class BatchedMailboxTransferTest {
         TestTars metadata = tar().folder(2, "/Inbox");
         TestTars batch1 = tar();
         TestTars batch2 = tar();
-        // 1,000 IDs per batch at most, so 1,500 items make two batches.
         for (int id = 1000; id < 2500; id++) {
             metadata.message(id, "Inbox", "h");
             (id < 2000 ? batch1 : batch2).message(id, "Inbox", "full " + id);
@@ -182,7 +180,7 @@ class BatchedMailboxTransferTest {
         assertTrue(export(journalRoot, destination));
 
         assertEquals(List.of(list2), transport.queries(), "the rerun fetches only the batch that failed");
-        List<TestTars.Entry> entries = TestTars.readTgz(destination.toByteArray());
+        List<TestTars.Entry> entries = TestTars.read(destination.toByteArray());
         assertEquals(1 + 2 * 1500, entries.size());
         assertEquals("Inbox.meta", entries.get(0).name());
         assertEquals("full 2499", entries.get(entries.size() - 1).text());
@@ -224,17 +222,16 @@ class BatchedMailboxTransferTest {
         assertTrue(BatchedMailboxExport.partition(Set.of(), this::uri).isEmpty());
     }
 
-    // --- restore --------------------------------------------------------------------------------
 
     @Test
     void restorePostsTheStructureFirstThenItemBatchesKeepingEachMetaWithItsContent() throws Exception {
-        byte[] tgz = tar().folder(2, "/Inbox").folder(257, "/Projects").tag(259, "red")
+        byte[] archive = tar().folder(2, "/Inbox").folder(257, "/Projects").tag(259, "red")
                 .message(1, "Inbox", "a").message(2, "Inbox", "b").contact(3, "Ada")
                 .message(4, "Projects", "d").message(5, "Projects", "e")
-                .tgz();
+                .bytes();
 
         new BatchedMailboxRestore(transport, retrier(0), 2, Long.MAX_VALUE)
-                .restore(ACCOUNT, new ByteArrayInputStream(tgz), uri("fmt=tar&resolve=skip"));
+                .restore(ACCOUNT, new ByteArrayInputStream(archive), uri("fmt=tar&resolve=skip"));
 
         List<List<String>> posts = transport.postedEntryNames();
         assertEquals(4, posts.size());
@@ -249,11 +246,11 @@ class BatchedMailboxTransferTest {
 
     @Test
     void restoreRetriesAFailedBatch() throws Exception {
-        byte[] tgz = tar().folder(2, "/Inbox").message(1, "Inbox", "a").tgz();
+        byte[] archive = tar().folder(2, "/Inbox").message(1, "Inbox", "a").bytes();
         transport.failNextPosts(1);
 
         new BatchedMailboxRestore(transport, retrier(1))
-                .restore(ACCOUNT, new ByteArrayInputStream(tgz), uri("fmt=tar&resolve=skip"));
+                .restore(ACCOUNT, new ByteArrayInputStream(archive), uri("fmt=tar&resolve=skip"));
 
         List<List<String>> posts = transport.postedEntryNames();
         assertEquals(List.of(List.of("Inbox.meta"), List.of("Inbox.meta"),
@@ -262,17 +259,17 @@ class BatchedMailboxTransferTest {
 
     @Test
     void restoreOfAnIncrementalWithoutStructurePostsOnlyItems() throws Exception {
-        byte[] tgz = tar().message(1, "Inbox", "a").tgz();
+        byte[] archive = tar().message(1, "Inbox", "a").bytes();
 
         new BatchedMailboxRestore(transport, retrier(0))
-                .restore(ACCOUNT, new ByteArrayInputStream(tgz), uri("fmt=tar&resolve=skip"));
+                .restore(ACCOUNT, new ByteArrayInputStream(archive), uri("fmt=tar&resolve=skip"));
 
         assertEquals(List.of(List.of("Inbox/0000000001-msg.eml.meta", "Inbox/0000000001-msg.eml")),
                 transport.postedEntryNames());
     }
 
     @Test
-    void restoreAcceptsAnArchiveAssembledFromSeveralGzipMembers() throws Exception {
+    void restoreAcceptsAnArchiveAssembledFromTheJournal() throws Exception {
         transport.respond(FULL_METADATA, tar().folder(2, "/Inbox").message(1, "Inbox", "h").bytes());
         transport.respond("fmt=tar&list=1", tar().message(1, "Inbox", "full").bytes());
         ByteArrayOutputStream exported = new ByteArrayOutputStream();
@@ -285,7 +282,6 @@ class BatchedMailboxTransferTest {
                 List.of("Inbox/0000000001-msg.eml.meta", "Inbox/0000000001-msg.eml")), transport.postedEntryNames());
     }
 
-    // --- meta parsing ---------------------------------------------------------------------------
 
     @Test
     void metaParserReadsOnlyTopLevelFields() {
@@ -295,7 +291,6 @@ class BatchedMailboxTransferTest {
         assertNull(ItemMeta.parse("{\"type\":5}".getBytes()));
     }
 
-    // --- helpers --------------------------------------------------------------------------------
 
     private boolean export(Path journal, ByteArrayOutputStream destination) throws IOException {
         return new BatchedMailboxExport(transport, retrier(0), settings(journal), Clock.systemUTC())
@@ -343,7 +338,6 @@ class BatchedMailboxTransferTest {
 
     record FakeResponse(int status, byte[] body, IOException failure) {}
 
-    /** Answers GETs by query string and records POSTed tars. */
     static final class FakeTransport implements RestTransport {
         private final Map<String, List<FakeResponse>> responses = new ConcurrentHashMap<>();
         private final List<String> queries = new ArrayList<>();

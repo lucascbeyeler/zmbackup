@@ -25,15 +25,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * The three cases from the export strategy investigation (§3), which behaved differently on Java 17
- * and newer JDKs while the client relied on {@code HttpRequest.timeout()}.
- */
 class ZimbraRestTimeoutTest {
 
     private static final String ACCOUNT = "alice@example.com";
@@ -55,7 +50,6 @@ class ZimbraRestTimeoutTest {
     @Test
     void aHealthyExportLongerThanEveryDeadlineCompletes() throws Exception {
         byte[] body = TestTars.tar().message(1, "Inbox", "x".repeat(20_000)).bytes();
-        // 3 s in total, a chunk every ~150 ms: longer than the 1 s header and inactivity limits.
         server.stubFor(get(urlPathEqualTo(PATH))
                 .willReturn(aResponse().withStatus(200).withBody(body).withChunkedDribbleDelay(20, 3000)));
 
@@ -63,14 +57,11 @@ class ZimbraRestTimeoutTest {
         assertTrue(exporter(Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(1))
                 .export(ACCOUNT, destination, null));
 
-        try (GZIPInputStream in = new GZIPInputStream(new ByteArrayInputStream(destination.toByteArray()))) {
-            assertArrayEquals(body, in.readAllBytes());
-        }
+        assertArrayEquals(body, destination.toByteArray());
     }
 
     @Test
     void aStalledExportFailsWithinTheInactivityLimit() throws Exception {
-        // Headers and the first part of the body at once, then nothing, with the socket left open.
         try (ServerSocket stalling = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
             CountDownLatch release = new CountDownLatch(1);
             Thread serverThread = new Thread(() -> serveThenStall(stalling, release));
@@ -112,7 +103,6 @@ class ZimbraRestTimeoutTest {
             out.flush();
             release.await(30, TimeUnit.SECONDS);
         } catch (IOException | InterruptedException e) {
-            // The client gave up, as intended.
         }
     }
 
@@ -129,7 +119,6 @@ class ZimbraRestTimeoutTest {
 
     @Test
     void aRestoreLongerThanTheExportDeadlinesSucceedsWithinTheRestoreDeadline() {
-        // Zimbra replies only once the whole import is done.
         server.stubFor(post(urlPathEqualTo(PATH)).willReturn(aResponse().withStatus(200).withFixedDelay(3_000)));
         ZimbraRestMailboxExporter exporter =
                 exporter(Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(10));

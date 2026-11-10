@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLHandshakeException;
@@ -181,10 +180,7 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
             if (body == null) {
                 return false;
             }
-            GZIPOutputStream gzip = new GZIPOutputStream(
-                    new BatchedMailboxExport.NonClosingOutputStream(destination), 64 * 1024);
-            body.transferTo(gzip);
-            gzip.finish();
+            body.transferTo(destination);
             destination.flush();
             return true;
         }
@@ -198,12 +194,11 @@ public class ZimbraRestMailboxExporter implements ZimbraMailboxExporter {
             return;
         }
         transport.post(
-                restUri(account, "fmt=tgz&resolve=skip"),
+                restUri(account, "fmt=tar&resolve=skip"),
                 BodyPublishers.ofInputStream(() -> source),
                 "mailbox restore for " + account);
     }
 
-    /** The HTTP client calls, with header deadlines and the export body's inactivity watchdog. */
     private final class HttpTransport implements RestTransport {
 
         @Override

@@ -1,6 +1,7 @@
 package io.zmbackup.app.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -9,10 +10,14 @@ import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.sdk.Attribute;
 import io.zmbackup.app.PidLock;
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.local.StreamCompressor;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
@@ -267,6 +272,45 @@ class BackupCommandTest {
 
         assertEquals(0, exitCode);
         assertTrue(out.toString().contains("FINISHED"));
+    }
+
+    @Test
+    void mailboxCompressionOptionsChooseTheArchiveFormatForThatRun() throws Exception {
+        directoryServer = startDirectoryServer();
+        startMailboxServer("/service/home/alice@example.com/", 200, "tar-content".getBytes());
+        Path configFile = writeConfig();
+        StringWriter out = new StringWriter();
+        CommandLine cmd = commandLine(out, new StringWriter());
+
+        int exitCode = cmd.execute("--config", configFile.toString(), "backup", "mailbox",
+                "--account", "alice@example.com", "--compression", "zstd", "--compression-level", "19");
+
+        assertEquals(0, exitCode);
+        String sessionId = "mbox-" + sessionSuffixOf(out, "Session mbox-");
+        Path archive = tempDir.resolve(sessionId).resolve("alice@example.com.tzst");
+        assertTrue(Files.exists(archive), "expected " + archive);
+        assertFalse(Files.exists(tempDir.resolve(sessionId).resolve("alice@example.com.tgz")));
+        try (InputStream in = new StreamCompressor().decompress(Files.newInputStream(archive), Compression.ZSTD)) {
+            assertEquals("tar-content", new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void anInvalidCompressionOptionIsAUsageError() throws Exception {
+        directoryServer = startDirectoryServer();
+        Path configFile = writeConfig();
+        StringWriter err = new StringWriter();
+        CommandLine cmd = commandLine(new StringWriter(), err);
+
+        int unknown = cmd.execute("--config", configFile.toString(), "backup", "full",
+                "--account", "alice@example.com", "--compression", "rar");
+        int badLevel = cmd.execute("--config", configFile.toString(), "backup", "incremental",
+                "--account", "alice@example.com", "--compression", "gzip", "--compression-level", "15");
+
+        assertEquals(CommandLine.ExitCode.USAGE, unknown);
+        assertEquals(CommandLine.ExitCode.USAGE, badLevel);
+        assertTrue(err.toString().contains("Unknown compression algorithm 'rar'"));
+        assertTrue(err.toString().contains("between 1 and 9"));
     }
 
     @Test

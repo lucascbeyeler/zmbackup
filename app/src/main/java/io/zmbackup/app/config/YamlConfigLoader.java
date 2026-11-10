@@ -1,5 +1,7 @@
 package io.zmbackup.app.config;
 
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.core.domain.CompressionSettings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -143,7 +145,29 @@ public final class YamlConfigLoader {
                 optionalInt(root, "backup.rotateDays", 30),
                 optionalBoolean(root, "backup.lockBackup", true),
                 optionalBoolean(root, "backup.preserveIncrementalChains", false),
-                parseEmailNotify(root));
+                parseEmailNotify(root),
+                parseCompression(root));
+    }
+
+    private static CompressionSettings parseCompression(Map<String, Object> root) {
+        String algorithmName = optionalString(root, "backup.compression.algorithm");
+        Compression algorithm;
+        try {
+            algorithm = algorithmName == null
+                    ? CompressionSettings.DEFAULT.algorithm()
+                    : Compression.parse(algorithmName);
+        } catch (IllegalArgumentException e) {
+            throw new ConfigException("Invalid value for 'backup.compression.algorithm': " + e.getMessage(), e);
+        }
+        Object level = get(root, "backup.compression.level");
+        try {
+            return new CompressionSettings(
+                    algorithm,
+                    level == null ? null : optionalInt(root, "backup.compression.level", 0),
+                    optionalInt(root, "backup.compression.threads", 0));
+        } catch (IllegalArgumentException e) {
+            throw new ConfigException("Invalid 'backup.compression' settings: " + e.getMessage(), e);
+        }
     }
 
     private static EmailNotifyConfig parseEmailNotify(Map<String, Object> root) {

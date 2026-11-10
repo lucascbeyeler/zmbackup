@@ -3,7 +3,6 @@ package io.zmbackup.core.domain;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.zip.GZIPInputStream;
 
 public final class TarEntryCounter {
 
@@ -19,11 +18,11 @@ public final class TarEntryCounter {
     private TarEntryCounter() {
     }
 
-    public static long countNestedFileEntries(InputStream tgz) throws IOException {
+    public static long countNestedFileEntries(InputStream tar) throws IOException {
         long count = 0;
         String pendingLongName = null;
         byte[] header = new byte[BLOCK_SIZE];
-        try (InputStream in = new GZIPInputStream(tgz)) {
+        try (InputStream in = tar) {
             while (readFully(in, header)) {
                 if (isZeroBlock(header)) {
                     break;

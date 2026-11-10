@@ -74,6 +74,18 @@ backup:
   preserveIncrementalChains: false
   # Whether to allow only one backup session per type per day. Optional, defaults to true.
   lockBackup: {LOCK_BACKUP}
+  compression:
+    # How mailbox archives are compressed: gzip (.tgz), bzip2 (.tbz2), xz (.txz), zstd (.tzst),
+    # lz4 (.tlz4), zip (.zip) or none (.tar). Optional, defaults to gzip. Restore reads every one
+    # of these whatever is set here, so changing it never strands older backups. The --compression
+    # option of `backup mailbox`, `backup full` and `backup incremental` overrides it for one run.
+    algorithm: gzip
+    # Compression level: gzip and bzip2 1-9, xz and zip 0-9, zstd 1-22; lz4 and none take no
+    # level. Optional, defaults to the algorithm's own default (gzip 6, bzip2 9, xz 6, zstd 3, zip 6).
+    # level: 6
+    # Worker threads for zstd (0 = single-threaded); the other algorithms take no threads setting.
+    # Optional, defaults to 0.
+    # threads: 0
   emailNotify:
     # Which lifecycle events to notify on: ALL, START, FINISH, ERROR, or NONE. Optional, defaults to ALL.
     level: ALL
@@ -82,9 +94,9 @@ backup:
     # Address the report is sent from.
     sender: {ZMBKP_MAIL_SENDER}
 
-# Where backup content (LDIF/TGZ files) is stored. Optional; both sections below default to the
-# local filesystem, matching zmbackup 1.0/2.0 Phase 1 behavior. Set backend: s3 to store backup
-# content in Amazon S3 instead - see zmbackupdocs specs/13-cloud-backends.md.
+# Where backup content (LDIF files and mailbox archives) is stored. Optional; both sections below
+# default to the local filesystem, matching zmbackup 1.0/2.0 Phase 1 behavior. Set backend: s3 to
+# store backup content in Amazon S3 instead - see zmbackupdocs specs/13-cloud-backends.md.
 storage:
   backend: local
   # s3:

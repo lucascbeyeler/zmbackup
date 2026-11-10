@@ -7,10 +7,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
-/** Builds and reads small tars shaped like Zimbra's exports. */
 final class TestTars {
 
     record Entry(String name, String group, byte[] body) {
@@ -33,14 +30,12 @@ final class TestTars {
         return meta("Tags/" + name + ".meta", "tag", id, 3);
     }
 
-    /** A message: its {@code .meta}, then its content. */
     TestTars message(int id, String folder, String content) {
         String name = folder + "/" + String.format("%010d", id) + "-msg.eml";
         meta(name + ".meta", "message", id, 5);
         return file(name, "message", content.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** A contact, which is {@code .meta}-only in a tar export. */
     TestTars contact(int id, String name) {
         return meta("Contacts/" + name + ".meta", "contact", id, 6);
     }
@@ -66,7 +61,6 @@ final class TestTars {
         return this;
     }
 
-    /** The tar with its end-of-archive marker and Zimbra's record padding. */
     byte[] bytes() {
         ByteArrayOutputStream copy = new ByteArrayOutputStream();
         copy.writeBytes(out.toByteArray());
@@ -77,20 +71,8 @@ final class TestTars {
         return copy.toByteArray();
     }
 
-    byte[] tgz() throws IOException {
-        ByteArrayOutputStream gz = new ByteArrayOutputStream();
-        try (GZIPOutputStream gzip = new GZIPOutputStream(gz)) {
-            gzip.write(bytes());
-        }
-        return gz.toByteArray();
-    }
-
     static List<Entry> read(byte[] tar) throws IOException {
         return read(new ByteArrayInputStream(tar));
-    }
-
-    static List<Entry> readTgz(byte[] tgz) throws IOException {
-        return read(new GZIPInputStream(new ByteArrayInputStream(tgz)));
     }
 
     private static List<Entry> read(InputStream in) throws IOException {

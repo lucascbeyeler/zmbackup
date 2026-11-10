@@ -23,6 +23,7 @@ import com.unboundid.ldap.listener.InMemoryDirectoryServer;
 import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
 import com.unboundid.ldap.sdk.Attribute;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,11 +37,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,7 +101,7 @@ class PackagedJarIT {
         String sessionId = onlySession(workDir);
         assertTrue(sessionId.startsWith("full-"), sessionId);
         assertEquals(Set.of(ALICE, BOB), accountsOf(workDir, sessionId));
-        assertArrayEquals(MAILBOX, Files.readAllBytes(workDir.resolve(sessionId).resolve(ALICE + ".tgz")));
+        assertArrayEquals(MAILBOX, gunzip(workDir.resolve(sessionId).resolve(ALICE + ".tgz")));
         String ldif = Files.readString(workDir.resolve(sessionId).resolve(ALICE + ".ldiff"));
         assertTrue(ldif.contains("zimbraMailDeliveryAddress: " + ALICE), ldif);
 
@@ -121,6 +124,40 @@ class PackagedJarIT {
     }
 
     @Test
+    void zstdFromTheCommandLineWritesATzstArchiveThatRestoresTheOriginalBytes() throws Exception {
+        Path config = writeConfig("", "");
+
+        JarRun backup = runJar(config, "UTC", "backup", "mailbox", "--account", ALICE,
+                "--compression", "zstd", "--compression-level", "19", "--compression-threads", "2");
+
+        assertEquals(0, backup.exitCode(), backup.output());
+        String sessionId = onlySession(workDir);
+        Path archive = workDir.resolve(sessionId).resolve(ALICE + ".tzst");
+        assertTrue(Files.exists(archive), backup.output());
+        assertFalse(Files.exists(workDir.resolve(sessionId).resolve(ALICE + ".tgz")));
+        assertArrayEquals(new byte[] {0x28, (byte) 0xB5, 0x2F, (byte) 0xFD},
+                Arrays.copyOf(Files.readAllBytes(archive), 4));
+
+        JarRun restore = runJar(config, "UTC", "restore", "mailbox", "--session", sessionId, "--account", ALICE);
+
+        assertEquals(0, restore.exitCode(), restore.output());
+        zimbra.verify(postRequestedFor(urlPathEqualTo("/service/home/" + ALICE + "/"))
+                .withRequestBody(binaryEqualTo(MAILBOX)));
+    }
+
+    @Test
+    void xzFromTheConfigFileIsUsedWithoutAnyOption() throws Exception {
+        Path config = writeConfig("  compression:\n    algorithm: xz\n    level: 1\n", "");
+
+        JarRun backup = runJar(config, "UTC", "backup", "mailbox", "--account", ALICE);
+
+        assertEquals(0, backup.exitCode(), backup.output());
+        String sessionId = onlySession(workDir);
+        assertArrayEquals(new byte[] {(byte) 0xFD, '7', 'z', 'X', 'Z', 0x00},
+                Arrays.copyOf(Files.readAllBytes(workDir.resolve(sessionId).resolve(ALICE + ".txz")), 6));
+    }
+
+    @Test
     void incrementalBackupAsksOnlyForRecentMailOnceAnAccountHasABaseline() throws Exception {
         Path config = writeConfig("", "");
         createSchema(config);
@@ -133,7 +170,7 @@ class PackagedJarIT {
         zimbra.verify(getRequestedFor(urlPathEqualTo("/service/home/" + ALICE + "/"))
                 .withQueryParam("query", matching("after:\"\\d{2}/\\d{2}/\\d{4}\"")));
         zimbra.verify(getRequestedFor(urlPathEqualTo("/service/home/" + BOB + "/"))
-                .withQueryParam("fmt", matching("tgz")));
+                .withQueryParam("fmt", matching("tar")));
         assertTrue(zimbra.findAll(getRequestedFor(urlPathEqualTo("/service/home/" + BOB + "/"))).stream()
                 .noneMatch(request -> request.getUrl().contains("query=")));
     }
@@ -230,6 +267,12 @@ class PackagedJarIT {
         }
     }
 
+    private static byte[] gunzip(Path file) throws IOException {
+        try (InputStream in = new GZIPInputStream(Files.newInputStream(file))) {
+            return in.readAllBytes();
+        }
+    }
+
     private int mailboxExportCount() {
         return zimbra.findAll(getRequestedFor(urlPathMatching("/service/home/[^/]+/"))).size();
     }
@@ -260,6 +303,8 @@ class PackagedJarIT {
                   restBaseUrl: http://127.0.0.1:%d
                   adminUser: admin@example.com
                   adminPassword: secret
+                  batchedExport: false
+                  batchedRestore: false
                 backup:
                   workDir: %s
                   logFile: %s

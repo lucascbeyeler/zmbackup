@@ -16,6 +16,7 @@ import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
+import io.zmbackup.core.port.Compressor;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.Notifier;
 import io.zmbackup.core.port.RunLock;
@@ -33,6 +34,7 @@ import io.zmbackup.local.FileBlocklist;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.ServerConfigFileArchiver;
 import io.zmbackup.local.SqliteMetadataStore;
+import io.zmbackup.local.StreamCompressor;
 import io.zmbackup.zimbra.MailboxTransferSettings;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
@@ -119,12 +121,14 @@ public final class AppContext {
             Notifier notifier = emailNotifier(config);
             ServerConfigArchiver serverConfigArchiver = new ServerConfigFileArchiver(
                     config.serverConfig().paths().stream().map(Path::of).toList());
+            Compressor compressor = new StreamCompressor();
             this.sessionService = new SessionService(storageProvider, metadataStore);
             this.backupService = BackupService.builder(
                             accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
                     .blocklist(blocklist)
                     .notifier(notifier)
                     .serverConfigArchiver(serverConfigArchiver)
+                    .compression(compressor, config.backup().compression())
                     .maxParallelProcesses(config.backup().maxParallelProcesses())
                     .lockBackup(config.backup().lockBackup())
                     .build();
@@ -134,7 +138,8 @@ public final class AppContext {
                     storageProvider,
                     metadataStore,
                     config.backup().maxParallelProcesses(),
-                    serverConfigArchiver);
+                    serverConfigArchiver,
+                    compressor);
             this.housekeepService = new HousekeepService(storageProvider, metadataStore);
             this.migrationService = new MigrationService(storageProvider, metadataStore);
         } catch (IOException | RuntimeException e) {

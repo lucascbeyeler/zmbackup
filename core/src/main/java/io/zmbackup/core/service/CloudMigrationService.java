@@ -3,11 +3,13 @@ package io.zmbackup.core.service;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.CloudMigrationResult;
+import io.zmbackup.core.domain.Compression;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.StorageProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -15,7 +17,7 @@ import java.util.stream.Collectors;
 
 public final class CloudMigrationService {
 
-    private static final List<String> SUFFIXES = List.of("ldiff", "tgz");
+    private static final List<String> SUFFIXES = suffixes();
 
     private final StorageProvider sourceStorage;
     private final MetadataStore sourceMetadata;
@@ -59,6 +61,13 @@ public final class CloudMigrationService {
             migrated++;
         }
         return migrated;
+    }
+
+    private static List<String> suffixes() {
+        List<String> suffixes = new ArrayList<>();
+        suffixes.add("ldiff");
+        suffixes.addAll(Compression.archiveSuffixes());
+        return List.copyOf(suffixes);
     }
 
     private void migrateFiles(String sessionId, String email) throws IOException {

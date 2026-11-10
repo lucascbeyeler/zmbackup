@@ -27,19 +27,23 @@ import io.cucumber.java.en.When;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.CompressionSettings;
 import io.zmbackup.core.domain.RestoreResult;
 import io.zmbackup.core.domain.SessionStatus;
+import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.service.BackupService;
 import io.zmbackup.core.service.HousekeepService;
 import io.zmbackup.core.service.RestoreService;
 import io.zmbackup.core.service.SessionService;
 import io.zmbackup.local.LocalStorageProvider;
 import io.zmbackup.local.SqliteMetadataStore;
+import io.zmbackup.local.StreamCompressor;
 import io.zmbackup.zimbra.UnboundIdLdapAdapter;
 import io.zmbackup.zimbra.MailboxTransferSettings;
 import io.zmbackup.zimbra.ZimbraRestMailboxExporter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,8 +118,10 @@ public class BackupIntegrationSteps {
 
         backupService =
                 BackupService.builder(ldapAdapter, ldapAdapter, mailboxExporter, storageProvider, metadataStore)
+                        .compression(new StreamCompressor(), CompressionSettings.DEFAULT)
                         .build();
-        restoreService = new RestoreService(ldapAdapter, mailboxExporter, storageProvider, metadataStore);
+        restoreService = new RestoreService(ldapAdapter, mailboxExporter, storageProvider, metadataStore, 1,
+                new UnusedServerConfigArchiver(), new StreamCompressor());
         housekeepService = new HousekeepService(storageProvider, metadataStore);
         sessionService = new SessionService(storageProvider, metadataStore);
     }
@@ -344,12 +350,10 @@ public class BackupIntegrationSteps {
 
     @Then("the WireMock server received a mailbox restore POST for {string} with body {string}")
     public void theWireMockServerReceivedAMailboxRestorePostForWithBody(String account, String expectedBody) {
-        // The posted body is the stored, gzipped export; WireMock gunzips gzipped request bodies.
         mailboxServer.verify(postRequestedFor(urlPathEqualTo("/service/home/" + account + "/"))
                 .withRequestBody(equalTo(expectedBody)));
     }
 
-    /** Fake mailbox bodies here aren't tars, so these scenarios use the single-stream transfer. */
     private static MailboxTransferSettings singleStreamTransfers() {
         return new MailboxTransferSettings(java.time.Duration.ofSeconds(30), java.time.Duration.ofSeconds(30),
                 java.time.Duration.ofSeconds(30), false, false, null, 0, java.time.Duration.ZERO,
@@ -378,5 +382,17 @@ public class BackupIntegrationSteps {
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    private static final class UnusedServerConfigArchiver implements ServerConfigArchiver {
+        @Override
+        public void export(OutputStream destination) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> restore(InputStream source) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

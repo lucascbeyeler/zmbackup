@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.core.domain.CompressionSettings;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
@@ -451,6 +453,72 @@ class YamlConfigLoaderTest {
         String yaml = "zimbraLdap: !!java.net.URL [\"http://example.com\"]";
 
         assertThrows(YAMLException.class, () -> YamlConfigLoader.load(new StringReader(yaml)));
+    }
+
+    private static String withCompression(String compressionBlock) {
+        return MINIMAL_YAML.replace(
+                "  blockedListFile: /etc/zmbackup/blockedlist.conf\n",
+                "  blockedListFile: /etc/zmbackup/blockedlist.conf\n  compression:\n" + compressionBlock);
+    }
+
+    @Test
+    void compressionDefaultsToGzipAtItsOwnLevel() {
+        AppConfig config = YamlConfigLoader.load(new StringReader(MINIMAL_YAML));
+
+        assertEquals(CompressionSettings.DEFAULT, config.backup().compression());
+    }
+
+    @Test
+    void parsesCompressionAlgorithmLevelAndThreads() {
+        AppConfig config = YamlConfigLoader.load(new StringReader(withCompression(
+                "    algorithm: Z Standard\n    level: 19\n    threads: 4\n")));
+
+        assertEquals(new CompressionSettings(Compression.ZSTD, 19, 4), config.backup().compression());
+    }
+
+    @Test
+    void compressionAlgorithmAloneKeepsTheAlgorithmsDefaultLevel() {
+        AppConfig config = YamlConfigLoader.load(new StringReader(withCompression("    algorithm: xz\n")));
+
+        assertEquals(CompressionSettings.of(Compression.XZ), config.backup().compression());
+        assertEquals(6, config.backup().compression().effectiveLevel());
+    }
+
+    @Test
+    void unknownCompressionAlgorithmThrowsConfigException() {
+        ConfigException exception = assertThrows(ConfigException.class,
+                () -> YamlConfigLoader.load(new StringReader(withCompression("    algorithm: rar\n"))));
+
+        assertTrue(exception.getMessage().contains("backup.compression.algorithm"));
+        assertTrue(exception.getMessage().contains("rar"));
+    }
+
+    @Test
+    void outOfRangeCompressionLevelThrowsConfigException() {
+        ConfigException exception = assertThrows(ConfigException.class,
+                () -> YamlConfigLoader.load(new StringReader(withCompression(
+                        "    algorithm: gzip\n    level: 12\n"))));
+
+        assertTrue(exception.getMessage().contains("backup.compression"));
+        assertTrue(exception.getMessage().contains("between 1 and 9"));
+    }
+
+    @Test
+    void compressionThreadsForAnAlgorithmOtherThanZstdThrowsConfigException() {
+        ConfigException exception = assertThrows(ConfigException.class,
+                () -> YamlConfigLoader.load(new StringReader(withCompression(
+                        "    algorithm: bzip2\n    threads: 2\n"))));
+
+        assertTrue(exception.getMessage().contains("only supported by zstd"));
+    }
+
+    @Test
+    void nonIntegerCompressionLevelThrowsConfigException() {
+        ConfigException exception = assertThrows(ConfigException.class,
+                () -> YamlConfigLoader.load(new StringReader(withCompression(
+                        "    algorithm: zstd\n    level: high\n"))));
+
+        assertTrue(exception.getMessage().contains("backup.compression.level"));
     }
 
     @Test

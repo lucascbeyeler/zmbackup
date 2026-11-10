@@ -55,7 +55,7 @@ class ZimbraRestMailboxExporterTest {
     }
 
     @Test
-    void requestsTarAndGzipsItWhileStreaming() throws Exception {
+    void requestsTarAndStreamsItUnchanged() throws Exception {
         byte[] tar = gunzip(Files.readAllBytes(fixturePath("mailbox-export.tgz")));
         wireMockServer.stubFor(get(urlEqualTo(EXPORT_PATH + "?fmt=tar"))
                 .willReturn(aResponse().withStatus(200).withBody(tar)));
@@ -65,7 +65,7 @@ class ZimbraRestMailboxExporterTest {
         boolean wroteContent = exporter.export(ACCOUNT, destination, null);
 
         assertTrue(wroteContent);
-        assertArrayEquals(tar, gunzip(destination.toByteArray()));
+        assertArrayEquals(tar, destination.toByteArray());
         wireMockServer.verify(getRequestedFor(urlEqualTo(EXPORT_PATH + "?fmt=tar"))
                 .withHeader("Authorization", equalTo(basicAuthHeader())));
     }
@@ -118,15 +118,15 @@ class ZimbraRestMailboxExporterTest {
 
     @Test
     void restorePostsContentToRestoreEndpoint() throws Exception {
-        wireMockServer.stubFor(post(urlEqualTo(EXPORT_PATH + "?fmt=tgz&resolve=skip"))
+        wireMockServer.stubFor(post(urlEqualTo(EXPORT_PATH + "?fmt=tar&resolve=skip"))
                 .willReturn(aResponse().withStatus(200)));
         ZimbraRestMailboxExporter exporter = exporter();
 
-        exporter.restore(ACCOUNT, new ByteArrayInputStream("tgz-content".getBytes(StandardCharsets.UTF_8)));
+        exporter.restore(ACCOUNT, new ByteArrayInputStream("tar-content".getBytes(StandardCharsets.UTF_8)));
 
-        wireMockServer.verify(postRequestedFor(urlEqualTo(EXPORT_PATH + "?fmt=tgz&resolve=skip"))
+        wireMockServer.verify(postRequestedFor(urlEqualTo(EXPORT_PATH + "?fmt=tar&resolve=skip"))
                 .withHeader("Authorization", equalTo(basicAuthHeader()))
-                .withRequestBody(equalTo("tgz-content")));
+                .withRequestBody(equalTo("tar-content")));
     }
 
     @Test
@@ -136,7 +136,7 @@ class ZimbraRestMailboxExporterTest {
                 .willReturn(aResponse().withStatus(200)));
         ZimbraRestMailboxExporter exporter = exporter();
 
-        exporter.restore(destination, new ByteArrayInputStream("tgz-content".getBytes(StandardCharsets.UTF_8)));
+        exporter.restore(destination, new ByteArrayInputStream("tar-content".getBytes(StandardCharsets.UTF_8)));
 
         wireMockServer.verify(postRequestedFor(urlPathEqualTo("/service/home/" + destination + "/")));
     }
@@ -220,7 +220,7 @@ class ZimbraRestMailboxExporterTest {
             boolean wroteContent = exporter.export(ACCOUNT, destination, null);
 
             assertTrue(wroteContent);
-            assertArrayEquals(tar, gunzip(destination.toByteArray()));
+            assertArrayEquals(tar, destination.toByteArray());
         } finally {
             httpsServer.stop();
         }
@@ -246,7 +246,6 @@ class ZimbraRestMailboxExporterTest {
         return "https://localhost:" + server.httpsPort();
     }
 
-    /** The single-stream mode these tests cover; batching has its own tests. */
     private ZimbraRestMailboxExporter exporter() {
         return new ZimbraRestMailboxExporter(
                 wireMockServer.baseUrl(), ADMIN_USER, ADMIN_PASSWORD, null, false, singleStream());

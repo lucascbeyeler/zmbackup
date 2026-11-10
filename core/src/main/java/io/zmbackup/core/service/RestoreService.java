@@ -1,9 +1,12 @@
 package io.zmbackup.core.service;
 
 import io.zmbackup.core.domain.BackupAccountRecord;
+import io.zmbackup.core.domain.Compression;
+import io.zmbackup.core.domain.CompressionSettings;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.RestoreResult;
 import io.zmbackup.core.domain.TarEntryCounter;
+import io.zmbackup.core.port.Compressor;
 import io.zmbackup.core.port.MetadataStore;
 import io.zmbackup.core.port.ServerConfigArchiver;
 import io.zmbackup.core.port.StorageProvider;
@@ -19,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
@@ -28,7 +32,7 @@ public class RestoreService {
 
     private static final Logger LOG = Logger.getLogger(RestoreService.class.getName());
     private static final String LDIFF_SUFFIX = "ldiff";
-    private static final String TGZ_SUFFIX = "tgz";
+    private static final List<Compression> ARCHIVE_LOOKUP_ORDER = archiveLookupOrder();
     private static final String ZIP_SUFFIX = "zip";
     private static final String SERVER_CONFIG_IDENTIFIER = "serverconfig";
 
@@ -44,11 +48,28 @@ public class RestoreService {
         }
     };
 
+    private static final Compressor NO_COMPRESSOR = new Compressor() {
+        @Override
+        public OutputStream compress(OutputStream destination, String entryName, CompressionSettings settings)
+                throws IOException {
+            throw new IOException("No compressor is configured");
+        }
+
+        @Override
+        public InputStream decompress(InputStream source, Compression algorithm) throws IOException {
+            if (algorithm != Compression.NONE) {
+                throw new IOException("No compressor is configured for " + algorithm.configName());
+            }
+            return source;
+        }
+    };
+
     private final ZimbraLdapExporter ldapExporter;
     private final ZimbraMailboxExporter mailboxExporter;
     private final StorageProvider storageProvider;
     private final MetadataStore metadataStore;
     private final ServerConfigArchiver serverConfigArchiver;
+    private final Compressor compressor;
     private final int maxParallelProcesses;
 
     public RestoreService(
@@ -81,11 +102,30 @@ public class RestoreService {
             MetadataStore metadataStore,
             int maxParallelProcesses,
             ServerConfigArchiver serverConfigArchiver) {
+        this(
+                ldapExporter,
+                mailboxExporter,
+                storageProvider,
+                metadataStore,
+                maxParallelProcesses,
+                serverConfigArchiver,
+                NO_COMPRESSOR);
+    }
+
+    public RestoreService(
+            ZimbraLdapExporter ldapExporter,
+            ZimbraMailboxExporter mailboxExporter,
+            StorageProvider storageProvider,
+            MetadataStore metadataStore,
+            int maxParallelProcesses,
+            ServerConfigArchiver serverConfigArchiver,
+            Compressor compressor) {
         this.ldapExporter = Objects.requireNonNull(ldapExporter, "ldapExporter must not be null");
         this.mailboxExporter = Objects.requireNonNull(mailboxExporter, "mailboxExporter must not be null");
         this.storageProvider = Objects.requireNonNull(storageProvider, "storageProvider must not be null");
         this.metadataStore = Objects.requireNonNull(metadataStore, "metadataStore must not be null");
         this.serverConfigArchiver = Objects.requireNonNull(serverConfigArchiver, "serverConfigArchiver must not be null");
+        this.compressor = Objects.requireNonNull(compressor, "compressor must not be null");
         this.maxParallelProcesses = maxParallelProcesses;
     }
 
@@ -184,12 +224,14 @@ public class RestoreService {
 
     private boolean restoreMailboxOne(String sessionId, String account, String destination, boolean verify) {
         try {
-            if (!storageProvider.exists(sessionId, account, TGZ_SUFFIX)) {
+            Optional<Compression> archive = findMailboxArchive(sessionId, account);
+            if (archive.isEmpty()) {
                 return true;
             }
-            long expectedEntries = verify ? countSourceEntries(sessionId, account) : 0;
+            Compression algorithm = archive.get();
+            long expectedEntries = verify ? countSourceEntries(sessionId, account, algorithm) : 0;
             long baselineEntries = expectedEntries > 0 ? exportAndCountEntries(destination) : 0;
-            try (InputStream source = storageProvider.openRead(sessionId, account, TGZ_SUFFIX)) {
+            try (InputStream source = openArchive(sessionId, account, algorithm)) {
                 mailboxExporter.restore(destination, source);
             }
             if (expectedEntries > 0) {
@@ -215,14 +257,48 @@ public class RestoreService {
         }
     }
 
-    private long countSourceEntries(String sessionId, String account) throws IOException {
-        try (InputStream in = storageProvider.openRead(sessionId, account, TGZ_SUFFIX)) {
+    private Optional<Compression> findMailboxArchive(String sessionId, String account) throws IOException {
+        for (Compression algorithm : ARCHIVE_LOOKUP_ORDER) {
+            if (storageProvider.exists(sessionId, account, algorithm.archiveSuffix())) {
+                return Optional.of(algorithm);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private InputStream openArchive(String sessionId, String account, Compression algorithm) throws IOException {
+        InputStream stored = storageProvider.openRead(sessionId, account, algorithm.archiveSuffix());
+        try {
+            return compressor.decompress(stored, algorithm);
+        } catch (IOException | RuntimeException e) {
+            try {
+                stored.close();
+            } catch (IOException suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw e;
+        }
+    }
+
+    private long countSourceEntries(String sessionId, String account, Compression algorithm) throws IOException {
+        try (InputStream in = openArchive(sessionId, account, algorithm)) {
             return TarEntryCounter.countNestedFileEntries(in);
         }
     }
 
+    private static List<Compression> archiveLookupOrder() {
+        List<Compression> order = new ArrayList<>();
+        order.add(Compression.GZIP);
+        for (Compression algorithm : Compression.values()) {
+            if (algorithm != Compression.GZIP) {
+                order.add(algorithm);
+            }
+        }
+        return List.copyOf(order);
+    }
+
     private long exportAndCountEntries(String account) throws IOException {
-        Path tempFile = Files.createTempFile("zmbackup-restore-verify-", ".tgz");
+        Path tempFile = Files.createTempFile("zmbackup-restore-verify-", ".tar");
         try {
             try (OutputStream out = Files.newOutputStream(tempFile, StandardOpenOption.TRUNCATE_EXISTING)) {
                 if (!mailboxExporter.export(account, out)) {
