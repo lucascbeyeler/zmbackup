@@ -4,9 +4,9 @@ function show_help_java (){
   printf "usage: install-java.sh [options]"
 
   printf "\n\nThis installs zmbackup. It builds zmbackup.jar with the bundled Gradle"
-  printf "\nwrapper (needs a Java %s JDK - installed automatically if missing - and" "$JAVA_MIN_VERSION"
-  printf "\ninternet access on first run), then installs it and a thin launcher,"
-  printf "\nconfig, blocked list and cron file."
+  printf "\nwrapper (needs a Java %s JDK - installed automatically if missing, unless" "$JAVA_MIN_VERSION"
+  printf "\n--no-install-deps is given - and internet access on first run), then"
+  printf "\ninstalls it and a thin launcher, config, blocked list and cron file."
 
   printf "\n\nOptions:\n"
 
@@ -20,6 +20,8 @@ function show_help_java (){
   printf "\n                       ZMBKP_MAIL_SENDER, MAX_PARALLEL_PROCESS, ROTATE_TIME, LOCK_BACKUP,"
   printf "\n                       ZMBKP_SKIP_CRON_CHECK, ZMBKP_CA_CERT. Combine with --force-upgrade or --remove;"
   printf "\n                       an unattended --remove keeps the metadata database and the backup storage."
+  printf "\n --no-install-deps   : Only check the dependencies (Java %s JDK) and stop with exit code 3 if one is missing or too old," "$JAVA_MIN_VERSION"
+  printf "\n                       instead of installing it with apt or yum. Combines with --unattended and --force-upgrade."
   printf "\n -h,  --help         : Show this help"
 
   printf "\n\n\n"

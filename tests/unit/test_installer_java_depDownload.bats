@@ -49,3 +49,18 @@ setup() {
   run install_java_redhat
   [[ "$output" == *"java-17-openjdk-devel"* ]]
 }
+
+@test "refuse_java_install: exits ERR_DEPNOTFOUND and names the apt package on Ubuntu" {
+  export SO="ubuntu"
+  run refuse_java_install
+  [ "$status" -eq "$ERR_DEPNOTFOUND" ]
+  [[ "$output" == *"--no-install-deps"* ]]
+  [[ "$output" == *"apt update && apt install -y openjdk-17-jdk"* ]]
+}
+
+@test "refuse_java_install: names the yum package on RedHat" {
+  export SO="redhat"
+  run refuse_java_install
+  [ "$status" -eq "$ERR_DEPNOTFOUND" ]
+  [[ "$output" == *"yum install -y java-17-openjdk-devel"* ]]
+}

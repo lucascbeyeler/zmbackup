@@ -32,3 +32,14 @@ function install_java_redhat() {
     exit "$ERR_DEPNOTFOUND"
   fi
 }
+
+function refuse_java_install() {
+  echo "[FAIL] - Java $JAVA_MIN_VERSION JDK is missing or too old, and --no-install-deps does not allow installing it."
+  echo "Install it yourself and run the installer again:"
+  if [[ $SO == "redhat" ]]; then
+    echo "yum install -y java-${JAVA_MIN_VERSION}-openjdk-devel"
+  else
+    echo "apt update && apt install -y openjdk-${JAVA_MIN_VERSION}-jdk"
+  fi
+  exit "$ERR_DEPNOTFOUND"
+}

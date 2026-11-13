@@ -131,6 +131,19 @@ without asking). It saves the previous file as
 `zmbackup.yaml.<timestamp>.bak` before adding your answers, and never changes settings you already
 have. See `./install-java.sh --help` for details.
 
+### Checking dependencies without installing them
+
+By default, `install-java.sh` installs a Java 17 JDK with `apt` or `yum` when it doesn't find one.
+If your server's packages are managed some other way and the installer must not add any, pass
+`--no-install-deps`: the installer still checks for the JDK, but when it is missing or older than
+17 it prints the command to install it and stops with exit code `3`, before anything is built or
+deployed. Install the JDK yourself and run the installer again. The option combines with
+`--unattended` and `--force-upgrade`.
+
+```
+# ./install-java.sh --no-install-deps
+```
+
 ### Unattended install (Ansible and other automation)
 
 `./install-java.sh --unattended` (or `-u`) runs the same install without a single prompt: passing it
