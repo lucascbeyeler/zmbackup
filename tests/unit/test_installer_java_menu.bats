@@ -275,3 +275,35 @@ set_ca_in_section() {
   run resolve_ca_cert
   [ "$status" -eq 0 ]
 }
+
+@test "suite_ca_file: finds Zimbra's CA" {
+  mkdir -p "$BATS_TEST_TMPDIR/suite/ssl/zimbra/ca"
+  touch "$BATS_TEST_TMPDIR/suite/ssl/zimbra/ca/ca.pem"
+  run suite_ca_file "$BATS_TEST_TMPDIR/suite"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$BATS_TEST_TMPDIR/suite/ssl/zimbra/ca/ca.pem" ]
+}
+
+@test "suite_ca_file: finds Carbonio's CA" {
+  mkdir -p "$BATS_TEST_TMPDIR/suite/ssl/carbonio/ca"
+  touch "$BATS_TEST_TMPDIR/suite/ssl/carbonio/ca/ca.pem"
+  run suite_ca_file "$BATS_TEST_TMPDIR/suite"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$BATS_TEST_TMPDIR/suite/ssl/carbonio/ca/ca.pem" ]
+}
+
+@test "suite_ca_file: fails when neither CA exists" {
+  mkdir -p "$BATS_TEST_TMPDIR/suite"
+  run suite_ca_file "$BATS_TEST_TMPDIR/suite"
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
+@test "detect_ca_default: offers Carbonio's CA when it validates the server" {
+  OSE_INSTALL_DIR="$BATS_TEST_TMPDIR/suite"
+  mkdir -p "$OSE_INSTALL_DIR/ssl/carbonio/ca"
+  touch "$OSE_INSTALL_DIR/ssl/carbonio/ca/ca.pem"
+  probe_ca_against_server() { return 0; }
+  detect_ca_default > /dev/null
+  [ "$ZMBKP_CA_DEFAULT" = "$OSE_INSTALL_DIR/ssl/carbonio/ca/ca.pem" ]
+}

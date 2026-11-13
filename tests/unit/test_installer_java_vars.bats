@@ -127,3 +127,27 @@ setup() {
   "
   [[ "$output" == *"admin@corp.example|admin@corp.example|root@corp.example"* ]]
 }
+
+@test "suite_defaults: picks Zimbra when only /opt/zimbra exists" {
+  mkdir -p "$BATS_TEST_TMPDIR/root/opt/zimbra"
+  run suite_defaults "$BATS_TEST_TMPDIR/root"
+  [ "$output" = "zimbra zimbra /opt/zimbra" ]
+}
+
+@test "suite_defaults: picks Carbonio when only /opt/zextras exists" {
+  mkdir -p "$BATS_TEST_TMPDIR/root/opt/zextras"
+  run suite_defaults "$BATS_TEST_TMPDIR/root"
+  [ "$output" = "carbonio zextras /opt/zextras" ]
+}
+
+@test "suite_defaults: keeps Zimbra when both /opt/zimbra and /opt/zextras exist" {
+  mkdir -p "$BATS_TEST_TMPDIR/root/opt/zimbra" "$BATS_TEST_TMPDIR/root/opt/zextras"
+  run suite_defaults "$BATS_TEST_TMPDIR/root"
+  [ "$output" = "zimbra zimbra /opt/zimbra" ]
+}
+
+@test "suite_defaults: keeps Zimbra when neither directory exists" {
+  mkdir -p "$BATS_TEST_TMPDIR/root"
+  run suite_defaults "$BATS_TEST_TMPDIR/root"
+  [ "$output" = "zimbra zimbra /opt/zimbra" ]
+}
