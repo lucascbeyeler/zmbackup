@@ -3,6 +3,7 @@ package io.zmbackup.core.service;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.EmptyMailboxReport;
 import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.Identifiers;
 import io.zmbackup.core.domain.LdapObjectType;
@@ -31,6 +32,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -45,7 +47,12 @@ public class BackupService {
 
         @Override
         public void notifyFinish(
-                String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {}
+                String sessionId,
+                BackupType type,
+                SessionStatus status,
+                String size,
+                int accountCount,
+                EmptyMailboxReport emptyMailboxes) {}
     };
     private static final ServerConfigArchiver NO_SERVER_CONFIG_ARCHIVER = new ServerConfigArchiver() {
         @Override
@@ -215,15 +222,16 @@ public class BackupService {
         metadataStore.save(new BackupSession(sessionId, type, SessionStatus.IN_PROGRESS, sessionStart, null, null));
         notifySafely(() -> notifier.notifyBegin(sessionId, type));
 
+        EmptyMailboxes emptyMailboxes = new EmptyMailboxes();
         List<Callable<Boolean>> tasks = new ArrayList<>(resolved.size());
         for (String identifier : resolved) {
-            tasks.add(() -> backupOne(sessionId, type, identifier));
+            tasks.add(() -> backupOne(sessionId, type, identifier, emptyMailboxes));
         }
         boolean allSucceeded;
         try {
             allSucceeded = !Parallel.run(maxParallelProcesses, tasks).contains(false);
         } catch (IOException e) {
-            recordFailedSession(sessionId, type, sessionStart);
+            recordFailedSession(sessionId, type, sessionStart, emptyMailboxes.report());
             throw e;
         }
 
@@ -235,7 +243,9 @@ public class BackupService {
         String notifySize = status == SessionStatus.FINISHED ? HumanReadableSize.format(size) : "0B";
         int notifyAccountCount =
                 status == SessionStatus.FINISHED ? metadataStore.findAccountsForSession(sessionId).size() : 0;
-        notifySafely(() -> notifier.notifyFinish(sessionId, type, status, notifySize, notifyAccountCount));
+        EmptyMailboxReport emptyMailboxReport = emptyMailboxes.report();
+        notifySafely(() -> notifier.notifyFinish(
+                sessionId, type, status, notifySize, notifyAccountCount, emptyMailboxReport));
         return Optional.of(completed);
     }
 
@@ -260,12 +270,14 @@ public class BackupService {
         }
     }
 
-    private void recordFailedSession(String sessionId, BackupType type, Instant sessionStart) throws IOException {
+    private void recordFailedSession(
+            String sessionId, BackupType type, Instant sessionStart, EmptyMailboxReport emptyMailboxReport)
+            throws IOException {
         Instant sessionEnd = Instant.now();
         long size = storageProvider.sizeOfSession(sessionId);
         BackupSession failed = new BackupSession(sessionId, type, SessionStatus.FAILED, sessionStart, sessionEnd, size);
         metadataStore.save(failed);
-        notifySafely(() -> notifier.notifyFinish(sessionId, type, SessionStatus.FAILED, "0B", 0));
+        notifySafely(() -> notifier.notifyFinish(sessionId, type, SessionStatus.FAILED, "0B", 0, emptyMailboxReport));
     }
 
     private interface NotifierCall {
@@ -282,35 +294,60 @@ public class BackupService {
         }
     }
 
-    private void logIfNothingExported(String identifier, boolean exported) {
-        if (!exported) {
-            LOG.info(() -> "No new mailbox content to export for " + identifier);
+    private static final class EmptyMailboxes {
+        private final Set<String> returnedNothing = new ConcurrentSkipListSet<>();
+        private final Set<String> noNewContent = new ConcurrentSkipListSet<>();
+
+        void requireContent(String identifier, boolean exported) throws EmptyMailboxException {
+            if (!exported) {
+                returnedNothing.add(identifier);
+                throw new EmptyMailboxException(identifier);
+            }
+        }
+
+        void noteIfUnchanged(String identifier, boolean exported) {
+            if (!exported) {
+                noNewContent.add(identifier);
+                LOG.info(() -> "No new mailbox content since the last backup for " + identifier);
+            }
+        }
+
+        EmptyMailboxReport report() {
+            return new EmptyMailboxReport(List.copyOf(returnedNothing), List.copyOf(noNewContent));
         }
     }
 
-    private boolean backupOne(String sessionId, BackupType type, String identifier) throws IOException {
+    private static final class EmptyMailboxException extends IOException {
+        EmptyMailboxException(String identifier) {
+            super("Backup returned nothing for the mailbox of " + identifier
+                    + " - Zimbra had no mailbox content to export (204 No Content or an empty export)");
+        }
+    }
+
+    private boolean backupOne(String sessionId, BackupType type, String identifier, EmptyMailboxes emptyMailboxes)
+            throws IOException {
         Instant startedAt = Instant.now();
         try {
             if (type == BackupType.MAILBOX) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
+                    emptyMailboxes.requireContent(identifier, mailboxExporter.export(identifier, destination));
                 }
             } else if (type == BackupType.INCREMENTAL) {
                 Optional<Instant> lastBackup = metadataStore.lastSuccessfulBackupTime(identifier);
                 if (lastBackup.isEmpty()) {
                     LOG.info(() -> "No prior successful backup found for " + identifier
                             + " - running a full backup instead of an incremental one.");
-                    fullExport(sessionId, identifier);
+                    fullExport(sessionId, identifier, emptyMailboxes);
                 } else {
                     try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                        logIfNothingExported(
+                        emptyMailboxes.noteIfUnchanged(
                                 identifier,
                                 mailboxExporter.export(
                                         identifier, destination, lastBackup.get().minus(INCREMENTAL_LOOKBACK)));
                     }
                 }
             } else if (type == BackupType.FULL) {
-                fullExport(sessionId, identifier);
+                fullExport(sessionId, identifier, emptyMailboxes);
             } else if (type == BackupType.SERVER_CONFIG) {
                 try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, ZIP_SUFFIX)) {
                     serverConfigArchiver.export(destination);
@@ -328,6 +365,9 @@ public class BackupService {
                     }
                 }
             }
+        } catch (EmptyMailboxException e) {
+            LOG.warning(e::getMessage);
+            return false;
         } catch (IOException e) {
             LOG.log(Level.WARNING, "Backup failed for " + identifier, e);
             return false;
@@ -339,12 +379,12 @@ public class BackupService {
         return true;
     }
 
-    private void fullExport(String sessionId, String identifier) throws IOException {
+    private void fullExport(String sessionId, String identifier, EmptyMailboxes emptyMailboxes) throws IOException {
         try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
             ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
         }
         try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-            logIfNothingExported(identifier, mailboxExporter.export(identifier, destination));
+            emptyMailboxes.requireContent(identifier, mailboxExporter.export(identifier, destination));
         }
     }
 

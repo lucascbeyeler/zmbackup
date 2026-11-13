@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.EmptyMailboxReport;
 import io.zmbackup.core.domain.SessionStatus;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -63,7 +64,8 @@ class EmailNotifierTest {
         EmailNotifier notifier = new EmailNotifier(
                 "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", true, true, false);
 
-        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3);
+        notifier.notifyFinish(
+                "full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3, EmptyMailboxReport.NONE);
 
         FakeSmtpServer.Message message = smtpServer.awaitMessage();
         assertTrue(message.data().contains(
@@ -79,7 +81,8 @@ class EmailNotifierTest {
         EmailNotifier notifier = new EmailNotifier(
                 "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", true, false, true);
 
-        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3);
+        notifier.notifyFinish(
+                "full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3, EmptyMailboxReport.NONE);
 
         assertFalse(smtpServer.receivedAnyMessage());
     }
@@ -90,7 +93,8 @@ class EmailNotifierTest {
         EmailNotifier notifier = new EmailNotifier(
                 "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", true, false, true);
 
-        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FAILED, "0", 0);
+        notifier.notifyFinish(
+                "full-1", BackupType.FULL, SessionStatus.FAILED, "0", 0, EmptyMailboxReport.NONE);
 
         FakeSmtpServer.Message message = smtpServer.awaitMessage();
         assertTrue(message.data().contains(
@@ -98,6 +102,50 @@ class EmailNotifierTest {
         assertTrue(message.data().contains("Status: FAILED"));
         assertTrue(message.data().contains("Size: 0"));
         assertTrue(message.data().contains("Accounts: 0"));
+    }
+
+    @Test
+    void notifyFinishListsTheAccountsWhoseMailboxBackupReturnedNothing() throws Exception {
+        smtpServer = FakeSmtpServer.start();
+        EmailNotifier notifier = new EmailNotifier(
+                "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", false, false, true);
+
+        notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FAILED, "0B", 0,
+                new EmptyMailboxReport(List.of("alice@example.com", "bob@example.com"), List.of()));
+
+        String data = smtpServer.awaitMessage().data();
+        assertTrue(data.contains("The backup returned nothing for the mailbox of these accounts:\n\n"
+                + "  - alice@example.com\n  - bob@example.com"));
+        assertFalse(data.contains("no new mailbox content"));
+    }
+
+    @Test
+    void notifyFinishListsTheIncrementalAccountsWithNothingNew() throws Exception {
+        smtpServer = FakeSmtpServer.start();
+        EmailNotifier notifier = new EmailNotifier(
+                "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", false, true, false);
+
+        notifier.notifyFinish("inc-1", BackupType.INCREMENTAL, SessionStatus.FINISHED, "1M", 2,
+                new EmptyMailboxReport(List.of(), List.of("carol@example.com")));
+
+        String data = smtpServer.awaitMessage().data();
+        assertTrue(data.contains("These accounts had no new mailbox content since their last backup:\n\n"
+                + "  - carol@example.com"));
+        assertFalse(data.contains("returned nothing"));
+    }
+
+    @Test
+    void notifyFinishOmitsBothListsWhenEveryMailboxHadContent() throws Exception {
+        smtpServer = FakeSmtpServer.start();
+        EmailNotifier notifier = new EmailNotifier(
+                "127.0.0.1", smtpServer.port(), "root@example.com", "admin@example.com", false, true, false);
+
+        notifier.notifyFinish(
+                "full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3, EmptyMailboxReport.NONE);
+
+        String data = smtpServer.awaitMessage().data();
+        assertFalse(data.contains("returned nothing"));
+        assertFalse(data.contains("no new mailbox content"));
     }
 
     @Test

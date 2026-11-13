@@ -1,6 +1,7 @@
 package io.zmbackup.local;
 
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.EmptyMailboxReport;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.Notifier;
 import java.io.BufferedReader;
@@ -11,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 public class EmailNotifier implements Notifier {
@@ -55,7 +57,12 @@ public class EmailNotifier implements Notifier {
 
     @Override
     public void notifyFinish(
-            String sessionId, BackupType type, SessionStatus status, String size, int accountCount)
+            String sessionId,
+            BackupType type,
+            SessionStatus status,
+            String size,
+            int accountCount,
+            EmptyMailboxReport emptyMailboxes)
             throws IOException {
         boolean shouldNotify = status == SessionStatus.FINISHED ? notifyOnFinishSuccess : notifyOnFinishError;
         if (!shouldNotify) {
@@ -67,8 +74,25 @@ public class EmailNotifier implements Notifier {
                 + "Here some information about this session:\n\n"
                 + "Size: " + size + "\n"
                 + "Accounts: " + accountCount + "\n"
-                + "Status: " + status.dbValue() + "\n";
+                + "Status: " + status.dbValue() + "\n"
+                + accountList(
+                        "The backup returned nothing for the mailbox of these accounts:",
+                        emptyMailboxes.returnedNothing())
+                + accountList(
+                        "These accounts had no new mailbox content since their last backup:",
+                        emptyMailboxes.noNewContent());
         send(subject, body);
+    }
+
+    private static String accountList(String heading, List<String> accounts) {
+        if (accounts.isEmpty()) {
+            return "";
+        }
+        StringBuilder list = new StringBuilder("\n").append(heading).append("\n\n");
+        for (String account : accounts) {
+            list.append("  - ").append(account).append("\n");
+        }
+        return list.toString();
     }
 
     static String finishSubject(BackupType type, SessionStatus status) {
