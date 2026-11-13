@@ -193,7 +193,7 @@ $1"
     bash -c "./install-java.sh < /tmp/answers"
     echo "declined=$?"
     test ! -e /etc/zmbackup || echo LEFT_CONFIG
-    printf "%s\n" y y "" "" "" "" "" "" typed-pass "" "" "" "" "" "" "" n > /tmp/answers
+    printf "%s\n" y y "" "" "" "" "" "" typed-pass "" "" "" "" "" "" "" "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 90
     test -f /etc/zmbackup/zmbackup.yaml || exit 91
   '
@@ -274,7 +274,7 @@ $1"
 @test "an empty interactive REST password still fails fast when zmbackup starts" {
   run in_sandbox '
     unset ZMBKP_REST_ADMIN_PASS
-    printf "%s\n" y "" "" "" "" "" "" "" "" "" "" "" "" "" "" n > /tmp/answers
+    printf "%s\n" y "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 90
     grep -n "^  adminPassword: $" /etc/zmbackup/zmbackup.yaml || exit 91
     zmbackup list
@@ -326,7 +326,7 @@ $1"
 
 @test "interactive install still asks for the server hostname and metadata directory" {
   run in_sandbox '
-    printf "%s\n" y "" "" prompted.host.test "" /var/prompted-meta "" typed-pass "" "" "" "" "" "" "" n > /tmp/answers
+    printf "%s\n" y "" "" prompted.host.test "" /var/prompted-meta "" typed-pass "" "" "" "" "" "" "" "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 90
     grep -E "url:|metadataDir:|adminPassword:" /etc/zmbackup/zmbackup.yaml
     test -d /var/prompted-meta || exit 91
@@ -435,10 +435,10 @@ $1"
     tls_ca zimbra-ca
     install_zimbra_ca zimbra-ca
     tls_server_signed_by zimbra-ca
-    printf "%s\n" y "" "" "" "" "" "" typed-pass "" "" "" "" "" "" "" n > /tmp/answers
+    printf "%s\n" y "" "" "" "" "" "" typed-pass "" "" "" "" "" "" "" "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 90
     echo "enter=$(grep -c "^  caCertificatePath: '"'"'/opt/zimbra/ssl/zimbra/ca/ca.pem'"'"'$" /etc/zmbackup/zmbackup.yaml)"
-    printf "%s\n" y "" "" "" "" "" "" typed-pass "" "" "" "" "" none "" n > /tmp/answers
+    printf "%s\n" y "" "" "" "" "" "" typed-pass "" "" "" "" "" "" none "" n > /tmp/answers
     bash -c "./install-java.sh < /tmp/answers" || exit 91
     echo "none=$(grep -c "^  # caCertificatePath:" /etc/zmbackup/zmbackup.yaml)"
   '

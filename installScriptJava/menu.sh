@@ -58,6 +58,10 @@ function set_values_java() {
   read -r TMP
   LOCK_BACKUP=${TMP:-$LOCK_BACKUP}
 
+  printf "\nInform the port Zmbackup should use for Zimbra's mailbox REST API - DEFAULT [%s]:" "$ZMBKP_REST_PORT"
+  read -r TMP
+  ZMBKP_REST_PORT=${TMP:-$ZMBKP_REST_PORT}
+
   detect_ca_default
   printf "\nInform the CA certificate Zmbackup should trust for this server, or none to use the Java trust store - DEFAULT [%s]:" "${ZMBKP_CA_CERT:-$ZMBKP_CA_DEFAULT}"
   read -r TMP
@@ -87,6 +91,7 @@ function check_config_java() {
   echo "Zimbra User: $OSE_USER"
   echo "Zimbra Server Address: $OSE_INSTALL_ADDRESS"
   echo "Zimbra LDAP/Admin Password: $(masked_secret "$OSE_INSTALL_LDAPPASS")"
+  echo "Zimbra Mailbox REST Port: $ZMBKP_REST_PORT"
   echo "Zimbra REST Admin Account: $ZMBKP_REST_ADMIN"
   echo "Zimbra REST Admin Password: $(masked_secret "$ZMBKP_REST_ADMIN_PASS")"
   echo "Zimbra CA Certificate: $ZMBKP_CA_CERT"
@@ -105,6 +110,29 @@ function check_config_java() {
   fi
   echo "Press ENTER to continue or CTRL+C to cancel."
   read -r
+}
+
+function valid_port() {
+  [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= 1 && 10#$1 <= 65535 ))
+}
+
+function check_rest_port_java() {
+  if ! valid_port "$ZMBKP_REST_PORT"; then
+    echo "[FAIL] - ZMBKP_REST_PORT must be a port number from 1 to 65535, not '$ZMBKP_REST_PORT'."
+    exit "$ERR_MISSING_VALUE"
+  fi
+}
+
+function url_port() {
+  local REST="${1#*://}"
+  REST="${REST%%/*}"
+  if [[ "$REST" =~ :([0-9]+)$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+  elif [[ "$1" == http://* ]]; then
+    echo 80
+  else
+    echo 443
+  fi
 }
 
 function check_required_java() {
@@ -142,7 +170,7 @@ function probe_ca_against_server() {
     NAME_CHECK=(-verify_ip "$OSE_INSTALL_ADDRESS")
   fi
   local OUTPUT
-  OUTPUT=$(timeout 10 "$OPENSSL" s_client -connect "$ADDRESS:7071" -CAfile "$1" "${NAME_CHECK[@]}" < /dev/null 2> /dev/null)
+  OUTPUT=$(timeout 10 "$OPENSSL" s_client -connect "$ADDRESS:$ZMBKP_REST_PORT" -CAfile "$1" "${NAME_CHECK[@]}" < /dev/null 2> /dev/null)
   [[ "$OUTPUT" == *"BEGIN CERTIFICATE"* ]] || return 2
   [[ "$OUTPUT" == *"Verify return code: 0 (ok)"* ]] && return 0
   return 1

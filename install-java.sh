@@ -75,6 +75,7 @@ else
   if [[ $UNATTENDED != "Y" ]]; then
     set_values_java
   fi
+  check_rest_port_java
   resolve_ca_cert
   check_config_java
   build_jar

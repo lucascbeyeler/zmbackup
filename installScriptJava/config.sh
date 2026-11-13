@@ -9,6 +9,7 @@ function render_config_java() {
   sed -i "s|{ZMBKP_MAIL_SENDER}|$(sed_replacement "$ZMBKP_MAIL_SENDER")|g" "$FILE"
   sed -i "s|{OSE_INSTALL_ADDRESS}|$(sed_replacement "$LDAP_ADDRESS")|g" "$FILE"
   sed -i "s|{OSE_INSTALL_LDAPPASS}|$(sed_replacement "$(yaml_single_quoted "$OSE_INSTALL_LDAPPASS")")|g" "$FILE"
+  sed -i "s|{ZMBKP_REST_PORT}|$(sed_replacement "$ZMBKP_REST_PORT")|g" "$FILE"
   sed -i "s|{ZMBKP_REST_ADMIN}|$(sed_replacement "$ZMBKP_REST_ADMIN")|g" "$FILE"
   sed -i "s|{ZMBKP_REST_ADMIN_PASS}|$(sed_replacement "$(yaml_single_quoted "$ZMBKP_REST_ADMIN_PASS")")|g" "$FILE"
   sed -i "s|{OSE_USER}|$(sed_replacement "$OSE_USER")|g" "$FILE"
@@ -135,7 +136,9 @@ function review_config_java() {
     printf "[NOT FOUND]\n"
     return 0
   fi
-  local TEMPLATE MISSING_KEYS=() SECTION
+  local TEMPLATE MISSING_KEYS=() SECTION REST_URL
+  REST_URL=$(yaml_leaf_values "$CONFIG" | awk -F'\t' '$1 == "zimbraMailbox.restBaseUrl" { print $2 }')
+  [[ -n "$REST_URL" ]] && ZMBKP_REST_PORT=$(url_port "$REST_URL")
   TEMPLATE=$(mktemp)
   cp "$MYDIR/project/config/zmbackup.yaml" "$TEMPLATE"
   ZMBKP_CA_CERT="" ZMBKP_METADATA_DIR="" render_config_java "$TEMPLATE"

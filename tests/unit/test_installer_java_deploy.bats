@@ -343,3 +343,11 @@ user@example.com"
   [ -f "${OSE_DEFAULT_BKP_DIR}/sessions.sqlite3" ]
   [ ! -f "${ZMBKP_CONF}/zmbackup.yaml" ]
 }
+
+@test "deploy_new_java: writes ZMBKP_REST_PORT into restBaseUrl" {
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  ZMBKP_REST_PORT=6071
+  MOCK_SU_OUTPUT=""
+  deploy_new_java
+  grep -q "restBaseUrl: https://mail.example.com:6071" "${ZMBKP_CONF}/zmbackup.yaml"
+}

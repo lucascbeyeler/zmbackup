@@ -307,3 +307,71 @@ set_ca_in_section() {
   detect_ca_default > /dev/null
   [ "$ZMBKP_CA_DEFAULT" = "$OSE_INSTALL_DIR/ssl/carbonio/ca/ca.pem" ]
 }
+
+@test "set_values_java: asks for the mailbox REST port and keeps 7071 by default" {
+  run bash -c "
+    PATH='${MOCKS_DIR}:${PATH}'
+    source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
+    source '${INSTALLER_JAVA_DIR}/menu.sh'
+    detect_ca_default() { ZMBKP_CA_DEFAULT=none; }
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    echo \"ZMBKP_REST_PORT=\$ZMBKP_REST_PORT\"
+  "
+  [[ "$output" == *"Inform the port Zmbackup should use for Zimbra's mailbox REST API - DEFAULT [7071]"* ]]
+  [[ "$output" == *"ZMBKP_REST_PORT=7071"* ]]
+}
+
+@test "set_values_java: the REST port answer comes right before the CA certificate" {
+  run bash -c "
+    PATH='${MOCKS_DIR}:${PATH}'
+    source '${INSTALLER_JAVA_DIR}/vars.sh' 2>/dev/null || true
+    source '${INSTALLER_JAVA_DIR}/menu.sh'
+    detect_ca_default() { ZMBKP_CA_DEFAULT=none; }
+    set_values_java < <(printf '\n\n\n\n\n\n\n\n\n\n\n\n6071\n/tmp/ca.pem\n')
+    echo \"ZMBKP_REST_PORT=\$ZMBKP_REST_PORT ZMBKP_CA_CERT=\$ZMBKP_CA_CERT\"
+  "
+  [[ "$output" == *"ZMBKP_REST_PORT=6071 ZMBKP_CA_CERT=/tmp/ca.pem"* ]]
+}
+
+@test "check_rest_port_java: accepts a valid port" {
+  ZMBKP_REST_PORT=6071
+  run check_rest_port_java
+  [ "$status" -eq 0 ]
+}
+
+@test "check_rest_port_java: stops with exit 5 on a port that is not a number or out of range" {
+  local port
+  for port in abc 0 65536 "" "70 71" -1; do
+    ZMBKP_REST_PORT="$port"
+    run check_rest_port_java
+    [ "$status" -eq 5 ]
+    [[ "$output" == *"ZMBKP_REST_PORT must be a port number from 1 to 65535"* ]]
+  done
+}
+
+@test "url_port: reads the port of a REST URL, or the scheme's default" {
+  [ "$(url_port https://mail.example.com:6071)" = "6071" ]
+  [ "$(url_port https://mail.example.com:7071/)" = "7071" ]
+  [ "$(url_port 'https://[2001:db8::1]:8443')" = "8443" ]
+  [ "$(url_port 'https://[2001:db8::1]')" = "443" ]
+  [ "$(url_port https://mail.example.com)" = "443" ]
+  [ "$(url_port http://mail.example.com)" = "80" ]
+}
+
+@test "probe_ca_against_server: connects to ZMBKP_REST_PORT" {
+  local fake_bin="$BATS_TEST_TMPDIR/bin"
+  OSE_INSTALL_DIR="$BATS_TEST_TMPDIR/zimbra"
+  mkdir -p "$fake_bin" "$OSE_INSTALL_DIR/common/bin"
+  ln -s "$(command -v timeout)" "$fake_bin/timeout"
+  printf '#!/bin/bash\necho "$*" > %q\nprintf -- "-----BEGIN CERTIFICATE-----\\nVerify return code: 0 (ok)\\n"\n' \
+    "$BATS_TEST_TMPDIR/openssl-args" > "$OSE_INSTALL_DIR/common/bin/openssl"
+  chmod +x "$OSE_INSTALL_DIR/common/bin/openssl"
+  OSE_INSTALL_ADDRESS="mail.example.com"
+  ZMBKP_REST_PORT=6071
+  local old_path="$PATH"
+  PATH="$fake_bin"
+  run probe_ca_against_server /tmp/ca.pem
+  PATH="$old_path"
+  [ "$status" -eq 0 ]
+  [[ "$(cat "$BATS_TEST_TMPDIR/openssl-args")" == "s_client -connect mail.example.com:6071 "* ]]
+}
