@@ -61,7 +61,7 @@ public class EmailNotifier implements Notifier {
         if (!shouldNotify) {
             return;
         }
-        String subject = "Zmbackup - Backup routine for " + type.sessionPrefix() + " " + status.dbValue();
+        String subject = finishSubject(type, status);
         String body = "This is an automatic message to inform you that the " + type.sessionPrefix()
                 + " backup session " + sessionId + " completed at " + Instant.now() + ".\n\n"
                 + "Here some information about this session:\n\n"
@@ -69,6 +69,14 @@ public class EmailNotifier implements Notifier {
                 + "Accounts: " + accountCount + "\n"
                 + "Status: " + status.dbValue() + "\n";
         send(subject, body);
+    }
+
+    static String finishSubject(BackupType type, SessionStatus status) {
+        String routine = "Backup routine for " + type.sessionPrefix();
+        if (status == SessionStatus.FINISHED) {
+            return "Zmbackup - SUCCESS - " + routine + " completed successfully";
+        }
+        return "Zmbackup - FAILURE - " + routine + " completed with errors";
     }
 
     private static String requireNoCrlf(String value, String fieldName) {

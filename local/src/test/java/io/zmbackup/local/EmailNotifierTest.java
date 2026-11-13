@@ -66,7 +66,9 @@ class EmailNotifierTest {
         notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FINISHED, "10M", 3);
 
         FakeSmtpServer.Message message = smtpServer.awaitMessage();
-        assertTrue(message.data().contains("FINISHED"));
+        assertTrue(message.data().contains(
+                "Subject: Zmbackup - SUCCESS - Backup routine for full completed successfully\n"));
+        assertTrue(message.data().contains("Status: FINISHED"));
         assertTrue(message.data().contains("Size: 10M"));
         assertTrue(message.data().contains("Accounts: 3"));
     }
@@ -91,9 +93,21 @@ class EmailNotifierTest {
         notifier.notifyFinish("full-1", BackupType.FULL, SessionStatus.FAILED, "0", 0);
 
         FakeSmtpServer.Message message = smtpServer.awaitMessage();
-        assertTrue(message.data().contains("FAILED"));
+        assertTrue(message.data().contains(
+                "Subject: Zmbackup - FAILURE - Backup routine for full completed with errors\n"));
+        assertTrue(message.data().contains("Status: FAILED"));
         assertTrue(message.data().contains("Size: 0"));
         assertTrue(message.data().contains("Accounts: 0"));
+    }
+
+    @Test
+    void finishSubjectLeadsWithTheOutcomeForEveryStatus() {
+        assertEquals("Zmbackup - SUCCESS - Backup routine for inc completed successfully",
+                EmailNotifier.finishSubject(BackupType.INCREMENTAL, SessionStatus.FINISHED));
+        assertEquals("Zmbackup - FAILURE - Backup routine for inc completed with errors",
+                EmailNotifier.finishSubject(BackupType.INCREMENTAL, SessionStatus.FAILED));
+        assertEquals("Zmbackup - FAILURE - Backup routine for inc completed with errors",
+                EmailNotifier.finishSubject(BackupType.INCREMENTAL, SessionStatus.IN_PROGRESS));
     }
 
     @Test
