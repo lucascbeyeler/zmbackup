@@ -13,6 +13,7 @@ import io.zmbackup.aws.DynamoDBLock;
 import io.zmbackup.aws.DynamoDBMetadataStore;
 import io.zmbackup.aws.S3StorageProvider;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.EmptyMailboxReport;
 import io.zmbackup.core.domain.SessionStatus;
 import io.zmbackup.core.port.AccountDiscovery;
 import io.zmbackup.core.port.Blocklist;
@@ -68,7 +69,12 @@ public final class AppContext {
 
         @Override
         public void notifyFinish(
-                String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {}
+                String sessionId,
+                BackupType type,
+                SessionStatus status,
+                String size,
+                int accountCount,
+                EmptyMailboxReport emptyMailboxes) {}
     };
 
     private static final String ROOT_LOGGER_NAME = "io.zmbackup";

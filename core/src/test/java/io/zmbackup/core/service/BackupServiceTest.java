@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.zmbackup.core.domain.BackupAccountRecord;
 import io.zmbackup.core.domain.BackupSession;
 import io.zmbackup.core.domain.BackupType;
+import io.zmbackup.core.domain.EmptyMailboxReport;
 import io.zmbackup.core.domain.HumanReadableSize;
 import io.zmbackup.core.domain.LdapObjectType;
 import io.zmbackup.core.domain.SessionStatus;
@@ -622,7 +623,12 @@ class BackupServiceTest {
 
             @Override
             public void notifyFinish(
-                    String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {
+                    String sessionId,
+                    BackupType type,
+                    SessionStatus status,
+                    String size,
+                    int accountCount,
+                    EmptyMailboxReport emptyMailboxes) {
                 throw new RuntimeException("simulated notifier bug on finish");
             }
         };
@@ -814,14 +820,72 @@ class BackupServiceTest {
     }
 
     @Test
-    void mailboxTypeSucceedsWithoutWritingWhenNoNewContent() throws IOException {
+    void mailboxTypeFailsTheAccountWhenTheExportReturnsNothing() throws IOException {
         mailboxExporter.noNewContent.add("alice@example.com");
+        RecordingNotifier notifier = new RecordingNotifier();
 
-        Optional<BackupSession> result = backupService.backup(BackupType.MAILBOX, List.of("alice@example.com"));
+        Optional<BackupSession> result = withNotifier(notifier)
+                .backup(BackupType.MAILBOX, List.of("alice@example.com", "bob@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertEquals(
+                Set.of("bob@example.com"), namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+        assertEquals(List.of("alice@example.com"), notifier.lastEmptyMailboxes.returnedNothing());
+        assertTrue(notifier.lastEmptyMailboxes.noNewContent().isEmpty());
+    }
+
+    @Test
+    void fullTypeFailsTheAccountWhenTheMailboxExportReturnsNothing() throws IOException {
+        mailboxExporter.noNewContent.add("alice@example.com");
+        RecordingNotifier notifier = new RecordingNotifier();
+
+        Optional<BackupSession> result = withNotifier(notifier).backup(BackupType.FULL, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertTrue(metadataStore.findAccountsForSession(result.get().sessionId()).isEmpty());
+        assertEquals(List.of("alice@example.com"), notifier.lastEmptyMailboxes.returnedNothing());
+    }
+
+    @Test
+    void incrementalTypeSucceedsAndReportsAccountsWithNoNewContent() throws IOException {
+        metadataStore.lastBackupTimes.put("alice@example.com", Instant.parse("2026-01-01T00:00:00Z"));
+        metadataStore.lastBackupTimes.put("bob@example.com", Instant.parse("2026-01-01T00:00:00Z"));
+        mailboxExporter.noNewContent.add("alice@example.com");
+        RecordingNotifier notifier = new RecordingNotifier();
+
+        Optional<BackupSession> result = withNotifier(notifier)
+                .backup(BackupType.INCREMENTAL, List.of("alice@example.com", "bob@example.com"));
 
         assertTrue(result.isPresent());
         assertEquals(SessionStatus.FINISHED, result.get().status());
-        assertEquals(1, metadataStore.findAccountsForSession(result.get().sessionId()).size());
+        assertEquals(
+                Set.of("alice@example.com", "bob@example.com"),
+                namesOf(metadataStore.findAccountsForSession(result.get().sessionId())));
+        assertEquals(List.of("alice@example.com"), notifier.lastEmptyMailboxes.noNewContent());
+        assertTrue(notifier.lastEmptyMailboxes.returnedNothing().isEmpty());
+    }
+
+    @Test
+    void incrementalFallbackToFullFailsTheAccountWhenTheMailboxExportReturnsNothing() throws IOException {
+        mailboxExporter.noNewContent.add("alice@example.com");
+        RecordingNotifier notifier = new RecordingNotifier();
+
+        Optional<BackupSession> result =
+                withNotifier(notifier).backup(BackupType.INCREMENTAL, List.of("alice@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertEquals(List.of("alice@example.com"), notifier.lastEmptyMailboxes.returnedNothing());
+        assertTrue(notifier.lastEmptyMailboxes.noNewContent().isEmpty());
+    }
+
+    private BackupService withNotifier(Notifier notifier) {
+        return BackupService.builder(accountDiscovery, ldapExporter, mailboxExporter, storageProvider, metadataStore)
+                .notifier(notifier)
+                .maxParallelProcesses(1)
+                .build();
     }
 
     @Test
@@ -1016,6 +1080,7 @@ class BackupServiceTest {
 
     private static final class RecordingNotifier implements Notifier {
         final List<String> calls = new ArrayList<>();
+        EmptyMailboxReport lastEmptyMailboxes;
 
         @Override
         public void notifyBegin(String sessionId, BackupType type) {
@@ -1024,7 +1089,13 @@ class BackupServiceTest {
 
         @Override
         public void notifyFinish(
-                String sessionId, BackupType type, SessionStatus status, String size, int accountCount) {
+                String sessionId,
+                BackupType type,
+                SessionStatus status,
+                String size,
+                int accountCount,
+                EmptyMailboxReport emptyMailboxes) {
+            lastEmptyMailboxes = emptyMailboxes;
             calls.add("finish:" + sessionId + ":" + type + ":" + status + ":" + size + ":" + accountCount);
         }
     }
