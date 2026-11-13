@@ -1,7 +1,0 @@
-#!/bin/bash
-# su mock - simulates Zimbra's su calls
-if [ "${MOCK_SU_FAIL:-0}" = "1" ]; then
-  exit 1
-fi
-echo "${MOCK_SU_OUTPUT:-}"
-exit 0

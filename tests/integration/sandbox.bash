@@ -12,17 +12,6 @@ sandbox_write_shims() {
   local shims="$1"
   mkdir -p "$shims"
 
-  cat > "$shims/su" <<'SHIM'
-#!/bin/bash
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -s) shift 2;;
-    -c) exec bash -c "$2";;
-    *) shift;;
-  esac
-done
-SHIM
-
   cat > "$shims/sudo" <<'SHIM'
 #!/bin/bash
 while [[ $# -gt 0 ]]; do
