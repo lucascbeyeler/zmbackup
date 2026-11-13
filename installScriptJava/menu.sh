@@ -83,6 +83,7 @@ function check_config_java() {
   echo ""
   echo "Here is a Summary of your settings:"
   echo ""
+  echo "Detected Mail Suite: $OSE_SUITE"
   echo "Zimbra User: $OSE_USER"
   echo "Zimbra Server Address: $OSE_INSTALL_ADDRESS"
   echo "Zimbra LDAP/Admin Password: $(masked_secret "$OSE_INSTALL_LDAPPASS")"
@@ -147,10 +148,21 @@ function probe_ca_against_server() {
   return 1
 }
 
+function suite_ca_file() {
+  local CANDIDATE
+  for CANDIDATE in "$1/ssl/zimbra/ca/ca.pem" "$1/ssl/carbonio/ca/ca.pem"; do
+    if [[ -f "$CANDIDATE" ]]; then
+      echo "$CANDIDATE"
+      return 0
+    fi
+  done
+  return 1
+}
+
 function detect_ca_default() {
   ZMBKP_CA_DEFAULT="none"
-  local CANDIDATE="$OSE_INSTALL_DIR/ssl/zimbra/ca/ca.pem"
-  [[ -f "$CANDIDATE" ]] || return 0
+  local CANDIDATE
+  CANDIDATE=$(suite_ca_file "$OSE_INSTALL_DIR") || return 0
   local RESULT=0
   probe_ca_against_server "$CANDIDATE" || RESULT=$?
   ZMBKP_CA_PROBED_PATH="$CANDIDATE"

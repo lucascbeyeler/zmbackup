@@ -131,6 +131,20 @@ without asking). It saves the previous file as
 `zmbackup.yaml.<timestamp>.bak` before adding your answers, and never changes settings you already
 have. See `./install-java.sh --help` for details.
 
+### Carbonio
+
+When the server has `/opt/zextras` and no `/opt/zimbra`, the installer treats it as Carbonio:
+the default user becomes `zextras`, the install path `/opt/zextras` and the backup path
+`/opt/zextras/backup`, and it looks for the CA certificate under `/opt/zextras/ssl/carbonio/ca/`
+as well. Every default can still be changed at its prompt or through the environment variables
+below. Carbonio support is experimental and has not been tested against a Carbonio server. Two
+settings in `/etc/zmbackup/zmbackup.yaml` are not adjusted for it:
+
+- `serverConfig.paths` still defaults to `/opt/zimbra/conf` and `/opt/zimbra/ssl`. Set it to
+  `/opt/zextras/conf` and `/opt/zextras/ssl` before using `zmbackup backup serverconfig`.
+- `zimbraMailbox.restBaseUrl` still points at port `7071`. Change it if your server serves the
+  mailbox REST API somewhere else.
+
 ### Checking dependencies without installing them
 
 By default, `install-java.sh` installs a Java 17 JDK with `apt` or `yum` when it doesn't find one.
@@ -152,12 +166,12 @@ from an environment variable instead (anything left unset keeps its interactive 
 
 | Variable | Default |
 | --- | --- |
-| `OSE_USER` | `zimbra` |
-| `OSE_INSTALL_DIR` | `/opt/zimbra` |
+| `OSE_USER` | `zimbra`, or `zextras` on Carbonio |
+| `OSE_INSTALL_DIR` | `/opt/zimbra`, or `/opt/zextras` on Carbonio |
 | `OSE_INSTALL_ADDRESS` | the host's FQDN |
 | `OSE_INSTALL_LDAPPASS` | read from `zmlocalconfig -s zimbra_ldap_password` |
 | `OSE_INSTALL_DOMAIN` | the first domain from `zmprov gad` |
-| `OSE_DEFAULT_BKP_DIR` | `/opt/zimbra/backup` |
+| `OSE_DEFAULT_BKP_DIR` | `/opt/zimbra/backup`, or `/opt/zextras/backup` on Carbonio |
 | `ZMBKP_METADATA_DIR` | empty (same as the backup path) |
 | `ZMBKP_REST_ADMIN` | `admin@<OSE_INSTALL_DOMAIN>` |
 | `ZMBKP_REST_ADMIN_PASS` | **required** - no default |

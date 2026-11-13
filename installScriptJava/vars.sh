@@ -18,9 +18,19 @@ ZMBKP_CRON_OWNER="root"
 
 JAVA_MIN_VERSION="17"
 
-OSE_USER="${OSE_USER:-zimbra}"
-OSE_INSTALL_DIR="${OSE_INSTALL_DIR:-/opt/zimbra}"
-OSE_DEFAULT_BKP_DIR="${OSE_DEFAULT_BKP_DIR:-/opt/zimbra/backup}"
+function suite_defaults() {
+  local ROOT="$1"
+  if [[ -d "$ROOT/opt/zextras" && ! -d "$ROOT/opt/zimbra" ]]; then
+    echo "carbonio zextras /opt/zextras"
+  else
+    echo "zimbra zimbra /opt/zimbra"
+  fi
+}
+
+read -r OSE_SUITE SUITE_USER SUITE_DIR <<< "$(suite_defaults "")"
+OSE_USER="${OSE_USER:-$SUITE_USER}"
+OSE_INSTALL_DIR="${OSE_INSTALL_DIR:-$SUITE_DIR}"
+OSE_DEFAULT_BKP_DIR="${OSE_DEFAULT_BKP_DIR:-$SUITE_DIR/backup}"
 OSE_INSTALL_DOMAIN="${OSE_INSTALL_DOMAIN:-$(sudo -H -u "$OSE_USER" bash -c "$OSE_INSTALL_DIR/bin/zmprov gad | head -1")}"
 OSE_INSTALL_HOSTNAME=$(hostname --fqdn)
 OSE_INSTALL_ADDRESS="${OSE_INSTALL_ADDRESS:-$OSE_INSTALL_HOSTNAME}"
