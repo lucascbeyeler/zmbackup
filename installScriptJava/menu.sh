@@ -180,7 +180,7 @@ function resolve_ca_cert() {
     echo "[FAIL] - CA certificate $ZMBKP_CA_CERT does not exist. Use an existing file, or none to use the Java trust store."
     exit "$ERR_MISSING_VALUE"
   fi
-  if ! su -s /bin/bash -c "test -r $(printf '%q' "$ZMBKP_CA_CERT")" "$OSE_USER"; then
+  if ! sudo -H -u "$OSE_USER" test -r "$ZMBKP_CA_CERT"; then
     echo "[FAIL] - $OSE_USER cannot read CA certificate $ZMBKP_CA_CERT, so every Zmbackup job would fail. Make it readable by $OSE_USER, or use none to use the Java trust store."
     exit "$ERR_MISSING_VALUE"
   fi
