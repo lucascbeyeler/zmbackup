@@ -175,7 +175,7 @@ user@example.com"
   MOCK_SU_OUTPUT=""
   export MOCK_SUDO_LOG
   deploy_new_java
-  grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
+  grep -qF -- "-H -u $OSE_USER $ZMBKP_SRC/zmbackup migrate" "$MOCK_SUDO_LOG"
 }
 
 @test "deploy_new_java: prints the no-concurrent-run and TLS-certificate reminder when migrating an existing sessions.txt" {
@@ -228,7 +228,7 @@ user@example.com"
   MOCK_SUDO_LOG="$(mktemp)"
   export MOCK_SUDO_LOG
   deploy_upgrade_java
-  grep -q "zmbackup migrate" "$MOCK_SUDO_LOG"
+  grep -qF -- "-H -u $OSE_USER $ZMBKP_SRC/zmbackup migrate" "$MOCK_SUDO_LOG"
 }
 
 @test "deploy_upgrade_java: does not invoke migrate when there is no sessions.txt" {
@@ -310,7 +310,7 @@ user@example.com"
   MOCK_SUDO_LOG="$(mktemp)"
   export MOCK_SUDO_LOG
   printf 'TRUNCATE\nY\n' | uninstall_java
-  grep -q "zmbackup truncate --force-clean" "$MOCK_SUDO_LOG"
+  grep -qF -- "-H -u $OSE_USER $ZMBKP_SRC/zmbackup truncate --force-clean" "$MOCK_SUDO_LOG"
 }
 
 @test "uninstall_java: does not invoke zmbackup truncate when the user declines" {
