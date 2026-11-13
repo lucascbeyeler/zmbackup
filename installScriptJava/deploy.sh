@@ -18,7 +18,7 @@ function pin_launcher_java() {
 function migrate_legacy_sessions() {
   if [[ -f "$OSE_DEFAULT_BKP_DIR/sessions.txt" ]]; then
     echo "Found an existing sessions.txt - migrating it into the SQLite metadata store..."
-    sudo -H -u "$OSE_USER" bash -c "zmbackup migrate"
+    sudo -H -u "$OSE_USER" "$ZMBKP_SRC"/zmbackup migrate
     echo ""
     echo "IMPORTANT - before your first backup with this Java build:"
     echo "  - Never run the 1.2.x bash tool and this build against the same backup directory at the"
@@ -112,7 +112,7 @@ function truncate_database() {
   read -r OPT
   if [[ $OPT == 'TRUNCATE' ]]; then
     echo "Truncating the backup metadata database..."
-    sudo -H -u "$OSE_USER" bash -c "zmbackup truncate --force-clean"
+    sudo -H -u "$OSE_USER" "$ZMBKP_SRC"/zmbackup truncate --force-clean
   else
     echo "Skipping database truncation."
   fi
