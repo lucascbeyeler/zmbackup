@@ -142,8 +142,9 @@ settings in `/etc/zmbackup/zmbackup.yaml` are not adjusted for it:
 
 - `serverConfig.paths` still defaults to `/opt/zimbra/conf` and `/opt/zimbra/ssl`. Set it to
   `/opt/zextras/conf` and `/opt/zextras/ssl` before using `zmbackup backup serverconfig`.
-- `zimbraMailbox.restBaseUrl` still points at port `7071`. Change it if your server serves the
-  mailbox REST API somewhere else.
+- The mailbox REST API port still defaults to `7071`. If your server serves it somewhere else,
+  answer the installer's port prompt or set `ZMBKP_REST_PORT`, or change the port in
+  `zimbraMailbox.restBaseUrl` after installing.
 
 ### Checking dependencies without installing them
 
@@ -175,6 +176,7 @@ from an environment variable instead (anything left unset keeps its interactive 
 | `ZMBKP_METADATA_DIR` | empty (same as the backup path) |
 | `ZMBKP_REST_ADMIN` | `admin@<OSE_INSTALL_DOMAIN>` |
 | `ZMBKP_REST_ADMIN_PASS` | **required** - no default |
+| `ZMBKP_REST_PORT` | `7071` - the port of Zimbra's mailbox REST API, written into `zimbraMailbox.restBaseUrl` |
 | `ZMBKP_MAIL_ALERT` | `admin@<OSE_INSTALL_DOMAIN>` |
 | `ZMBKP_MAIL_SENDER` | `root@<OSE_INSTALL_DOMAIN>` |
 | `MAX_PARALLEL_PROCESS` | `3` |
@@ -183,9 +185,9 @@ from an environment variable instead (anything left unset keeps its interactive 
 | `ZMBKP_CA_CERT` | Zimbra's CA file when it validates the server, otherwise `none` to use the Java trust store. A file you set must be readable by `OSE_USER` |
 | `ZMBKP_SKIP_CRON_CHECK` | `N` - set to `Y` to install where no cron daemon runs, such as an image build |
 
-A missing required value stops the installer with exit code `5` before anything is built or
-deployed, and so does a missing cron daemon, with exit code `3`, because the scheduled backups would
-never run without one. The interactive installer warns about a missing daemon and asks whether to
+A missing required value, or a `ZMBKP_REST_PORT` that is not a port from 1 to 65535, stops the
+installer with exit code `5` before anything is built or deployed, and so does a missing cron
+daemon, with exit code `3`, because the scheduled backups would never run without one. The interactive installer warns about a missing daemon and asks whether to
 continue. Passwords are masked in the printed summary. `--unattended` combines with
 `--force-upgrade` and with `--remove`; an unattended `--remove` never truncates the metadata
 database and always keeps the backup storage. An unattended `--force-upgrade` adds any missing

@@ -18,7 +18,7 @@ function show_help_java (){
   printf "\n                       OSE_USER, OSE_INSTALL_DIR, OSE_INSTALL_ADDRESS, OSE_INSTALL_LDAPPASS, OSE_DEFAULT_BKP_DIR,"
   printf "\n                       ZMBKP_METADATA_DIR, ZMBKP_REST_ADMIN, ZMBKP_REST_ADMIN_PASS (required), ZMBKP_MAIL_ALERT,"
   printf "\n                       ZMBKP_MAIL_SENDER, MAX_PARALLEL_PROCESS, ROTATE_TIME, LOCK_BACKUP,"
-  printf "\n                       ZMBKP_SKIP_CRON_CHECK, ZMBKP_CA_CERT. Combine with --force-upgrade or --remove;"
+  printf "\n                       ZMBKP_REST_PORT, ZMBKP_SKIP_CRON_CHECK, ZMBKP_CA_CERT. Combine with --force-upgrade or --remove;"
   printf "\n                       an unattended --remove keeps the metadata database and the backup storage."
   printf "\n --no-install-deps   : Only check the dependencies (Java %s JDK) and stop with exit code 3 if one is missing or too old," "$JAVA_MIN_VERSION"
   printf "\n                       instead of installing it with apt or yum. Combines with --unattended and --force-upgrade."

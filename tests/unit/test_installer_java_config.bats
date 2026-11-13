@@ -337,3 +337,18 @@ leaf() {
   run missing_config_keys "$BATS_TEST_TMPDIR/template" "$CONFIG"
   [ "$output" = $'zimbraMailbox.adminPassword\t' ]
 }
+
+@test "review_config_java: an upgrade probes the CA on the port the installed config uses" {
+  cp "$PROJECT_ROOT/project/config/zmbackup.yaml" "$CONFIG"
+  ZMBKP_REST_PORT=6071 ZMBKP_REST_ADMIN_PASS="installed-pass" render_config_java "$CONFIG"
+  detect_ca_default() {
+    echo "probed port $ZMBKP_REST_PORT" >> "$BATS_TEST_TMPDIR/probe"
+    ZMBKP_CA_DEFAULT=none
+  }
+  ZMBKP_REST_PORT=7071
+  UNATTENDED="Y"
+  review_config_java > /dev/null < /dev/null
+  [ "$ZMBKP_REST_PORT" = "6071" ]
+  grep -q "probed port 6071" "$BATS_TEST_TMPDIR/probe"
+  [ "$(leaf zimbraMailbox.restBaseUrl)" = "https://mail.example.com:6071" ]
+}
