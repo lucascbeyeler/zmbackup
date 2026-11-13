@@ -1,10 +1,12 @@
 #!/bin/bash
 
 UNATTENDED="N"
+NO_INSTALL_DEPS="N"
 ACTION=""
 for ARG in "$@"; do
   case "$ARG" in
     --unattended|-u) UNATTENDED="Y";;
+    --no-install-deps) NO_INSTALL_DEPS="Y";;
     *) ACTION=${ACTION:-$ARG};;
   esac
 done
@@ -45,6 +47,10 @@ fi
 
 if [[ $UNATTENDED == "Y" && $UPGRADE != "Y" ]]; then
   check_required_java
+fi
+
+if [[ $NEED_JAVA == "Y" && $NO_INSTALL_DEPS == "Y" ]]; then
+  refuse_java_install
 fi
 
 check_cron_daemon
