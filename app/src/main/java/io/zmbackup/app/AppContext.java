@@ -180,7 +180,11 @@ public final class AppContext {
         if (config.metadata().backend() == MetadataBackend.DYNAMODB) {
             DynamoDbConfig dynamodb = config.metadata().dynamodb();
             return DynamoDBLock.acquire(
-                    dynamodb.region(), dynamodb.lockTable(), dynamodb.endpointOverride(), DYNAMODB_LOCK_LEASE);
+                    dynamodb.region(),
+                    dynamodb.lockTable(),
+                    dynamodb.endpointOverride(),
+                    DYNAMODB_LOCK_LEASE,
+                    lockResources);
         }
         return PidLock.acquireForResources(config.backup().metadataDir(), lockResources);
     }
