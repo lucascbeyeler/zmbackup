@@ -70,7 +70,8 @@ class CliValidationTest {
     void validSessionIdsPassForEveryKnownPrefix() {
         PrintWriter err = new PrintWriter(new StringWriter());
         for (String prefix :
-                List.of("full", "inc", "ldap", "domain", "distlist", "alias", "mbox", "signature")) {
+                List.of("full", "inc", "ldap", "domain", "distlist", "alias", "mbox", "signature",
+                        "serverconfig", "self")) {
             assertTrue(CliValidation.validateSessionId(prefix + "-20260101120000", err), prefix);
         }
     }

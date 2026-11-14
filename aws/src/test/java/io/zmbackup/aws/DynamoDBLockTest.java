@@ -14,6 +14,7 @@ import io.zmbackup.core.port.LockContentionException;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Timeout;
 class DynamoDBLockTest {
 
     private static final String LOCK_TABLE = "zmbackup_lock";
+    private static final List<String> RESOURCES = List.of("full");
 
     private WireMockServer wireMockServer;
 
@@ -48,7 +50,7 @@ class DynamoDBLockTest {
         stubTarget("PutItem", 200, "{}");
         stubTarget("DeleteItem", 200, "{}");
 
-        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24));
+        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24), RESOURCES);
 
         lock.close();
     }
@@ -70,7 +72,7 @@ class DynamoDBLockTest {
 
         LockContentionException exception = assertThrows(
                 LockContentionException.class,
-                () -> DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24)));
+                () -> DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24), RESOURCES));
 
         assertTrue(exception.getMessage().contains("other-host:123"));
     }
@@ -79,7 +81,7 @@ class DynamoDBLockTest {
     void closeDeletesTheLockItem() throws IOException {
         stubTarget("PutItem", 200, "{}");
         stubTarget("DeleteItem", 200, "{}");
-        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24));
+        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24), RESOURCES);
 
         lock.close();
 
@@ -99,7 +101,7 @@ class DynamoDBLockTest {
                         .withHeader("x-amzn-errortype", "ConditionalCheckFailedException")
                         .withBody("{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\","
                                 + "\"message\":\"The conditional request failed\"}")));
-        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24));
+        DynamoDBLock lock = DynamoDBLock.acquire("us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24), RESOURCES);
 
         lock.close();
     }
@@ -111,7 +113,7 @@ class DynamoDBLockTest {
         stubTarget("DeleteItem", 200, "{}");
 
         DynamoDBLock lock = DynamoDBLock.acquire(
-                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30));
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30), RESOURCES);
         try {
             Thread.sleep(220);
         } finally {
@@ -131,7 +133,7 @@ class DynamoDBLockTest {
         stubTarget("PutItem", 200, "{}");
         stubTarget("DeleteItem", 200, "{}");
         DynamoDBLock lock = DynamoDBLock.acquire(
-                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30));
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30), RESOURCES);
 
         lock.close();
         int callsRightAfterClose = wireMockServer
@@ -172,7 +174,7 @@ class DynamoDBLockTest {
         stubTarget("DeleteItem", 200, "{}");
 
         DynamoDBLock lock = DynamoDBLock.acquire(
-                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30));
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofSeconds(30), Duration.ofMillis(30), RESOURCES);
         Thread.sleep(150);
         int callsAfterFirstFailure = wireMockServer
                 .findAll(postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
@@ -187,6 +189,58 @@ class DynamoDBLockTest {
         assertEquals(2, callsAfterFirstFailure);
         assertEquals(callsAfterFirstFailure, callsAfterWaitingLonger);
         lock.close();
+    }
+
+    @Test
+    void eachResourceIsItsOwnLockItem() throws IOException {
+        stubTarget("PutItem", 200, "{}");
+        stubTarget("DeleteItem", 200, "{}");
+
+        DynamoDBLock lock = DynamoDBLock.acquire(
+                "us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24), List.of("mbox", "ldap", "mbox"));
+        lock.close();
+
+        for (String operation : List.of("PutItem", "DeleteItem")) {
+            String path = operation.equals("PutItem") ? "$.Item.lockId.S" : "$.Key.lockId.S";
+            for (String lockId : List.of("zmbackup-ldap", "zmbackup-mbox")) {
+                wireMockServer.verify(1, postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                        .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810." + operation))
+                        .withRequestBody(com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath(
+                                path, equalTo(lockId))));
+            }
+        }
+    }
+
+    @Test
+    void contentionOnALaterResourceReleasesTheOnesAlreadyAcquired() {
+        stubTarget("PutItem", 200, "{}");
+        wireMockServer.stubFor(post(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.PutItem"))
+                .withRequestBody(com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath(
+                        "$.Item.lockId.S", equalTo("zmbackup-mbox")))
+                .willReturn(aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/x-amz-json-1.0")
+                        .withHeader("x-amzn-errortype", "ConditionalCheckFailedException")
+                        .withBody("{\"__type\":\"com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException\","
+                                + "\"message\":\"The conditional request failed\"}")));
+        stubTarget("GetItem", 200, "{\"Item\":{\"holder\":{\"S\":\"other-host:9\"}}}");
+        stubTarget("DeleteItem", 200, "{}");
+
+        LockContentionException exception = assertThrows(
+                LockContentionException.class,
+                () -> DynamoDBLock.acquire(
+                        "us-east-1", LOCK_TABLE, endpoint(), Duration.ofHours(24), List.of("mbox", "full")));
+
+        assertTrue(exception.getMessage().contains("\"mbox\""), exception.getMessage());
+        wireMockServer.verify(1, postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem"))
+                .withRequestBody(com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath(
+                        "$.Key.lockId.S", equalTo("zmbackup-full"))));
+        wireMockServer.verify(0, postRequestedFor(com.github.tomakehurst.wiremock.client.WireMock.anyUrl())
+                .withHeader("X-Amz-Target", equalTo("DynamoDB_20120810.DeleteItem"))
+                .withRequestBody(com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath(
+                        "$.Key.lockId.S", equalTo("zmbackup-mbox"))));
     }
 
     private URI endpoint() {

@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 public final class CloudMigrationService {
 
-    private static final List<String> SUFFIXES = List.of("ldiff", "tgz");
+    private static final List<String> SUFFIXES = List.of("ldiff", "tgz", "zip", "sqlite3");
 
     private final StorageProvider sourceStorage;
     private final MetadataStore sourceMetadata;

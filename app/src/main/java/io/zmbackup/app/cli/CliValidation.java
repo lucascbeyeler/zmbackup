@@ -1,16 +1,22 @@
 package io.zmbackup.app.cli;
 
+import io.zmbackup.core.domain.BackupType;
 import io.zmbackup.core.domain.Identifiers;
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 final class CliValidation {
 
     private static final Pattern EMAIL = Identifiers.EMAIL;
     private static final Pattern DOMAIN = Identifiers.DOMAIN;
-    private static final Pattern SESSION_ID =
-            Pattern.compile("^(full|inc|ldap|domain|distlist|alias|mbox|signature|serverconfig)-[0-9]{14}$");
+    private static final Pattern SESSION_ID = Pattern.compile("^("
+            + Arrays.stream(BackupType.values())
+                    .map(type -> Pattern.quote(type.sessionPrefix()))
+                    .collect(Collectors.joining("|"))
+            + ")-[0-9]{14}$");
 
     private CliValidation() {}
 

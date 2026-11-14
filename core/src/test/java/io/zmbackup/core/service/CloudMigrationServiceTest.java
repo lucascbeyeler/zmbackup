@@ -68,6 +68,27 @@ class CloudMigrationServiceTest {
     }
 
     @Test
+    void migratesServerConfigAndSelfBackups() throws IOException {
+        seedSession("serverconfig-20260101120000", "serverconfig", null, null);
+        sourceStorage.write("serverconfig-20260101120000", "serverconfig", "zip", "zip-content");
+        seedSession("self-20260101120000", "self", null, null);
+        sourceStorage.write("self-20260101120000", "self", "sqlite3", "sqlite-content");
+
+        migrationService.migrate();
+
+        assertEquals(
+                "zip-content",
+                new String(
+                        destinationStorage.readAll("serverconfig-20260101120000", "serverconfig", "zip"),
+                        StandardCharsets.UTF_8));
+        assertEquals(
+                "sqlite-content",
+                new String(
+                        destinationStorage.readAll("self-20260101120000", "self", "sqlite3"),
+                        StandardCharsets.UTF_8));
+    }
+
+    @Test
     void retryingAfterAPartialFailureDoesNotDuplicateAlreadyMigratedAccounts() throws IOException {
         seedSession("full-20260101120000", "alice@example.com", "ldiff", "tgz");
         sourceMetadata.recordAccountBackup(new BackupAccountRecord(
