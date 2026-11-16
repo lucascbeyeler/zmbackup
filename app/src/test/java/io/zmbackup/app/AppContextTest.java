@@ -95,6 +95,47 @@ class AppContextTest {
     }
 
     @Test
+    void refusesToStartWhenMetadataDirIsSetButTheDatabaseIsStillInWorkDir() throws IOException {
+        Path workDir = tempDir.resolve("workdir");
+        Path metadataDir = tempDir.resolve("metadatadir");
+        Files.createDirectories(workDir);
+        Files.writeString(workDir.resolve("sessions.sqlite3"), "existing");
+        AppConfig config = configWithWorkDirAndMetadataDir(workDir, metadataDir);
+
+        ConfigException exception = assertThrows(ConfigException.class, () -> new AppContext(config));
+
+        assertTrue(exception.getMessage().contains(workDir.resolve("sessions.sqlite3").toString()));
+        assertTrue(exception.getMessage().contains("housekeep"));
+        assertFalse(Files.exists(metadataDir.resolve("sessions.sqlite3")));
+    }
+
+    @Test
+    void warnsWhenBothWorkDirAndMetadataDirHoldASessionDatabase() throws IOException {
+        Path workDir = tempDir.resolve("workdir");
+        Path metadataDir = tempDir.resolve("metadatadir");
+        Files.createDirectories(workDir);
+        Files.createDirectories(metadataDir);
+        new SqliteMetadataStore(workDir.resolve("sessions.sqlite3")).close();
+        new SqliteMetadataStore(metadataDir.resolve("sessions.sqlite3")).close();
+        AppConfig config = configWithWorkDirAndMetadataDir(workDir, metadataDir);
+
+        List<String> warnings = captureAppContextWarnings(() -> new AppContext(config));
+
+        assertTrue(warnings.stream().anyMatch(message -> message.contains(workDir.resolve("sessions.sqlite3").toString())
+                && message.contains("housekeep")));
+    }
+
+    @Test
+    void doesNotCheckForAStrandedDatabaseWhenMetadataDirIsWorkDir() throws IOException {
+        new SqliteMetadataStore(tempDir.resolve("sessions.sqlite3")).close();
+        AppConfig config = configWithWorkDirAndMetadataDir(tempDir, tempDir.resolve("."));
+
+        List<String> warnings = captureAppContextWarnings(() -> new AppContext(config));
+
+        assertTrue(warnings.stream().noneMatch(message -> message.contains("second session database")));
+    }
+
+    @Test
     void fromConfigFileLoadsAndWiresComponents() throws IOException {
         Path configFile = tempDir.resolve("zmbackup.yaml");
         Files.writeString(

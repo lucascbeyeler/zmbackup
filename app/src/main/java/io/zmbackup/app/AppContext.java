@@ -46,6 +46,7 @@ import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -169,7 +170,34 @@ public final class AppContext {
             return new DynamoDBMetadataStore(
                     dynamodb.region(), dynamodb.sessionTable(), dynamodb.accountTable(), dynamodb.endpointOverride());
         }
+        checkForStrandedMetadataStore(config);
         return new SqliteMetadataStore(config.backup().metadataDir().resolve(METADATA_STORE_FILENAME));
+    }
+
+    private static void checkForStrandedMetadataStore(AppConfig config) {
+        Path workDir = config.backup().workDir().toAbsolutePath().normalize();
+        Path metadataDir = config.backup().metadataDir().toAbsolutePath().normalize();
+        if (workDir.equals(metadataDir)) {
+            return;
+        }
+        Path stranded = workDir.resolve(METADATA_STORE_FILENAME);
+        if (!Files.exists(stranded)) {
+            return;
+        }
+        Path active = metadataDir.resolve(METADATA_STORE_FILENAME);
+        if (!Files.exists(active)) {
+            throw new ConfigException("backup.metadataDir is " + metadataDir + " but the session database is still at "
+                    + stranded + ". Starting would create an empty database there, and the backups recorded in "
+                    + stranded + " would never be listed, restored or rotated by housekeep. Move " + stranded
+                    + " to " + metadataDir + " before running zmbackup again.");
+        }
+        LOG.warn("Found a second session database at {} while backup.metadataDir is {}. The backups recorded in {}"
+                        + " are not listed, restored or rotated by housekeep, and their files stay in {} until they are"
+                        + " deleted by hand.",
+                stranded,
+                metadataDir,
+                stranded,
+                workDir);
     }
 
     public static RunLock acquireRunLock(AppConfig config) throws IOException {
