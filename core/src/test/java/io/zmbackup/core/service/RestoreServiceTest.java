@@ -523,6 +523,11 @@ class RestoreServiceTest {
         }
 
         @Override
+        public void delete(String sessionId, String account, String suffix) {
+            content.remove(key(sessionId, account, suffix));
+        }
+
+        @Override
         public int deleteEmptyFiles() {
             throw new UnsupportedOperationException();
         }

@@ -329,9 +329,8 @@ public class BackupService {
         Instant startedAt = Instant.now();
         try {
             if (type == BackupType.MAILBOX) {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                    emptyMailboxes.requireContent(identifier, mailboxExporter.export(identifier, destination));
-                }
+                write(sessionId, identifier, TGZ_SUFFIX, destination ->
+                        emptyMailboxes.requireContent(identifier, mailboxExporter.export(identifier, destination)));
             } else if (type == BackupType.INCREMENTAL) {
                 Optional<Instant> lastBackup = metadataStore.lastSuccessfulBackupTime(identifier);
                 if (lastBackup.isEmpty()) {
@@ -339,31 +338,22 @@ public class BackupService {
                             + " - running a full backup instead of an incremental one.");
                     fullExport(sessionId, identifier, emptyMailboxes);
                 } else {
-                    try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-                        emptyMailboxes.noteIfUnchanged(
-                                identifier,
-                                mailboxExporter.export(
-                                        identifier, destination, lastBackup.get().minus(INCREMENTAL_LOOKBACK)));
-                    }
+                    Instant since = lastBackup.get().minus(INCREMENTAL_LOOKBACK);
+                    write(sessionId, identifier, TGZ_SUFFIX, destination -> emptyMailboxes.noteIfUnchanged(
+                            identifier, mailboxExporter.export(identifier, destination, since)));
                 }
             } else if (type == BackupType.FULL) {
                 fullExport(sessionId, identifier, emptyMailboxes);
             } else if (type == BackupType.SERVER_CONFIG) {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, ZIP_SUFFIX)) {
-                    serverConfigArchiver.export(destination);
-                }
+                write(sessionId, identifier, ZIP_SUFFIX, serverConfigArchiver::export);
             } else if (type == BackupType.SELF) {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, SQLITE_SUFFIX)) {
-                    metadataStore.exportSelfBackup(destination);
-                }
+                write(sessionId, identifier, SQLITE_SUFFIX, metadataStore::exportSelfBackup);
+            } else if (type == BackupType.DOMAIN) {
+                write(sessionId, identifier, LDIFF_SUFFIX,
+                        destination -> ldapExporter.exportDomain(identifier, destination));
             } else {
-                try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
-                    if (type == BackupType.DOMAIN) {
-                        ldapExporter.exportDomain(identifier, destination);
-                    } else {
-                        ldapExporter.export(identifier, objectTypeFor(type), destination);
-                    }
-                }
+                write(sessionId, identifier, LDIFF_SUFFIX,
+                        destination -> ldapExporter.export(identifier, objectTypeFor(type), destination));
             }
         } catch (EmptyMailboxException e) {
             LOG.warning(e::getMessage);
@@ -380,11 +370,26 @@ public class BackupService {
     }
 
     private void fullExport(String sessionId, String identifier, EmptyMailboxes emptyMailboxes) throws IOException {
-        try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, LDIFF_SUFFIX)) {
-            ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination);
-        }
-        try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, TGZ_SUFFIX)) {
-            emptyMailboxes.requireContent(identifier, mailboxExporter.export(identifier, destination));
+        write(sessionId, identifier, LDIFF_SUFFIX,
+                destination -> ldapExporter.export(identifier, LdapObjectType.ACCOUNT, destination));
+        write(sessionId, identifier, TGZ_SUFFIX, destination ->
+                emptyMailboxes.requireContent(identifier, mailboxExporter.export(identifier, destination)));
+    }
+
+    private interface Export {
+        void writeTo(OutputStream destination) throws IOException;
+    }
+
+    private void write(String sessionId, String identifier, String suffix, Export export) throws IOException {
+        try (OutputStream destination = storageProvider.openWrite(sessionId, identifier, suffix)) {
+            export.writeTo(destination);
+        } catch (IOException e) {
+            try {
+                storageProvider.delete(sessionId, identifier, suffix);
+            } catch (IOException cleanupFailure) {
+                e.addSuppressed(cleanupFailure);
+            }
+            throw e;
         }
     }
 

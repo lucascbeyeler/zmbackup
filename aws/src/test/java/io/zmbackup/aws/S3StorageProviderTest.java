@@ -259,6 +259,19 @@ class S3StorageProviderTest {
     }
 
     @Test
+    void deleteRemovesTheSingleObjectKey() throws IOException {
+        String key = "/" + BUCKET + "/sessions/" + SESSION_ID + "/" + ACCOUNT + ".tgz";
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.delete(urlPathEqualTo(key))
+                .willReturn(aResponse().withStatus(204)));
+        S3StorageProvider provider = provider();
+
+        provider.delete(SESSION_ID, ACCOUNT, "tgz");
+
+        wireMockServer.verify(
+                com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor(urlPathEqualTo(key)));
+    }
+
+    @Test
     void deleteEmptyFilesRemovesOnlyZeroByteObjects() throws IOException {
         wireMockServer.stubFor(get(urlPathEqualTo("/" + BUCKET))
                 .willReturn(aResponse()
