@@ -158,6 +158,11 @@ class MigrationServiceTest {
         }
 
         @Override
+        public void delete(String sessionId, String account, String suffix) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public int deleteEmptyFiles() {
             throw new UnsupportedOperationException();
         }

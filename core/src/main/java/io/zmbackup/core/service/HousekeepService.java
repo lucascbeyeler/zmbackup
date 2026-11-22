@@ -38,13 +38,15 @@ public class HousekeepService {
             throw new IllegalArgumentException("days must not be negative");
         }
         Instant cutoff = Instant.now().minus(days, ChronoUnit.DAYS);
-        List<BackupSession> old = metadataStore.findSessionsCompletedBefore(cutoff);
-        if (preserveIncrementalChains) {
-            old = withoutUnexpiredChainMembers(old, cutoff);
-        }
+        List<BackupSession> expired = metadataStore.findSessionsCompletedBefore(cutoff);
+        List<BackupSession> old =
+                preserveIncrementalChains ? withoutUnexpiredChainMembers(expired, cutoff) : expired;
         List<BackupSession> removed = new ArrayList<>();
+        LOG.info(() -> "Housekeeping: " + old.size() + " backup session(s) completed before " + cutoff
+                + " are due for removal.");
         for (BackupSession session : old) {
             if (remove(session)) {
+                LOG.info(() -> "Housekeeping removed backup session " + session.sessionId() + ".");
                 removed.add(session);
             }
         }
@@ -97,7 +99,9 @@ public class HousekeepService {
     }
 
     public int cleanEmpty() throws IOException {
-        return storageProvider.deleteEmptyFiles();
+        int removed = storageProvider.deleteEmptyFiles();
+        LOG.info(() -> "Housekeeping removed " + removed + " empty file(s).");
+        return removed;
     }
 
     private boolean remove(BackupSession session) {

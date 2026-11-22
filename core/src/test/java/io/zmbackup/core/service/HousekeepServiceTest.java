@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 class HousekeepServiceTest {
@@ -47,6 +51,39 @@ class HousekeepServiceTest {
         assertTrue(storageProvider.deletedSessions.contains("ldap-old"));
         assertTrue(!storageProvider.deletedSessions.contains("ldap-recent"));
         assertEquals(1, metadataStore.vacuumCalls);
+    }
+
+    @Test
+    void logsEachRemovedSessionAtInfo() throws IOException {
+        Instant now = Instant.now();
+        metadataStore.save(session("ldap-old", now.minus(10, ChronoUnit.DAYS)));
+        metadataStore.save(session("ldap-recent", now.minus(1, ChronoUnit.DAYS)));
+        List<String> messages = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override
+            public void publish(LogRecord logRecord) {
+                if (logRecord.getLevel() == Level.INFO) {
+                    messages.add(logRecord.getMessage());
+                }
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+        Logger logger = Logger.getLogger(HousekeepService.class.getName());
+        logger.addHandler(handler);
+        try {
+            housekeepService.rotateOldSessions(7);
+        } finally {
+            logger.removeHandler(handler);
+        }
+
+        assertTrue(messages.stream().anyMatch(message -> message.startsWith("Housekeeping: 1 backup session(s)")));
+        assertTrue(messages.contains("Housekeeping removed backup session ldap-old."));
+        assertTrue(messages.stream().noneMatch(message -> message.contains("ldap-recent")));
     }
 
     @Test
@@ -257,6 +294,11 @@ class HousekeepServiceTest {
             }
             deletedSessions.add(sessionId);
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
+        }
+
+        @Override
+        public void delete(String sessionId, String account, String suffix) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

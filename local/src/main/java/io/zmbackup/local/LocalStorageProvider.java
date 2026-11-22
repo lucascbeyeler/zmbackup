@@ -120,6 +120,11 @@ public class LocalStorageProvider implements StorageProvider {
     }
 
     @Override
+    public void delete(String sessionId, String account, String suffix) throws IOException {
+        Files.deleteIfExists(accountFile(sessionId, account, suffix));
+    }
+
+    @Override
     public int deleteEmptyFiles() throws IOException {
         if (!Files.isDirectory(workDir)) {
             return 0;

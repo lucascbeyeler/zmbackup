@@ -122,6 +122,23 @@ class LocalStorageProviderTest {
     }
 
     @Test
+    void deleteRemovesOnlyThatFile() throws IOException {
+        write("session1", "alice@example.com", "ldiff", "a");
+        write("session1", "alice@example.com", "tgz", "b");
+
+        provider.delete("session1", "alice@example.com", "tgz");
+
+        assertFalse(provider.exists("session1", "alice@example.com", "tgz"));
+        assertTrue(provider.exists("session1", "alice@example.com", "ldiff"));
+    }
+
+    @Test
+    void deleteIsANoOpWhenTheFileOrSessionDoesNotExist() {
+        assertDoesNotThrow(() -> provider.delete("missing-session", "alice@example.com", "tgz"));
+        assertFalse(Files.exists(workDir.resolve("missing-session")));
+    }
+
+    @Test
     void sizeOfSessionSumsAllAccountsFiles() throws IOException {
         write("session1", "user@example.com", "ldiff", "a".repeat(1024));
         write("session1", "other@example.com", "tgz", "b".repeat(1024));

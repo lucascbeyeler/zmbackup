@@ -802,6 +802,34 @@ class BackupServiceTest {
     }
 
     @Test
+    void aMailboxExportThatFailsMidWriteLeavesNoPartialArchiveButKeepsTheLdif() throws IOException {
+        mailboxExporter.failingAfterPartialWrite.add("bad@example.com");
+
+        Optional<BackupSession> result =
+                backupService.backup(BackupType.FULL, List.of("good@example.com", "bad@example.com"));
+
+        assertTrue(result.isPresent());
+        String sessionId = result.get().sessionId();
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertFalse(storageProvider.exists(sessionId, "bad@example.com", "tgz"));
+        assertTrue(storageProvider.exists(sessionId, "bad@example.com", "ldiff"));
+        assertTrue(storageProvider.exists(sessionId, "good@example.com", "tgz"));
+        assertEquals(Set.of("good@example.com"), namesOf(metadataStore.findAccountsForSession(sessionId)));
+    }
+
+    @Test
+    void anIncrementalExportThatFailsMidWriteLeavesNoPartialArchive() throws IOException {
+        backupService.backup(BackupType.FULL, List.of("bad@example.com"));
+        mailboxExporter.failingAfterPartialWrite.add("bad@example.com");
+
+        Optional<BackupSession> result = backupService.backup(BackupType.INCREMENTAL, List.of("bad@example.com"));
+
+        assertTrue(result.isPresent());
+        assertEquals(SessionStatus.FAILED, result.get().status());
+        assertFalse(storageProvider.exists(result.get().sessionId(), "bad@example.com", "tgz"));
+    }
+
+    @Test
     void backsUpDiscoveredAccountsForMailboxType() throws IOException {
         accountDiscovery.wholeDirectory.put(LdapObjectType.ACCOUNT, List.of("alice@example.com", "bob@example.com"));
 
@@ -970,9 +998,14 @@ class BackupServiceTest {
         final Map<String, Instant> exported = new LinkedHashMap<>();
         final Set<String> noNewContent = new HashSet<>();
         final Set<String> failing = new HashSet<>();
+        final Set<String> failingAfterPartialWrite = new HashSet<>();
 
         @Override
         public boolean export(String account, OutputStream destination, Instant since) throws IOException {
+            if (failingAfterPartialWrite.contains(account)) {
+                destination.write(("partial-tgz:" + account).getBytes());
+                throw new IOException("No space left on device");
+            }
             if (failing.contains(account)) {
                 throw new IOException("simulated export failure for " + account);
             }
@@ -1066,6 +1099,11 @@ class BackupServiceTest {
         @Override
         public void deleteSession(String sessionId) {
             content.keySet().removeIf(key -> key.startsWith(sessionId + "/"));
+        }
+
+        @Override
+        public void delete(String sessionId, String account, String suffix) {
+            content.remove(key(sessionId, account, suffix));
         }
 
         @Override

@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -126,6 +127,18 @@ public final class S3StorageProvider implements StorageProvider {
     @Override
     public void deleteSession(String sessionId) throws IOException {
         deleteObjects(listObjects(sessionPrefix(sessionId)));
+    }
+
+    @Override
+    public void delete(String sessionId, String account, String suffix) throws IOException {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(objectKey(sessionId, account, suffix))
+                    .build());
+        } catch (SdkException e) {
+            throw new IOException(e);
+        }
     }
 
     @Override

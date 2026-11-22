@@ -20,5 +20,7 @@ public interface StorageProvider {
 
     void deleteSession(String sessionId) throws IOException;
 
+    void delete(String sessionId, String account, String suffix) throws IOException;
+
     int deleteEmptyFiles() throws IOException;
 }
